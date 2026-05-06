@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>离线 - MDT 多学科会诊系统</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    
+    .container {
+      text-align: center;
+      padding: 40px 20px;
+      max-width: 500px;
+    }
+    
+    .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      opacity: 0.8;
+    }
+    
+    h1 {
+      font-size: 32px;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    
+    p {
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+      opacity: 0.9;
+    }
+    
+    .status {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .status-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .status-item:last-child {
+      border-bottom: none;
+    }
+    
+    .status-label {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+    
+    .status-value {
+      font-weight: 600;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+      background: #fff;
+      color: #667eea;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .tips {
+      margin-top: 32px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      text-align: left;
+    }
+    
+    .tips h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      opacity: 0.9;
+    }
+    
+    .tips ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    
+    .tips li {
+      font-size: 14px;
+      padding: 6px 0;
+      padding-left: 20px;
+      position: relative;
+      opacity: 0.8;
+    }
+    
+    .tips li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #4ade80;
+      font-weight: bold;
+    }
+    
+    @media (max-width: 768px) {
+      .icon {
+        font-size: 60px;
+      }
+      
+      h1 {
+        font-size: 24px;
+      }
+      
+      p {
+        font-size: 14px;
+      }
+      
+      .status {
+        padding: 16px;
+      }
+      
+      .status-label,
+      .status-value {
+        font-size: 13px;
+      }
+      
+      button {
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    
+    <h1>网络连接已断开</h1>
+    
+    <p>您目前处于离线状态，部分功能可能无法使用。已缓存的数据仍可查看。</p>
+    
+    <div class="status">
+      <div class="status-item">
+        <span class="status-label">连接状态</span>
+        <span class="status-value" id="connectionStatus">离线</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">缓存数据</span>
+        <span class="status-value" id="cachedItems">加载中...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">待同步</span>
+        <span class="status-value" id="pendingSync">0 项</span>
+      </div>
+    </div>
+    
+    <div class="actions">
+      <button class="btn-primary" onclick="location.reload()">
+        🔄 重新连接
+      </button>
+      <button class="btn-secondary" onclick="goBack()">
+        ← 返回上一页
+      </button>
+      <button class="btn-secondary" onclick="openCache()">
+        📦 查看缓存
+      </button>
+    </div>
+    
+    <div class="tips">
+      <h3>💡 离线模式下您可以：</h3>
+      <ul>
+        <li>查看已缓存的患者信息</li>
+        <li>浏览已下载的会诊记录</li>
+        <li>编辑草稿（网络恢复后自动同步）</li>
+        <li>查看已保存的报告</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // 监听网络状态
+    function updateConnectionStatus() {
+      const statusEl = document.getElementById('connectionStatus')
+      const isOnline = navigator.onLine
+      
+      statusEl.textContent = isOnline ? '在线' : '离线'
+      statusEl.style.color = isOnline ? '#4ade80' : '#f87171'
+      
+      if (isOnline) {
+        setTimeout(() => {
+          location.reload()
+        }, 1000)
+      }
+    }
+    
+    // 获取缓存统计
+    async function getCachedItemsCount() {
+      try {
+        const cacheNames = await caches.keys()
+        let count = 0
+        
+        for (const name of cacheNames) {
+          const cache = await caches.open(name)
+          const keys = await cache.keys()
+          count += keys.length
+        }
+        
+        document.getElementById('cachedItems').textContent = `${count} 项`
+      } catch (error) {
+        document.getElementById('cachedItems').textContent = '未知'
+      }
+    }
+    
+    // 获取待同步数量
+    function getPendingSyncCount() {
+      // 从 localStorage 或 IndexedDB 获取
+      const pending = localStorage.getItem('pendingSync') || '[]'
+      const items = JSON.parse(pending)
+      document.getElementById('pendingSync').textContent = `${items.length} 项`
+    }
+    
+    // 返回上一页
+    function goBack() {
+      window.history.back()
+    }
+    
+    // 查看缓存
+    async function openCache() {
+      const cacheNames = await caches.keys()
+      let info = '缓存列表:\n\n'
+      
+      for (const name of cacheNames) {
+        const cache = await caches.open(name)
+        const keys = await cache.keys()
+        info += `${name}: ${keys.length} 项\n`
+      }
+      
+      alert(info)
+    }
+    
+    // 监听网络状态变化
+    window.addEventListener('online', updateConnectionStatus)
+    window.addEventListener('offline', updateConnectionStatus)
+    
+    // 初始化
+    updateConnectionStatus()
+    getCachedItemsCount()
+    getPendingSyncCount()
+    
+    // 定期检查
+    setInterval(getPendingSyncCount, 5000)
+  </script>
+</body>
+</html>
