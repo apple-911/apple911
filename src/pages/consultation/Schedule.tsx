@@ -88,55 +88,97 @@ export default function Schedule() {
         <Table
           dataSource={pendingConsultations}
           rowKey="id"
+          scroll={{ x: 1400 }}
           columns={[
             {
               title: '患者信息',
               dataIndex: 'patientName',
+              width: 120,
+              fixed: 'left',
               render: (name, record) => (
                 <Space>
                   <Avatar icon={<UserOutlined />} size="small" />
                   <div>
-                    <div>{name}</div>
+                    <div className="font-medium">{name}</div>
                     <div className="text-xs text-gray-500">{record.patientInpatientNo}</div>
+                    <div className="text-xs text-gray-400">{record.age}岁 | {record.gender === 'male' ? '男' : '女'}</div>
                   </div>
                 </Space>
               )
             },
             {
-              title: '诊断',
-              dataIndex: 'mainDiagnosis',
-              ellipsis: true
+              title: '诊断信息',
+              key: 'diagnosis',
+              width: 180,
+              render: (_, record) => (
+                <div>
+                  <div className="font-medium text-sm">{record.mainDiagnosis}</div>
+                  {record.otherDiagnoses && record.otherDiagnoses.length > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      其他：{record.otherDiagnoses.slice(0, 2).join('、')}
+                      {record.otherDiagnoses.length > 2 && ` 等${record.otherDiagnoses.length}项`}
+                    </div>
+                  )}
+                </div>
+              )
             },
             {
-              title: '申请科室',
-              dataIndex: 'department'
-            },
-            {
-              title: '申请医生',
-              dataIndex: 'applyDoctor'
+              title: '申请信息',
+              key: 'apply',
+              width: 120,
+              render: (_, record) => (
+                <div>
+                  <div className="text-sm">{record.department}</div>
+                  <div className="text-xs text-gray-500">{record.applyDoctor}</div>
+                  <div className="text-xs text-gray-400">{record.applyDate}</div>
+                </div>
+              )
             },
             {
               title: '紧急程度',
               dataIndex: 'urgency',
-              render: (urgency) => (
-                <Tag color={urgency === '紧急' ? 'red' : urgency === '特急' ? 'orange' : 'default'}>
-                  {urgency}
-                </Tag>
-              )
+              width: 90,
+              render: (urgency) => {
+                const colorMap = {
+                  '特急': 'red',
+                  '紧急': 'orange',
+                  '普通': 'default'
+                }
+                return <Tag color={colorMap[urgency] || 'default'}>{urgency}</Tag>
+              }
             },
             {
               title: '期望时间',
-              dataIndex: 'expectTime'
+              dataIndex: 'expectTime',
+              width: 140,
+              render: (time) => (
+                <div>
+                  <div className="text-sm">{time}</div>
+                </div>
+              )
+            },
+            {
+              title: '会诊目的',
+              dataIndex: 'consultationPurpose',
+              width: 150,
+              ellipsis: true
             },
             {
               title: '邀请专家',
               dataIndex: 'experts',
+              width: 180,
               render: (experts: Expert[]) => (
                 <Space wrap>
-                  {experts.slice(0, 2).map(e => (
-                    <Tag key={e.id}>{e.name}</Tag>
+                  {experts.slice(0, 3).map(e => (
+                    <Tag key={e.id} color="blue">
+                      {e.name}
+                      <br />
+                      <span className="text-xs">{e.department}</span>
+                    </Tag>
                   ))}
-                  {experts.length > 2 && <Tag>+{experts.length - 2}人</Tag>}
+                  {experts.length > 3 && (
+                    <Tag color="gray">+{experts.length - 3}人</Tag>
+                  )}
                 </Space>
               )
             },
@@ -144,6 +186,7 @@ export default function Schedule() {
               title: '操作',
               key: 'action',
               width: 120,
+              fixed: 'right',
               render: (_, record) => (
                 <Space direction="vertical" size="small">
                   <Button
@@ -157,10 +200,18 @@ export default function Schedule() {
                   </Button>
                   <Button
                     size="small"
+                    icon={<UserOutlined />}
+                    onClick={() => navigate(`/patient/detail/${record.patientId}`)}
+                    block
+                  >
+                    患者详情
+                  </Button>
+                  <Button
+                    size="small"
                     onClick={() => navigate(`/consultation/detail/${record.id}`)}
                     block
                   >
-                    详情
+                    会诊详情
                   </Button>
                 </Space>
               )
