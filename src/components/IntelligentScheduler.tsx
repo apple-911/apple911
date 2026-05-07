@@ -1,11 +1,8 @@
 import { useState, useMemo } from 'react'
-import { Card, DatePicker, TimePicker, Button, Tag, Space, Typography, Divider, Alert, List, Avatar, Modal, message, Calendar, Badge, Select } from 'antd'
+import { Card, DatePicker, TimePicker, Button, Tag, Space, Typography, Alert, List, Avatar, Modal, message, Badge } from 'antd'
 import { ClockCircleOutlined, CheckCircleOutlined, UserOutlined, WarningOutlined, TeamOutlined, CalendarOutlined, SyncOutlined } from '@ant-design/icons'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
-import isBetween from 'dayjs/plugin/isBetween'
-
-dayjs.extend(isBetween)
 
 const { Text, Title } = Typography
 
@@ -45,14 +42,6 @@ interface IntelligentSchedulerProps {
   existingConsultation?: any
 }
 
-/**
- * 智能排期组件
- * 支持：
- * - 专家时间冲突检测
- * - 智能推荐最优时间段
- * - 多专家时间协调
- * - 排期调整（改期、改专家）
- */
 export default function IntelligentScheduler({
   experts,
   scheduledEvents = [],
@@ -67,7 +56,6 @@ export default function IntelligentScheduler({
   const [selectedExperts, setSelectedExperts] = useState<Expert[]>(experts)
   const [showExpertSelector, setShowExpertSelector] = useState(false)
 
-  // 获取某天某时间的专家空闲情况
   const getExpertAvailabilityAtTime = useMemo(() => {
     return (date: Dayjs, time: string) => {
       const dateStr = date.format('YYYY-MM-DD')
@@ -76,7 +64,6 @@ export default function IntelligentScheduler({
           a => a.expertId === expert.id && a.date === dateStr
         )
         
-        // 检查是否有已安排的会诊冲突
         const hasConflict = scheduledEvents.some(event => 
           event.date.isSame(date, 'day') && 
           event.time === time &&
@@ -96,7 +83,6 @@ export default function IntelligentScheduler({
     }
   }, [experts, expertAvailability, scheduledEvents])
 
-  // 计算推荐时间段
   const recommendedSlots = useMemo(() => {
     if (!selectedDate || experts.length === 0) return []
 
@@ -108,7 +94,6 @@ export default function IntelligentScheduler({
       totalExperts: number
     }[] = []
 
-    // 生成当天所有可能的时间段（8:00 - 18:00，每 30 分钟一个）
     const timeSlots: string[] = []
     for (let hour = 8; hour <= 17; hour++) {
       timeSlots.push(`${hour.toString().padStart(2, '0')}:00`)
@@ -117,8 +102,8 @@ export default function IntelligentScheduler({
 
     timeSlots.forEach(time => {
       const availability = getExpertAvailabilityAtTime(selectedDate, time)
-      const availableExperts = availability.filter(a => a.isAvailable).map(a => a.expert)
-      const busyExperts = availability.filter(a => a.isBusy)
+      const availableExperts = availability.filter((a: any) => a.isAvailable).map((a: any) => a.expert)
+      const busyExperts = availability.filter((a: any) => a.isBusy)
 
       const score = (availableExperts.length / experts.length) * 100
 
@@ -131,26 +116,24 @@ export default function IntelligentScheduler({
       })
     })
 
-    // 按分数排序，取前 8 个推荐
     return slots
-      .filter(s => s.score >= 50) // 只显示至少 50% 专家可用的时间段
-      .sort((a, b) => b.score - a.score)
+      .filter((s: any) => s.score >= 50)
+      .sort((a: any, b: any) => b.score - a.score)
       .slice(0, 8)
   }, [selectedDate, experts, getExpertAvailabilityAtTime])
 
-  // 检查当前选择是否有冲突
   const conflictCheck = useMemo(() => {
     if (!selectedDate || !selectedTime) return null
 
     const availability = getExpertAvailabilityAtTime(selectedDate, selectedTime.format('HH:mm'))
-    const busyExperts = availability.filter(a => a.isBusy)
-    const unavailableExperts = availability.filter(a => !a.isAvailable)
+    const busyExperts = availability.filter((a: any) => a.isBusy)
+    const unavailableExperts = availability.filter((a: any) => !a.isAvailable)
 
     return {
       hasConflict: busyExperts.length > 0,
       busyExperts,
       unavailableExperts,
-      availableCount: availability.filter(a => a.isAvailable).length,
+      availableCount: availability.filter((a: any) => a.isAvailable).length,
       totalCount: experts.length
     }
   }, [selectedDate, selectedTime, getExpertAvailabilityAtTime, experts])
@@ -198,13 +181,6 @@ export default function IntelligentScheduler({
     return 'warning'
   }
 
-  const getTimeSlotColor = (time: string) => {
-    const slot = recommendedSlots.find(s => s.time === time)
-    if (!slot) return 'default'
-    return getScoreColor(slot.score)
-  }
-
-  // 渲染专家选择器
   const renderExpertSelector = () => (
     <Modal
       title="选择会诊专家"
@@ -221,7 +197,7 @@ export default function IntelligentScheduler({
         />
         <List
           dataSource={experts}
-          renderItem={(expert) => {
+          renderItem={(expert: Expert) => {
             const isSelected = selectedExperts.some(e => e.id === expert.id)
             return (
               <List.Item
@@ -264,7 +240,6 @@ export default function IntelligentScheduler({
     </Modal>
   )
 
-  // 渲染推荐时间段
   const renderRecommendedSlots = () => (
     <div className="space-y-2">
       <Title level={5}>
@@ -280,7 +255,7 @@ export default function IntelligentScheduler({
         />
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {recommendedSlots.map((slot) => (
+          {recommendedSlots.map((slot: any) => (
             <Button
               key={slot.time}
               onClick={() => {
@@ -304,7 +279,6 @@ export default function IntelligentScheduler({
     </div>
   )
 
-  // 渲染冲突提示
   const renderConflictAlert = () => {
     if (!conflictCheck) return null
 
@@ -337,7 +311,7 @@ export default function IntelligentScheduler({
       return (
         <Alert
           message={`部分专家不可用`}
-          description={`${conflictCheck.availableCount}/${conflictCheck.totalCount} 位专家可用，${conflictCheck.totalCount - conflictCheck.availableCount} 位专家不可用`}
+          description={`${conflictCheck.availableCount}/${conflictCheck.totalCount} 位专家可用`}
           type="info"
           showIcon
         />
@@ -356,7 +330,6 @@ export default function IntelligentScheduler({
 
   return (
     <div className="space-y-4">
-      {/* 模式提示 */}
       {mode === 'reschedule' && existingConsultation && (
         <Alert
           message={`调整排期：${existingConsultation.patientName}`}
@@ -372,7 +345,6 @@ export default function IntelligentScheduler({
         />
       )}
 
-      {/* 日期选择 */}
       <Card title={<CalendarOutlined className="mr-2" />选择日期}>
         <DatePicker
           value={selectedDate}
@@ -386,10 +358,8 @@ export default function IntelligentScheduler({
         />
       </Card>
 
-      {/* 智能推荐 */}
       {selectedDate && renderRecommendedSlots()}
 
-      {/* 时间选择 */}
       <Card title={<ClockCircleOutlined className="mr-2" />选择时间}>
         <div className="space-y-3">
           <TimePicker
@@ -397,12 +367,6 @@ export default function IntelligentScheduler({
             onChange={(time) => setSelectedTime(time)}
             format="HH:mm"
             minuteStep={30}
-            disabledHours={() => {
-              if (!selectedDate) return []
-              const availableHours = recommendedSlots.map(s => parseInt(s.time.split(':')[0]))
-              const allHours = Array.from({ length: 24 }, (_, i) => i)
-              return allHours.filter(h => !availableHours.includes(h))
-            }}
             style={{ width: '100%' }}
             size="large"
           />
@@ -410,7 +374,6 @@ export default function IntelligentScheduler({
         </div>
       </Card>
 
-      {/* 专家选择 */}
       <Card
         title={<TeamOutlined className="mr-2" />会诊专家}
         extra={
@@ -435,7 +398,6 @@ export default function IntelligentScheduler({
         </div>
       </Card>
 
-      {/* 确认按钮 */}
       <div className="flex justify-center gap-3 pt-4">
         <Button
           size="large"
