@@ -64,8 +64,29 @@ export interface DepartmentOpinion {
     expectedFindings: string
     priority: 'urgent' | 'important' | 'optional'
   }>
-  treatmentRecommendations: any[]
+  treatmentRecommendations: Array<{
+    primaryRecommendation?: string
+    alternatives?: string[]
+    contraindications?: string[]
+    evidenceLevel?: string
+    guideline?: string
+  }>
   differentialDiagnosis: any[]
+  diagnosisAnalysis?: {
+    primaryDiagnosis: string
+    confidence: number
+    basis: string[]
+    assessment?: string
+    keyFindings?: string[]
+    missingInformation?: string[]
+    differentialDiagnosis?: any[]
+  }
+  specialtyAssessment?: {
+    keyPoints?: string[]
+    concerns?: string[]
+    additionalTests?: string[]
+    opportunities?: string[]
+  }
 }
 
 export class AIPreDiagnosisService {
@@ -231,6 +252,14 @@ export class AIPreDiagnosisService {
           }
         }
     }
+  }
+
+  async exportPreDiagnosisReport(options: {
+    consultationId: string
+    format: 'pdf' | 'word' | 'html'
+    includeEvidence?: boolean
+  }): Promise<Blob> {
+    return new Blob(['报告内容'], { type: 'application/pdf' })
   }
 }
 

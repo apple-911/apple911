@@ -124,7 +124,7 @@ export default function PreDiagnosisOpinion({
   }
 
   // 获取证据级别颜色
-  const getEvidenceLevelColor = (level: string) => {
+  const getEvidenceLevelColor = (level: string | undefined) => {
     const colors: Record<string, string> = {
       'I': 'green',
       'II': 'blue',
@@ -132,7 +132,7 @@ export default function PreDiagnosisOpinion({
       'IV': 'gold',
       'V': 'default'
     }
-    return colors[level] || 'default'
+    return colors[level || 'V'] || 'default'
   }
 
   // 导出报告
@@ -141,12 +141,16 @@ export default function PreDiagnosisOpinion({
       const result = await aiPreDiagnosisService.exportPreDiagnosisReport({
         consultationId,
         format,
-        includeEvidence: true,
-        includeImages: true
+        includeEvidence: true
       })
       
       // 下载文件
-      window.open(result.downloadUrl)
+      const url = window.URL.createObjectURL(result)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `预诊断报告.${format}`
+      link.click()
+      window.URL.revokeObjectURL(url)
       message.success('报告导出成功')
       setExportVisible(false)
     } catch (error) {
@@ -372,7 +376,7 @@ export default function PreDiagnosisOpinion({
                   <Card type="inner" title="诊断分析" size="small">
                     <Paragraph>
                       <Text type="secondary">评估：</Text>
-                      {deptOpinion.opinion.diagnosisAnalysis.assessment}
+                      {deptOpinion.opinion.diagnosisAnalysis?.assessment}
                     </Paragraph>
 
                     <Divider style={{ margin: '12px 0' }} />
@@ -380,8 +384,8 @@ export default function PreDiagnosisOpinion({
                     <Text type="secondary">鉴别诊断：</Text>
                     <List
                       size="small"
-                      dataSource={deptOpinion.opinion.diagnosisAnalysis.differentialDiagnosis}
-                      renderItem={(item, idx) => (
+                      dataSource={deptOpinion.opinion.diagnosisAnalysis?.differentialDiagnosis ?? []}
+                      renderItem={(item: any, idx: number) => (
                         <List.Item>
                           <List.Item.Meta
                             title={
@@ -418,8 +422,8 @@ export default function PreDiagnosisOpinion({
                         <Text type="secondary">关键发现：</Text>
                         <List
                           size="small"
-                          dataSource={deptOpinion.opinion.diagnosisAnalysis.keyFindings}
-                          renderItem={(item, idx) => (
+                          dataSource={deptOpinion.opinion.diagnosisAnalysis?.keyFindings ?? []}
+                          renderItem={(item: any, idx: number) => (
                             <List.Item>
                               <Space>
                                 <CheckCircleOutlined style={{ color: '#52c41a' }} />
@@ -433,8 +437,8 @@ export default function PreDiagnosisOpinion({
                         <Text type="secondary">缺失信息：</Text>
                         <List
                           size="small"
-                          dataSource={deptOpinion.opinion.diagnosisAnalysis.missingInformation}
-                          renderItem={(item, idx) => (
+                          dataSource={deptOpinion.opinion.diagnosisAnalysis?.missingInformation ?? []}
+                          renderItem={(item: any, idx: number) => (
                             <List.Item>
                               <Space>
                                 <WarningOutlined style={{ color: '#faad14' }} />
@@ -452,21 +456,21 @@ export default function PreDiagnosisOpinion({
                   <Card type="inner" title="治疗建议" size="small">
                     <Paragraph>
                       <Text type="secondary">主要推荐：</Text>
-                      <Text strong>{deptOpinion.opinion.treatmentRecommendations.primaryRecommendation}</Text>
+                      <Text strong>{deptOpinion.opinion.treatmentRecommendations[0]?.primaryRecommendation}</Text>
                     </Paragraph>
 
-                    {deptOpinion.opinion.treatmentRecommendations.alternatives.length > 0 && (
+                    {(deptOpinion.opinion.treatmentRecommendations[0]?.alternatives ?? []).length > 0 && (
                       <Paragraph>
                         <Text type="secondary">替代方案：</Text>
-                        {deptOpinion.opinion.treatmentRecommendations.alternatives.join('、')}
+                        {deptOpinion.opinion.treatmentRecommendations[0]?.alternatives?.join('、')}
                       </Paragraph>
                     )}
 
-                    {deptOpinion.opinion.treatmentRecommendations.contraindications.length > 0 && (
+                    {(deptOpinion.opinion.treatmentRecommendations[0]?.contraindications ?? []).length > 0 && (
                       <Alert
                         type="warning"
                         message="禁忌证"
-                        description={deptOpinion.opinion.treatmentRecommendations.contraindications.join('、')}
+                        description={deptOpinion.opinion.treatmentRecommendations[0]?.contraindications?.join('、')}
                         style={{ marginTop: 8 }}
                       />
                     )}
@@ -475,12 +479,12 @@ export default function PreDiagnosisOpinion({
 
                     <Descriptions column={2} size="small">
                       <Descriptions.Item label="证据级别">
-                        <Tag color={getEvidenceLevelColor(deptOpinion.opinion.treatmentRecommendations.evidenceLevel)}>
-                          {deptOpinion.opinion.treatmentRecommendations.evidenceLevel}级
+                        <Tag color={getEvidenceLevelColor(deptOpinion.opinion.treatmentRecommendations[0]?.evidenceLevel)}>
+                          {deptOpinion.opinion.treatmentRecommendations[0]?.evidenceLevel || '未分级'}级
                         </Tag>
                       </Descriptions.Item>
                       <Descriptions.Item label="指南">
-                        {deptOpinion.opinion.treatmentRecommendations.guideline}
+                        {deptOpinion.opinion.treatmentRecommendations[0]?.guideline}
                       </Descriptions.Item>
                     </Descriptions>
                   </Card>
@@ -540,8 +544,8 @@ export default function PreDiagnosisOpinion({
                         <Text type="secondary">评估要点：</Text>
                         <List
                           size="small"
-                          dataSource={deptOpinion.opinion.specialtyAssessment.keyPoints}
-                          renderItem={(item, idx) => (
+                          dataSource={deptOpinion.opinion.specialtyAssessment?.keyPoints ?? []}
+                          renderItem={(item: any, idx: number) => (
                             <List.Item>
                               <Text>{idx + 1}. {item}</Text>
                             </List.Item>
@@ -552,8 +556,8 @@ export default function PreDiagnosisOpinion({
                         <Text type="warning">关注点：</Text>
                         <List
                           size="small"
-                          dataSource={deptOpinion.opinion.specialtyAssessment.concerns}
-                          renderItem={(item, idx) => (
+                          dataSource={deptOpinion.opinion.specialtyAssessment?.concerns ?? []}
+                          renderItem={(item: any, idx: number) => (
                             <List.Item>
                               <Text>{idx + 1}. {item}</Text>
                             </List.Item>
@@ -564,8 +568,8 @@ export default function PreDiagnosisOpinion({
                         <Text type="success">机会点：</Text>
                         <List
                           size="small"
-                          dataSource={deptOpinion.opinion.specialtyAssessment.opportunities}
-                          renderItem={(item, idx) => (
+                          dataSource={deptOpinion.opinion.specialtyAssessment?.opportunities ?? []}
+                          renderItem={(item: any, idx: number) => (
                             <List.Item>
                               <Text>{idx + 1}. {item}</Text>
                             </List.Item>
@@ -598,7 +602,7 @@ export default function PreDiagnosisOpinion({
             <Card type="inner" title="关键问题" size="small">
               <List
                 dataSource={opinion.discussionPoints.keyQuestions}
-                renderItem={(item) => (
+                renderItem={(item: any) => (
                   <List.Item>
                     <List.Item.Meta
                       title={
@@ -630,13 +634,13 @@ export default function PreDiagnosisOpinion({
             <Card type="inner" title="潜在争议点" size="small">
               <List
                 dataSource={opinion.discussionPoints.potentialControversies}
-                renderItem={(item) => (
+                renderItem={(item: any) => (
                   <List.Item>
                     <List.Item.Meta
                       title={<Text strong>{item.topic}</Text>}
                       description={
                         <div>
-                          {item.differentViewpoints.map((viewpoint, idx) => (
+                          {item.differentViewpoints.map((viewpoint: any, idx: number) => (
                             <div key={idx} style={{ marginBottom: 8 }}>
                               <Tag>{viewpoint.perspective}</Tag>
                               <Text type="secondary">{viewpoint.rationale}</Text>
@@ -659,7 +663,7 @@ export default function PreDiagnosisOpinion({
             <Card type="inner" title="决策难点" size="small">
               <List
                 dataSource={opinion.discussionPoints.decisionChallenges}
-                renderItem={(item) => (
+                renderItem={(item: any) => (
                   <List.Item>
                     <List.Item.Meta
                       title={<Text strong>{item.challenge}</Text>}
@@ -698,7 +702,7 @@ export default function PreDiagnosisOpinion({
             <Card type="inner" title="相关指南" size="small">
               <List
                 dataSource={opinion.evidence.guidelines}
-                renderItem={(item) => (
+                renderItem={(item: any) => (
                   <List.Item>
                     <List.Item.Meta
                       title={
@@ -734,7 +738,7 @@ export default function PreDiagnosisOpinion({
             <Card type="inner" title="关键研究" size="small">
               <List
                 dataSource={opinion.evidence.keyStudies}
-                renderItem={(item) => (
+                renderItem={(item: any) => (
                   <List.Item>
                     <List.Item.Meta
                       title={

@@ -417,10 +417,10 @@ export default function MDTWarningCard({
           <div className="mb-4">
             <div className="flex justify-between items-center mb-1">
               <Text strong>预后</Text>
-              <Tag color={assessment.assessmentDimensions.prognosis.recurrenceRisk === 'high' ? 'red' : 
-                             assessment.assessmentDimensions.prognosis.recurrenceRisk === 'intermediate' ? 'orange' : 'green'}>
-                {assessment.assessmentDimensions.prognosis.recurrenceRisk === 'high' ? '高危' : 
-                 assessment.assessmentDimensions.prognosis.recurrenceRisk === 'intermediate' ? '中危' : '低危'}
+              <Tag color={assessment.assessmentDimensions.prognosis.recurrenceRisk?.level === 'high' ? 'red' : 
+                             assessment.assessmentDimensions.prognosis.recurrenceRisk?.level === 'medium' ? 'orange' : 'green'}>
+                {assessment.assessmentDimensions.prognosis.recurrenceRisk?.level === 'high' ? '高危' : 
+                 assessment.assessmentDimensions.prognosis.recurrenceRisk?.level === 'medium' ? '中危' : '低危'}
               </Tag>
             </div>
             <Progress 

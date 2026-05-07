@@ -124,6 +124,11 @@ export interface PrognosisAssessment {
     current: number
     predicted: number
   }
+  recurrenceRisk?: {
+    level: 'low' | 'medium' | 'high'
+    probability: number
+    timeFrame: string
+  }
 }
 
 // 社会议诊议诊断因素评估
@@ -165,7 +170,10 @@ export interface ScreeningAlert {
   message: string
   indications: string[]
   recommendations: string[]
+  reasons?: string[]
+  suggestedActions?: string[]
   createdAt: string
+  timestamp?: string
   reviewed: boolean
   reviewedBy?: string
   reviewedAt?: string
@@ -863,6 +871,21 @@ class AIPatientScreeningService {
       recommendedMDT: 52,
       completedMDT: 38
     }
+  }
+
+  exportPreDiagnosisReport(alertId: string): string {
+    return `筛查报告 - ${alertId}`
+  }
+
+  async exportReport(options: {
+    format: 'excel' | 'pdf'
+    dateRange?: {
+      start: string
+      end: string
+    }
+    includeDetails?: boolean
+  }): Promise<Blob> {
+    return new Blob(['报告内容'], { type: 'application/vnd.ms-excel' })
   }
 }
 

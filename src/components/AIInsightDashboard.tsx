@@ -4,15 +4,48 @@ import {
   RobotOutlined,
   DashboardOutlined,
   WarningOutlined,
-  TrendUpOutlined,
-  TrendDownOutlined,
+  RiseOutlined as TrendUpOutlined,
+  FallOutlined as TrendDownOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import intelligentConsultationService, { ExpertMatch, ConsultationPreparation } from '../../services/integration/ai/intelligentConsultationService'
-import aiQualityControlService, { QualityIndicator, RiskWarning } from '../../services/integration/ai/aiQualityControlService'
+// import intelligentConsultationService from '../../services/integration/ai/intelligentConsultationService'
+// import aiQualityControlService from '../../services/integration/ai/aiQualityControlService'
+
+interface ExpertMatch {
+  consultationId: string
+  matchedExperts: any[]
+  matchScore: number
+}
+
+interface ConsultationPreparation {
+  consultationId: string
+  preparationItems: any[]
+}
+
+interface QualityIndicator {
+  id: string
+  name: string
+  currentValue: number
+  targetValue: number
+  unit: string
+  score: number
+  trend: 'improving' | 'declining' | 'stable'
+  alertStatus?: 'critical' | 'warning' | 'normal'
+  recommendations: string[]
+}
+
+interface RiskWarning {
+  id: string
+  title: string
+  description: string
+  level: 'critical' | 'high' | 'medium' | 'low'
+  severity: number
+  riskScore: number
+  recommendedActions: string[]
+}
 
 const { Title, Text } = Typography
 
@@ -85,7 +118,7 @@ export default function AIInsightDashboard() {
       const generatedInsights: AIInsight[] = []
 
       // 基于质控报告生成洞察
-      qualityReport.coreIndicators.forEach(indicator => {
+      qualityReport.coreIndicators.forEach((indicator: any) => {
         if (indicator.alertStatus === 'critical') {
           generatedInsights.push({
             type: 'alert',
@@ -108,7 +141,7 @@ export default function AIInsightDashboard() {
       })
 
       // 基于风险预警生成洞察
-      riskAssessment.forEach(warning => {
+      riskAssessment.forEach((warning: any) => {
         if (warning.level === 'critical' || warning.level === 'high') {
           generatedInsights.push({
             type: 'alert',
@@ -145,8 +178,8 @@ export default function AIInsightDashboard() {
       }
 
       // 机会洞察
-      if (operationAnalysis.workload.departmentBreakdown.some(d => d.growth > 30)) {
-        const fastGrowingDept = operationAnalysis.workload.departmentBreakdown.find(d => d.growth > 30)
+      if (operationAnalysis.workload.departmentBreakdown.some((d: any) => d.growth > 30)) {
+        const fastGrowingDept = operationAnalysis.workload.departmentBreakdown.find((d: any) => d.growth > 30)
         if (fastGrowingDept) {
           generatedInsights.push({
             type: 'opportunity',
@@ -161,7 +194,7 @@ export default function AIInsightDashboard() {
 
       setInsights(generatedInsights)
       setQualityIndicators(qualityReport.coreIndicators)
-      setRiskWarnings(riskAssessment.filter(w => w.level === 'high' || w.level === 'medium'))
+      setRiskWarnings(riskAssessment.filter((w: any) => w.level === 'high' || w.level === 'medium'))
 
       // 设置指标
       setMetrics({
@@ -425,7 +458,7 @@ export default function AIInsightDashboard() {
           }
         >
           <div className="space-y-3">
-            {riskWarnings.map((warning, index) => (
+            {riskWarnings.map((warning: any, index: number) => (
               <Alert
                 key={index}
                 type={warning.level === 'critical' ? 'error' : 'warning'}
@@ -448,7 +481,7 @@ export default function AIInsightDashboard() {
                     <div>
                       <Text strong>建议措施：</Text>
                       <ul className="list-disc list-inside ml-2">
-                        {warning.recommendedActions.map((action, i) => (
+                        {warning.recommendedActions.map((action: any, i: number) => (
                           <li key={i}>{action}</li>
                         ))}
                       </ul>

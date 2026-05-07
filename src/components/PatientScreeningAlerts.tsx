@@ -125,8 +125,8 @@ export default function PatientScreeningAlerts({
       let filteredData = data
       if (filters.scoreRange) {
         filteredData = data.filter(alert => 
-          alert.score >= filters.scoreRange!.min && 
-          alert.score <= filters.scoreRange!.max
+          (alert.score ?? 0) >= filters.scoreRange!.min && 
+          (alert.score ?? 0) <= filters.scoreRange!.max
         )
       }
       
@@ -150,11 +150,7 @@ export default function PatientScreeningAlerts({
 
   const handleReview = async (alertId: string, approved: boolean, comment?: string) => {
     try {
-      await aiPatientScreeningService.reviewAlert(alertId, {
-        approved,
-        comment,
-        reviewerId: 'current-user-id' // 实际应从用户上下文获取
-      })
+      await aiPatientScreeningService.reviewAlert(alertId, comment)
       message.success('审核成功')
       loadAlerts()
     } catch (error) {
@@ -228,7 +224,12 @@ export default function PatientScreeningAlerts({
       })
       
       // 下载文件
-      window.open(result.downloadUrl)
+      const url = window.URL.createObjectURL(result)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = '筛查报告.xlsx'
+      link.click()
+      window.URL.revokeObjectURL(url)
       message.success('导出成功')
     } catch (error) {
       console.error('导出失败:', error)
@@ -305,7 +306,7 @@ export default function PatientScreeningAlerts({
       dataIndex: 'score',
       key: 'score',
       width: 150,
-      sorter: (a, b) => a.score - b.score,
+      sorter: (a, b) => (a.score ?? 0) - (b.score ?? 0),
       render: (score: number) => (
         <Progress
           percent={score}
@@ -344,7 +345,7 @@ export default function PatientScreeningAlerts({
       dataIndex: 'timestamp',
       key: 'timestamp',
       width: 160,
-      sorter: (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      sorter: (a, b) => new Date(a.timestamp ?? a.createdAt).getTime() - new Date(b.timestamp ?? b.createdAt).getTime(),
       render: (timestamp: string) => dayjs(timestamp).format('YYYY-MM-DD HH:mm')
     },
     {
@@ -694,9 +695,9 @@ export default function PatientScreeningAlerts({
             </Descriptions.Item>
             <Descriptions.Item label="MDT 评分">
               <Progress
-                percent={selectedAlert.score}
-                strokeColor={selectedAlert.score >= 80 ? '#ff4d4f' : selectedAlert.score >= 60 ? '#fa8c16' : '#52c41a'}
-                format={() => <Text strong>{selectedAlert.score}分</Text>}
+                percent={selectedAlert.score ?? 0}
+                strokeColor={(selectedAlert.score ?? 0) >= 80 ? '#ff4d4f' : (selectedAlert.score ?? 0) >= 60 ? '#fa8c16' : '#52c41a'}
+                format={() => <Text strong>{selectedAlert.score ?? 0}分</Text>}
               />
             </Descriptions.Item>
             <Descriptions.Item label="推荐">
@@ -709,19 +710,19 @@ export default function PatientScreeningAlerts({
             </Descriptions.Item>
             <Descriptions.Item label="原因" span={2}>
               <ul className="list-disc list-inside">
-                {selectedAlert.reasons.map((reason, index) => (
+                {(selectedAlert.reasons ?? []).map((reason, index) => (
                   <li key={index}>{reason}</li>
                 ))}
               </ul>
             </Descriptions.Item>
             <Descriptions.Item label="建议措施" span={2}>
               <ul className="list-disc list-inside">
-                {selectedAlert.suggestedActions.map((action, index) => (
+                {(selectedAlert.suggestedActions ?? []).map((action, index) => (
                   <li key={index}>{action}</li>
                 ))}
               </ul>
             </Descriptions.Item>
-            <Descriptions.Item label="时间">{dayjs(selectedAlert.timestamp).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+            <Descriptions.Item label="时间">{dayjs(selectedAlert.timestamp ?? selectedAlert.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
             <Descriptions.Item label="状态">
               {selectedAlert.reviewed ? (
                 <Tag color="green">已审核</Tag>

@@ -14,7 +14,7 @@ import {
   SwapOutlined,
   ScanOutlined,
   LineOutlined,
-  CircleOutlined,
+  CiCircleOutlined,
   SaveOutlined,
   DownloadOutlined
 } from '@ant-design/icons'
@@ -361,7 +361,7 @@ export const DICOMViewer: React.FC<DICOMViewerProps> = ({
             <Button
               type={activeTool === 'roi' ? 'primary' : 'default'}
               size="small"
-              icon={<CircleOutlined />}
+              icon={<CiCircleOutlined />}
               onClick={() => setActiveTool('roi')}
             />
           </Tooltip>

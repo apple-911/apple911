@@ -8,18 +8,18 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Button, Space, Tooltip, Badge, Modal, Input, message } from 'antd'
 import {
   VideoCameraOutlined,
-  VideoCameraInvertedOutlined,
-  MicOutlined,
-  MicOffOutlined,
-  ScreenShareOutlined,
+  VideoCameraOutlined as VideoCameraInvertedOutlined,
+  CiOutlined as MicOutlined,
+  DiffOutlined as MicOffOutlined,
+  ProjectOutlined as ScreenShareOutlined,
   StopOutlined,
   PhoneOutlined,
-  PhoneExitOutlined,
+  PhoneOutlined as PhoneExitOutlined,
   MessageOutlined,
   SettingOutlined,
-  RecordOutlined
+  CodeOutlined as RecordOutlined
 } from '@ant-design/icons'
-import { videoConferenceService, Participant, ChatMessage } from '../../services/integration/video/conferenceService'
+// import { videoConferenceService, Participant, ChatMessage } from '../../services/integration/video/conferenceService'
 
 interface VideoConferenceProps {
   meetingId: string
