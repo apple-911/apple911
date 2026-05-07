@@ -348,41 +348,37 @@ export default function IntelligentScheduler({
       <Card title={
         <Space>
           <CalendarOutlined className="mr-2" />
-          <span>选择日期</span>
+          <span>选择会诊时间</span>
         </Space>
       }>
-        <DatePicker
-          value={selectedDate}
-          onChange={(date) => {
-            setSelectedDate(date)
-            setSelectedTime(null)
-          }}
-          disabledDate={(current) => current && current < dayjs().startOf('day')}
-          style={{ width: '100%' }}
-          size="large"
-        />
+        <div className="space-y-4">
+          <div className="flex gap-3">
+            <DatePicker
+              value={selectedDate}
+              onChange={(date) => {
+                setSelectedDate(date)
+                setSelectedTime(null)
+              }}
+              disabledDate={(current) => current && current < dayjs().startOf('day')}
+              style={{ flex: 1 }}
+              size="large"
+              placeholder="选择日期"
+            />
+            <TimePicker
+              value={selectedTime}
+              onChange={(time) => setSelectedTime(time)}
+              format="HH:mm"
+              minuteStep={30}
+              style={{ width: 140 }}
+              size="large"
+              placeholder="选择时间"
+            />
+          </div>
+          {selectedDate && selectedTime && renderConflictAlert()}
+        </div>
       </Card>
 
       {selectedDate && renderRecommendedSlots()}
-
-      <Card title={
-        <Space>
-          <ClockCircleOutlined className="mr-2" />
-          <span>选择时间</span>
-        </Space>
-      }>
-        <div className="space-y-3">
-          <TimePicker
-            value={selectedTime}
-            onChange={(time) => setSelectedTime(time)}
-            format="HH:mm"
-            minuteStep={30}
-            style={{ width: '100%' }}
-            size="large"
-          />
-          {renderConflictAlert()}
-        </div>
-      </Card>
 
       <Card
         title={
