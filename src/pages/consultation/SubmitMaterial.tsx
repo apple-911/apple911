@@ -1161,7 +1161,66 @@ export default function SubmitMaterial() {
 
         {!isEditMode && (
           <div className="space-y-4">
-            {/* MDT 会诊核心信息 - 优先展示 */}
+            {/* 基本信息 - 完整展示 */}
+            <Card 
+              title={<><UserOutlined className="text-blue-600" /> 基本信息</>} 
+              size="small"
+              className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 shadow-md"
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Text className="text-gray-600">患者姓名：</Text>
+                    <Text strong className="text-lg ml-2">{selectedTask?.patientName}</Text>
+                  </div>
+                  <div>
+                    <Text className="text-gray-600">住院号：</Text>
+                    <Text strong className="ml-2">{selectedTask?.patientInpatientNo}</Text>
+                  </div>
+                  <div>
+                    <Text className="text-gray-600">会诊日期：</Text>
+                    <Text className="ml-2">{selectedTask?.meetingDate}</Text>
+                  </div>
+                  <div>
+                    <Text className="text-gray-600">会诊时间：</Text>
+                    <Text className="ml-2">{selectedTask?.meetingTime}</Text>
+                  </div>
+                  <div>
+                    <Text className="text-gray-600">申请科室：</Text>
+                    <Tag className="ml-2" color="blue">{selectedTask?.department}</Tag>
+                  </div>
+                  <div>
+                    <Text className="text-gray-600">申请医生：</Text>
+                    <Text className="ml-2">{selectedTask?.applyDoctor}</Text>
+                  </div>
+                  {selectedTask?.submitTime && (
+                    <div>
+                      <Text className="text-gray-600">提交时间：</Text>
+                      <Text className="ml-2">{selectedTask.submitTime}</Text>
+                    </div>
+                  )}
+                  <div>
+                    <Text className="text-gray-600">状态：</Text>
+                    <Tag className="ml-2" color={selectedTask?.status === '审核通过' ? 'green' : 'blue'}>
+                      {selectedTask?.status}
+                    </Tag>
+                  </div>
+                </div>
+
+                {/* 参会专家 */}
+                <Divider className="my-2">参会专家</Divider>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTask?.experts.map((e, i) => (
+                    <Tag key={i} color="cyan" className="text-sm px-3 py-1">
+                      <UserOutlined className="mr-1" />
+                      {e.name} ({e.department})
+                    </Tag>
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+            {/* MDT 会诊记录 */}
             <Card 
               title={<><FileTextOutlined className="text-indigo-600" /> MDT 会诊记录</>} 
               size="small"
@@ -1249,11 +1308,11 @@ export default function SubmitMaterial() {
               </Card>
             )}
 
-            {/* 患者信息 Tabs - 折叠展示 */}
+            {/* 患者病历资料 - Tabs 展示 */}
             <Card 
-              title={<><UserOutlined className="text-blue-600" /> 患者病历资料（点击展开）</>} 
+              title={<><FileTextOutlined className="text-amber-600" /> 患者病历资料</>} 
               size="small"
-              className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200"
+              className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
             >
               <Tabs 
                 defaultActiveKey="1" 
@@ -1262,42 +1321,6 @@ export default function SubmitMaterial() {
                 items={[
                   {
                     key: '1',
-                    label: '👤 基本信息',
-                    children: (
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded text-sm">
-                        <div className="space-y-2">
-                          <div><Text strong>患者姓名：</Text>{selectedTask?.patientName}</div>
-                          <div><Text strong>住院号：</Text>{selectedTask?.patientInpatientNo}</div>
-                          <div><Text strong>会诊日期：</Text>{selectedTask?.meetingDate}</div>
-                          <div><Text strong>会诊时间：</Text>{selectedTask?.meetingTime}</div>
-                          <div><Text strong>申请科室：</Text>{selectedTask?.department}</div>
-                          <div><Text strong>申请医生：</Text>{selectedTask?.applyDoctor}</div>
-                          {selectedTask?.submitTime && (
-                            <div><Text strong>提交时间：</Text>{selectedTask.submitTime}</div>
-                          )}
-                          <div>
-                            <Text strong>状态：</Text>
-                            <Tag color={selectedTask?.status === '审核通过' ? 'green' : 'blue'}>
-                              {selectedTask?.status}
-                            </Tag>
-                          </div>
-                        </div>
-                        <Divider className="my-3" />
-                        <div>
-                          <Text strong>参会专家：</Text>
-                          <Space wrap className="mt-2">
-                            {selectedTask?.experts.map((e, i) => (
-                              <Tag key={i} color="blue" className="text-sm">
-                                {e.name}({e.department})
-                              </Tag>
-                            ))}
-                          </Space>
-                        </div>
-                      </div>
-                    )
-                  },
-                  {
-                    key: '2',
                     label: '📄 主诉',
                     children: (
                       <div className="p-4 bg-amber-50 border border-amber-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
@@ -1306,7 +1329,7 @@ export default function SubmitMaterial() {
                     )
                   },
                   {
-                    key: '3',
+                    key: '2',
                     label: '📄 现病史',
                     children: (
                       <div className="p-4 bg-orange-50 border border-orange-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
@@ -1315,7 +1338,7 @@ export default function SubmitMaterial() {
                     )
                   },
                   {
-                    key: '4',
+                    key: '3',
                     label: '📄 既往史',
                     children: (
                       <div className="p-4 bg-green-50 border border-green-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
@@ -1324,7 +1347,7 @@ export default function SubmitMaterial() {
                     )
                   },
                   {
-                    key: '5',
+                    key: '4',
                     label: '🩺 体格检查',
                     children: (
                       <div className="p-4 bg-cyan-50 border border-cyan-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
@@ -1333,7 +1356,7 @@ export default function SubmitMaterial() {
                     )
                   },
                   {
-                    key: '6',
+                    key: '5',
                     label: '🧪 辅助检查',
                     children: (
                       <div className="p-4 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
