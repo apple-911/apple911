@@ -588,26 +588,51 @@ export default function SubmitMaterial() {
   const [selectedTask, setSelectedTask] = useState<MaterialTask | null>(null)
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState(0)
+  // 保存用户填写的数据，跨步骤保留
+  const [formData, setFormData] = useState<{
+    meetingRecord?: string
+    consultationReport?: string
+    recommendations?: string
+  }>({})
 
   const handleSubmit = (task: MaterialTask) => {
     setSelectedTask(task)
     setCurrentStep(0)
+    setFormData({}) // 清空之前的数据
     setModalVisible(true)
   }
 
-  // 当 Modal 打开或步骤变化时，智能填充表单
+  // 当 Modal 打开时，智能填充表单
   useEffect(() => {
     if (modalVisible && selectedTask && (selectedTask.status === '待提交' || selectedTask.status === '已退回')) {
-      // 延迟填充，确保表单已初始化
       setTimeout(() => {
         form.setFieldsValue({
           meetingRecord: selectedTask.meetingRecord || '',
           consultationReport: selectedTask.consultationReport || '',
           recommendations: selectedTask.recommendations?.join('\n') || ''
         })
+        // 初始化 formData
+        setFormData({
+          meetingRecord: selectedTask.meetingRecord || '',
+          consultationReport: selectedTask.consultationReport || '',
+          recommendations: selectedTask.recommendations?.join('\n') || ''
+        })
       }, 200)
     }
-  }, [modalVisible, selectedTask, currentStep])
+  }, [modalVisible, selectedTask])
+
+  // 当步骤变化时，从 formData 恢复表单数据
+  useEffect(() => {
+    if (modalVisible && selectedTask && (selectedTask.status === '待提交' || selectedTask.status === '已退回')) {
+      setTimeout(() => {
+        form.setFieldsValue({
+          meetingRecord: formData.meetingRecord || '',
+          consultationReport: formData.consultationReport || '',
+          recommendations: formData.recommendations || ''
+        })
+      }, 100)
+    }
+  }, [currentStep])
 
   const handleView = (task: MaterialTask) => {
     setSelectedTask(task)
@@ -615,40 +640,56 @@ export default function SubmitMaterial() {
   }
 
   const handleUpload = () => {
-    form.validateFields().then(values => {
-      if (currentStep < 2) {
-        setCurrentStep(currentStep + 1)
-      } else {
-        // 提交
-        setTasks(tasks.map(t => t.id === selectedTask?.id ? {
-          ...t,
-          status: '待秘书审核' as const,
-          submitTime: new Date().toLocaleString('zh-CN', { hour12: false }),
-          meetingRecord: values.meetingRecord,
-          consultationReport: values.consultationReport,
-          recommendations: values.recommendations?.split('\n').filter((r: string) => r.trim())
-          // 保留原有病历资料字段
-        } : t))
-        setModalVisible(false)
-        message.success('材料已提交，等待秘书审核')
-      }
-    })
-  }
-
-  const handleResubmit = () => {
-    form.validateFields().then(values => {
+    // 使用 formData 中的数据，而不是直接从表单获取
+    const meetingRecord = formData.meetingRecord || form.getFieldValue('meetingRecord')
+    const consultationReport = formData.consultationReport || form.getFieldValue('consultationReport')
+    const recommendations = formData.recommendations || form.getFieldValue('recommendations')
+    
+    if (!meetingRecord || !consultationReport) {
+      message.error('请填写完整的会诊记录和会诊报告')
+      return
+    }
+    
+    if (currentStep < 2) {
+      setCurrentStep(currentStep + 1)
+    } else {
+      // 提交
       setTasks(tasks.map(t => t.id === selectedTask?.id ? {
         ...t,
         status: '待秘书审核' as const,
         submitTime: new Date().toLocaleString('zh-CN', { hour12: false }),
-        meetingRecord: values.meetingRecord,
-        consultationReport: values.consultationReport,
-        recommendations: values.recommendations?.split('\n').filter((r: string) => r.trim()),
-        rejectReason: undefined
+        meetingRecord,
+        consultationReport,
+        recommendations: recommendations?.split('\n').filter((r: string) => r.trim())
+        // 保留原有病历资料字段
       } : t))
       setModalVisible(false)
-      message.success('材料已重新提交')
-    })
+      message.success('材料已提交，等待秘书审核')
+    }
+  }
+
+  const handleResubmit = () => {
+    // 使用 formData 中的数据，而不是直接从表单获取
+    const meetingRecord = formData.meetingRecord || form.getFieldValue('meetingRecord')
+    const consultationReport = formData.consultationReport || form.getFieldValue('consultationReport')
+    const recommendations = formData.recommendations || form.getFieldValue('recommendations')
+    
+    if (!meetingRecord || !consultationReport) {
+      message.error('请填写完整的会诊记录和会诊报告')
+      return
+    }
+    
+    setTasks(tasks.map(t => t.id === selectedTask?.id ? {
+      ...t,
+      status: '待秘书审核' as const,
+      submitTime: new Date().toLocaleString('zh-CN', { hour12: false }),
+      meetingRecord,
+      consultationReport,
+      recommendations: recommendations?.split('\n').filter((r: string) => r.trim()),
+      rejectReason: undefined
+    } : t))
+    setModalVisible(false)
+    message.success('材料已重新提交')
   }
 
   const columns: ColumnsType<MaterialTask> = [
@@ -955,7 +996,17 @@ export default function SubmitMaterial() {
               ]}
             />
 
-            <Form form={form} layout="vertical">
+            <Form 
+              form={form} 
+              layout="vertical"
+              onValuesChange={(changedValues, allValues) => {
+                // 保存用户输入到 formData
+                setFormData(prev => ({
+                  ...prev,
+                  ...changedValues
+                }))
+              }}
+            >
               <Form.Item
                 name="meetingRecord"
                 label="会诊记录"
@@ -1085,7 +1136,17 @@ export default function SubmitMaterial() {
               ]}
             />
 
-            <Form form={form} layout="vertical">
+            <Form 
+              form={form} 
+              layout="vertical"
+              onValuesChange={(changedValues, allValues) => {
+                // 保存用户输入到 formData
+                setFormData(prev => ({
+                  ...prev,
+                  ...changedValues
+                }))
+              }}
+            >
               <Form.Item
                 name="consultationReport"
                 label="会诊报告"
@@ -1159,8 +1220,8 @@ export default function SubmitMaterial() {
                   </div>
                   <div className="ml-6 p-3 bg-white rounded border border-blue-100 text-sm max-h-48 overflow-y-auto shadow-sm">
                     <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-                      {form.getFieldValue('meetingRecord')?.substring(0, 500)}
-                      {form.getFieldValue('meetingRecord')?.length > 500 ? '...' : ''}
+                      {(formData.meetingRecord || form.getFieldValue('meetingRecord'))?.substring(0, 500)}
+                      {(formData.meetingRecord || form.getFieldValue('meetingRecord'))?.length > 500 ? '...' : ''}
                     </div>
                   </div>
                 </div>
@@ -1174,25 +1235,25 @@ export default function SubmitMaterial() {
                   </div>
                   <div className="ml-6 p-3 bg-white rounded border border-purple-100 text-sm max-h-48 overflow-y-auto shadow-sm">
                     <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-                      {form.getFieldValue('consultationReport')?.substring(0, 500)}
-                      {form.getFieldValue('consultationReport')?.length > 500 ? '...' : ''}
+                      {(formData.consultationReport || form.getFieldValue('consultationReport'))?.substring(0, 500)}
+                      {(formData.consultationReport || form.getFieldValue('consultationReport'))?.length > 500 ? '...' : ''}
                     </div>
                   </div>
                 </div>
 
                 {/* 会诊建议 */}
-                {form.getFieldValue('recommendations') && (
+                {(formData.recommendations || form.getFieldValue('recommendations')) && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <CheckSquareOutlined className="text-orange-600" />
                       <Text strong className="text-base">会诊建议</Text>
                       <Tag color="orange" icon={<CheckCircleOutlined />}>
-                        {form.getFieldValue('recommendations').split('\n').filter((r: string) => r.trim()).length} 条
+                        {(formData.recommendations || form.getFieldValue('recommendations')).split('\n').filter((r: string) => r.trim()).length} 条
                       </Tag>
                     </div>
                     <div className="ml-6 p-3 bg-white rounded border border-orange-100 shadow-sm">
                       <ul className="space-y-1">
-                        {form.getFieldValue('recommendations').split('\n').filter((r: string) => r.trim()).map((rec: string, i: number) => (
+                        {(formData.recommendations || form.getFieldValue('recommendations')).split('\n').filter((r: string) => r.trim()).map((rec: string, i: number) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
                             <span className="text-orange-500 mt-1">•</span>
                             <span>{rec}</span>
