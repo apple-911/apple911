@@ -1352,12 +1352,12 @@ export default function SubmitMaterial() {
             </Card>
 
             {/* 会诊建议 */}
-            {selectedTask?.recommendations && selectedTask.recommendations.length > 0 && (
-              <Card 
-                title={<><CheckSquareOutlined className="text-orange-600" /> MDT 会诊建议</>} 
-                size="small"
-                className="bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 shadow-md"
-              >
+            <Card 
+              title={<><CheckSquareOutlined className="text-orange-600" /> MDT 会诊建议</>} 
+              size="small"
+              className="bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 shadow-md"
+            >
+              {selectedTask?.recommendations && selectedTask.recommendations.length > 0 ? (
                 <div className="p-3 bg-white rounded border border-orange-100">
                   <ul className="space-y-2">
                     {selectedTask.recommendations.map((rec, i) => (
@@ -1368,8 +1368,10 @@ export default function SubmitMaterial() {
                     ))}
                   </ul>
                 </div>
-              </Card>
-            )}
+              ) : (
+                <div className="text-gray-500 text-sm py-8 text-center">暂无会诊建议</div>
+              )}
+            </Card>
 
             {/* 音视频资料 */}
             {(selectedTask?.recordingUrl || selectedTask?.videoUrl) && (
