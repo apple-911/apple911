@@ -595,7 +595,7 @@ export default function SubmitMaterial() {
     setModalVisible(true)
   }
 
-  // 当 Modal 打开且 selectedTask 变化时，智能填充表单
+  // 当 Modal 打开或步骤变化时，智能填充表单
   useEffect(() => {
     if (modalVisible && selectedTask && (selectedTask.status === '待提交' || selectedTask.status === '已退回')) {
       // 延迟填充，确保表单已初始化
@@ -607,7 +607,7 @@ export default function SubmitMaterial() {
         })
       }, 200)
     }
-  }, [modalVisible, selectedTask])
+  }, [modalVisible, selectedTask, currentStep])
 
   const handleView = (task: MaterialTask) => {
     setSelectedTask(task)
