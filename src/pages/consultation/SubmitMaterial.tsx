@@ -15,6 +15,8 @@ import {
   TeamOutlined,
   CheckSquareOutlined,
   SafetyOutlined,
+  StethoscopeOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -32,6 +34,13 @@ interface MaterialTask {
   experts: Array<{ name: string; department: string }>
   status: '待提交' | '待秘书审核' | '待质控审核' | '审核通过' | '已退回'
   submitTime?: string
+  // 完整病历资料
+  chiefComplaint?: string  // 主诉
+  presentIllness?: string  // 现病史
+  pastHistory?: string  // 既往史
+  physicalExamination?: string  // 体格检查
+  auxiliaryExamination?: string  // 辅助检查
+  // 会诊资料
   meetingRecord?: string
   consultationReport?: string
   recommendations?: string[]
@@ -67,6 +76,58 @@ const mockTasks: MaterialTask[] = [
       { name: '刘晓燕', department: '病理科' }
     ],
     status: '待提交',
+    // 完整病历资料
+    chiefComplaint: '咳嗽、咳痰 3 个月，加重伴痰中带血 2 周',
+    presentIllness: `患者 3 个月前无明显诱因出现咳嗽、咳痰，为阵发性刺激性干咳，偶有少量白色粘痰，无发热、胸痛、呼吸困难等。2 周前症状加重，出现痰中带血，为鲜红色血丝，量不多。遂来我院就诊。
+
+门诊胸部 CT 示：左肺上叶占位性病变，大小约 4.5cm×3.8cm，边界不清，伴纵隔淋巴结肿大。为求进一步诊治，门诊以"左肺占位"收入我科。
+
+患者自发病以来，精神、睡眠可，食欲欠佳，大小便正常，体重近 3 个月下降约 5kg。`,
+    pastHistory: `既往体健，否认高血压、糖尿病、冠心病等慢性病史。否认肝炎、结核等传染病史。否认手术外伤史。否认输血史。否认药物及食物过敏史。预防接种史不详。
+
+个人史：生于原籍，久居本地，无疫区、疫情、疫水接触史，无牧区、矿区、低洼地带、沿海地区居住史，无放射性物质、粉尘及毒物接触史，无烟酒等不良嗜好。
+
+婚育史：25 岁结婚，配偶体健，育有 1 子 1 女，均体健。
+
+家族史：父母已故，死因不详。否认家族中有遗传性疾病及类似疾病患者。`,
+    physicalExamination: `T 36.5℃  P 82 次/分  R 18 次/分  BP 135/85mmHg
+
+一般情况：发育正常，营养中等，神志清，精神可，自主体位，查体合作。
+
+皮肤黏膜：全身皮肤黏膜无黄染、皮疹及出血点，无肝掌及蜘蛛痣。
+
+淋巴结：全身浅表淋巴结未触及肿大。
+
+头部及其器官：头颅无畸形，结膜无充血，巩膜无黄染，瞳孔等大等圆，对光反射灵敏。
+
+颈部：颈软，无抵抗，气管居中，甲状腺无肿大。
+
+胸部：胸廓无畸形，双肺呼吸运动对称，语颤正常，双肺叩诊清音，呼吸音清，双肺未闻及干湿性啰音。心前区无隆起，心率 82 次/分，律齐，各瓣膜听诊区未闻及病理性杂音。
+
+腹部：腹平软，无压痛、反跳痛及肌紧张，肝脾肋下未触及，墨菲氏征阴性，肾区无叩痛，移动性浊音阴性，肠鸣音正常。
+
+肛门直肠外生殖器：未查。
+
+脊柱四肢：脊柱呈生理弯曲，四肢活动自如，双下肢无水肿，无杵状指（趾）。
+
+神经系统：腹壁反射、肱二头肌反射、膝腱反射正常存在，巴宾斯基征阴性。`,
+    auxiliaryExamination: `【2024-03-12 我院】
+胸部增强 CT：左肺上叶占位性病变，大小约 4.5cm×3.8cm，边界不清，呈分叶状，增强扫描不均匀强化；纵隔淋巴结肿大，最大短径约 1.8cm。
+
+【2024-03-13 我院】
+PET-CT：左肺上叶高代谢占位，考虑恶性病变；纵隔淋巴结转移；全身其他部位未见明显转移征象。
+
+【2024-03-14 我院】
+支气管镜 + 活检：（左肺上叶）低分化鳞癌。免疫组化：P63(+), P40(+), CK5/6(+), TTF-1(-), NapsinA(-), Ki-67 约 70%。
+
+【2024-03-14 我院】
+血常规：WBC 6.8×10^9/L, Hb 128g/L, PLT 215×10^9/L。
+肝肾功能：ALT 18U/L, AST 22U/L, Cr 78μmol/L。
+肿瘤标志物：SCC 2.8ng/mL↑, CEA 3.2ng/mL, CYFRA21-1 5.6ng/mL↑。
+
+【2024-03-15 我院】
+心电图：窦性心律，正常心电图。
+肺功能：中度限制性通气功能障碍。`,
     meetingRecord: `2024-03-15 14:00-15:30 在 MDT 会诊中心召开多学科会诊。
 
 参加专家：
@@ -76,29 +137,55 @@ const mockTasks: MaterialTask[] = [
 - 肿瘤科：张明华 主任医师
 
 会诊过程：
-1. 申请科室汇报病史：患者王建国，65 岁，因"咳嗽、咳痰 3 个月"入院
-2. 病理科汇报：（左肺穿刺）鳞癌，低分化
-3. 放射科汇报：PET-CT 显示左肺上叶占位，伴纵隔淋巴结转移
-4. 胸外科汇报：患者目前无手术指征
-5. 各科专家讨论后一致同意行同步放化疗`,
+1. 申请科室汇报病史：患者王建国，65 岁，因"咳嗽、咳痰 3 个月，加重伴痰中带血 2 周"入院。胸部 CT 示左肺上叶占位，PET-CT 考虑恶性病变，支气管镜活检确诊为低分化鳞癌。
+
+2. 病理科汇报：（左肺穿刺）低分化鳞癌。免疫组化：P63(+), P40(+), CK5/6(+), TTF-1(-), NapsinA(-), Ki-67 约 70%。
+
+3. 放射科汇报：PET-CT 显示左肺上叶高代谢占位，大小约 4.5cm×3.8cm，伴纵隔淋巴结转移，未见远处转移。
+
+4. 胸外科汇报：患者目前肿瘤分期为 III 期（cT4N2M0），无手术指征，建议行根治性同步放化疗。
+
+5. 肿瘤科汇报：患者一般情况可，心肺功能可耐受放化疗，建议行同步放化疗，方案选择紫杉醇 + 卡铂联合根治性放疗。
+
+6. 各科专家讨论后一致同意：
+   - 诊断：左肺鳞癌 III 期（cT4N2M0）
+   - 治疗方案：同步放化疗
+   - 放疗：根治性放疗，DT 60-66Gy/30-33f
+   - 化疗：紫杉醇 + 卡铂方案，每 3 周一次，共 4 周期`,
     consultationReport: `一、诊断
 左肺鳞癌 III 期（cT4N2M0）
+ECOG 评分：1 分
 
-二、治疗方案
+二、鉴别诊断
+1. 肺结核：患者无低热、盗汗等结核中毒症状，PPD 试验阴性，不支持结核诊断。
+2. 肺炎性假瘤：患者病程较长，抗炎治疗无效，肿瘤标志物升高，影像学表现不支持炎症。
+
+三、治疗方案
 1. 首选治疗方案：同步放化疗
-   - 放疗：根治性放疗，DT 60-66Gy/30-33f
-   - 化疗：紫杉醇 + 卡铂方案
+   - 放疗：根治性放疗，DT 60-66Gy/30-33f，采用 IMRT 技术
+   - 化疗：紫杉醇 135mg/m² d1 + 卡铂 AUC=5 d1，每 3 周一次，共 4 周期
 
 2. 备选治疗方案：免疫治疗联合化疗
-   - PD-1 抑制剂 + 紫杉醇 + 卡铂
+   - PD-1 抑制剂（卡瑞利珠单抗 200mg d1）+ 紫杉醇 + 卡铂
+   - 如经济条件允许，可考虑联合免疫治疗
 
-三、随访计划
-治疗结束后 4 周复查胸部 CT，之后每 3 个月复查一次。`,
+3. 支持治疗
+   - 营养支持：肠内营养粉，每日 2 次
+   - 止咳化痰：氨溴索口服液
+   - 止痛：按需使用 NSAIDs 类药物
+
+四、随访计划
+1. 治疗期间：每周复查血常规、肝肾功能
+2. 治疗结束后 4 周复查胸部 CT、肿瘤标志物
+3. 之后每 3 个月复查一次，2 年后可改为每 6 个月一次
+4. 如出现不适，随时就诊`,
     recommendations: [
-      '完善基因检测',
-      '评估心肺功能',
-      '营养支持治疗',
-      '定期复查血常规、肝肾功能'
+      '完善基因检测（EGFR、ALK、ROS1 等）',
+      '评估心肺功能，确保能耐受放化疗',
+      '营养支持治疗，改善营养状况',
+      '定期复查血常规、肝肾功能',
+      '戒烟，避免二手烟',
+      '保持良好心态，适当运动'
     ],
     recordingUrl: '/recordings/C001_audio.mp3',
     videoUrl: '/recordings/C001_video.mp4',
@@ -809,6 +896,67 @@ export default function SubmitMaterial() {
                 </div>
               </div>
             </Card>
+
+            {/* 病历资料 */}
+            {selectedTask?.chiefComplaint && (
+              <Card 
+                title={<><FileTextOutlined className="text-amber-600" /> 主诉</>} 
+                size="small"
+                className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
+              >
+                <div className="text-sm text-gray-700 leading-relaxed">
+                  {selectedTask.chiefComplaint}
+                </div>
+              </Card>
+            )}
+
+            {selectedTask?.presentIllness && (
+              <Card 
+                title={<><FileTextOutlined className="text-orange-600" /> 现病史</>} 
+                size="small"
+                className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200"
+              >
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-orange-100 shadow-sm">
+                  {selectedTask.presentIllness}
+                </div>
+              </Card>
+            )}
+
+            {selectedTask?.pastHistory && (
+              <Card 
+                title={<><FileTextOutlined className="text-green-600" /> 既往史</>} 
+                size="small"
+                className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200"
+              >
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-64 overflow-y-auto p-3 bg-white rounded border border-green-100 shadow-sm">
+                  {selectedTask.pastHistory}
+                </div>
+              </Card>
+            )}
+
+            {selectedTask?.physicalExamination && (
+              <Card 
+                title={<><StethoscopeOutlined className="text-cyan-600" /> 体格检查</>} 
+                size="small"
+                className="bg-gradient-to-r from-cyan-50 to-teal-50 border border-cyan-200"
+              >
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-cyan-100 shadow-sm">
+                  {selectedTask.physicalExamination}
+                </div>
+              </Card>
+            )}
+
+            {selectedTask?.auxiliaryExamination && (
+              <Card 
+                title={<><ExperimentOutlined className="text-purple-600" /> 辅助检查</>} 
+                size="small"
+                className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200"
+              >
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-purple-100 shadow-sm">
+                  {selectedTask.auxiliaryExamination}
+                </div>
+              </Card>
+            )}
 
             {/* 会诊记录 */}
             {selectedTask?.meetingRecord && (
