@@ -289,56 +289,82 @@ export default function PendingReview() {
               className="hover:shadow-lg transition-shadow"
               title={
                 <Space>
-                  <Avatar icon={<ExclamationCircleOutlined />} className="!bg-orange-500" />
+                  <Avatar icon={<ExclamationCircleOutlined />} className="!bg-orange-500" size="small" />
                   <div>
-                    <div className="font-medium">
+                    <div className="font-medium text-sm">
                       {consultation.patientName} {consultation.age ? `${consultation.age}岁` : ''} {consultation.gender === 'male' ? '男' : consultation.gender === 'female' ? '女' : ''}
                     </div>
                     <div className="text-xs text-gray-500">{consultation.patientInpatientNo}</div>
                   </div>
-                  <Tag color={getUrgencyColor(consultation.urgency)}>{consultation.urgency}</Tag>
+                  <Tag color={getUrgencyColor(consultation.urgency)} size="small">{consultation.urgency}</Tag>
                   {getSourceBadge(consultation.source)}
                 </Space>
               }
               extra={
-                <Tag color={consultation.type === '院内' ? 'blue' : 'green'}>{consultation.type}</Tag>
+                <Tag color={consultation.type === '院内' ? 'blue' : 'green'} size="small">{consultation.type}</Tag>
               }
+              size="small"
             >
-              <List>
-                <List.Item>
-                  <Space direction="vertical" size={0}>
-                    <Text type="secondary">住院号：{consultation.patientInpatientNo}</Text>
-                    <Text type="secondary">申请科室：{consultation.department}</Text>
-                    <Text type="secondary">申请医生：{consultation.applyDoctor}</Text>
-                    <Text type="secondary">期望时间：{consultation.expectTime}</Text>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      来源：{consultation.sourceDetail}
-                    </Text>
-                    {consultation.otherDiagnoses && consultation.otherDiagnoses.length > 0 && (
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        其他诊断：{consultation.otherDiagnoses.join('、')}
-                      </Text>
-                    )}
-                  </Space>
-                </List.Item>
-                <List.Item>
-                  <Text strong>主要诊断：</Text>{consultation.mainDiagnosis}
-                </List.Item>
-                {consultation.consultationPurpose && (
-                  <List.Item>
-                    <Text strong>会诊目的：</Text>{consultation.consultationPurpose}
-                  </List.Item>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div>
+                  <Text type="secondary">住院号：</Text>
+                  <Text>{consultation.patientInpatientNo}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">申请科室：</Text>
+                  <Text>{consultation.department}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">申请医生：</Text>
+                  <Text>{consultation.applyDoctor}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">申请时间：</Text>
+                  <Text>{consultation.applyTime}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">期望时间：</Text>
+                  <Text>{consultation.expectTime}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">来源：</Text>
+                  <Text className="text-xs">{consultation.sourceDetail}</Text>
+                </div>
+              </div>
+              
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="mb-2">
+                  <Text strong>主要诊断：</Text>
+                  <Text>{consultation.mainDiagnosis}</Text>
+                </div>
+                {consultation.otherDiagnoses && consultation.otherDiagnoses.length > 0 && (
+                  <div className="mb-2">
+                    <Text strong>其他诊断：</Text>
+                    <Text className="text-xs text-gray-600">{consultation.otherDiagnoses.join('、')}</Text>
+                  </div>
                 )}
-                <List.Item>
+                {consultation.consultationPurpose && (
+                  <div className="mb-2">
+                    <Text strong>会诊目的：</Text>
+                    <Text>{consultation.consultationPurpose}</Text>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="mb-2">
                   <Text strong>邀请专家：</Text>
-                  <Space wrap>
-                    {consultation.experts.slice(0, 3).map(e => (
-                      <Tag key={e.id}>{e.name}({e.department})</Tag>
-                    ))}
-                    {consultation.experts.length > 3 && <Tag>+{consultation.experts.length - 3}人</Tag>}
-                  </Space>
-                </List.Item>
-              </List>
+                </div>
+                <Space wrap>
+                  {consultation.experts.map(e => (
+                    <Tag key={e.id} color="blue" size="small">
+                      {e.name}
+                      <br />
+                      <span className="text-xs">{e.department}</span>
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
                 <div className="flex justify-between items-center mt-4">
                   <Button onClick={() => navigate(`/patient/detail/${consultation.patientId}`)}>
                     <UserOutlined className="mr-1" />
