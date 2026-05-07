@@ -12,7 +12,8 @@ import {
   EyeOutlined,
   BookOutlined,
   UserOutlined,
-  TeamOutlined
+  TeamOutlined,
+  SafetyOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -35,7 +36,18 @@ interface MaterialTask {
   recommendations?: string[]
   recordingUrl?: string
   videoUrl?: string
+  recordingDuration?: string
+  videoDuration?: string
   rejectReason?: string
+  // 审批记录相关字段
+  secretaryAuditTime?: string  // 秘书审核时间
+  secretaryAuditResult?: string  // 秘书审核结果
+  secretaryComment?: string  // 秘书意见
+  qualityAuditTime?: string  // 质控审核时间
+  qualityReviewer?: string  // 质控审核人
+  qualityScore?: number  // 质控评分
+  qualityResult?: string  // 质控审核结果
+  qualityComment?: string  // 质控意见
 }
 
 const mockTasks: MaterialTask[] = [
@@ -72,10 +84,13 @@ const mockTasks: MaterialTask[] = [
       { name: '陈伟', department: '乳腺外科' },
       { name: '张明华', department: '肿瘤科' }
     ],
-    status: '待秘书审核',
+    status: '待质控审核',
     submitTime: '2024-03-14 15:30',
     meetingRecord: '2024-03-14 10:00-11:00 完成多学科会诊',
-    consultationReport: '术后辅助化疗方案：TC 方案× 4 周期'
+    consultationReport: '术后辅助化疗方案：TC 方案× 4 周期',
+    secretaryAuditTime: '2024-03-14 16:00',
+    secretaryAuditResult: '通过',
+    secretaryComment: '材料完整，符合规范'
   },
   {
     id: 'M003',
@@ -92,7 +107,10 @@ const mockTasks: MaterialTask[] = [
     ],
     status: '已退回',
     submitTime: '2024-03-13 18:00',
-    rejectReason: '会诊记录过于简单，请补充专家讨论详情'
+    rejectReason: '会诊记录过于简单，请补充专家讨论详情',
+    secretaryAuditTime: '2024-03-13 19:00',
+    secretaryAuditResult: '通过',
+    secretaryComment: '材料已审核'
   },
   {
     id: 'M004',
@@ -108,7 +126,15 @@ const mockTasks: MaterialTask[] = [
       { name: '周丽萍', department: '营养科' }
     ],
     status: '审核通过',
-    submitTime: '2024-03-12 14:00'
+    submitTime: '2024-03-12 14:00',
+    secretaryAuditTime: '2024-03-12 15:00',
+    secretaryAuditResult: '通过',
+    secretaryComment: '材料完整规范',
+    qualityAuditTime: '2024-03-12 16:30',
+    qualityReviewer: '质控员 A',
+    qualityScore: 4.5,
+    qualityResult: '通过',
+    qualityComment: '会诊记录详细，诊疗方案规范，符合指南要求'
   },
 ]
 
@@ -602,6 +628,81 @@ export default function SubmitMaterial() {
                   </Card>
                 ) : (
                   <div className="text-center text-gray-400 py-8">暂无录像文件</div>
+                )
+              },
+              {
+                key: 'audit',
+                label: <><CheckCircleOutlined /> 审批记录</>,
+                children: (
+                  <div className="space-y-4">
+                    {/* 秘书审核记录 */}
+                    {selectedTask?.secretaryAuditTime ? (
+                      <Card 
+                        title={<><FileTextOutlined /> MDT 秘书审核</>} 
+                        size="small"
+                        className={selectedTask.secretaryAuditResult === '通过' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}
+                      >
+                        <Descriptions bordered column={2} size="small">
+                          <Descriptions.Item label="审核时间">{selectedTask.secretaryAuditTime}</Descriptions.Item>
+                          <Descriptions.Item label="审核结果">
+                            <Tag color={selectedTask.secretaryAuditResult === '通过' ? 'green' : 'red'}>
+                              {selectedTask.secretaryAuditResult}
+                            </Tag>
+                          </Descriptions.Item>
+                          <Descriptions.Item label="审核意见" span={2}>
+                            {selectedTask.secretaryComment || '-'}
+                          </Descriptions.Item>
+                        </Descriptions>
+                      </Card>
+                    ) : (
+                      <div className="text-center text-gray-400 py-8">暂无秘书审核记录</div>
+                    )}
+
+                    {/* 质控审核记录 */}
+                    {selectedTask?.qualityAuditTime ? (
+                      <Card 
+                        title={<><SafetyOutlined /> 质控员审核</>} 
+                        size="small"
+                        className={selectedTask.qualityResult === '通过' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}
+                      >
+                        <Descriptions bordered column={2} size="small">
+                          <Descriptions.Item label="审核时间">{selectedTask.qualityAuditTime}</Descriptions.Item>
+                          <Descriptions.Item label="审核人">{selectedTask.qualityReviewer || '-'}</Descriptions.Item>
+                          <Descriptions.Item label="审核结果">
+                            <Tag color={selectedTask.qualityResult === '通过' ? 'green' : 'red'}>
+                              {selectedTask.qualityResult}
+                            </Tag>
+                          </Descriptions.Item>
+                          <Descriptions.Item label="质控评分">
+                            {selectedTask.qualityScore ? (
+                              <Space>
+                                <Rate disabled defaultValue={selectedTask.qualityScore} allowHalf />
+                                <Text className="text-sm">{selectedTask.qualityScore}分</Text>
+                              </Space>
+                            ) : (
+                              '-'
+                            )}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="质控意见" span={2}>
+                            {selectedTask.qualityComment || '-'}
+                          </Descriptions.Item>
+                        </Descriptions>
+                      </Card>
+                    ) : (
+                      <div className="text-center text-gray-400 py-8">暂无质控审核记录</div>
+                    )}
+
+                    {/* 退回原因 */}
+                    {selectedTask?.rejectReason && (
+                      <Card 
+                        title={<><ExclamationCircleOutlined /> 退回原因</>} 
+                        size="small"
+                        className="bg-red-50 border border-red-200"
+                      >
+                        <Text type="danger">{selectedTask.rejectReason}</Text>
+                      </Card>
+                    )}
+                  </div>
                 )
               }
             ]}
