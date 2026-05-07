@@ -1,9 +1,51 @@
 import { useRef } from 'react'
 import { Modal, Button, Space, Typography, Divider, Table, Descriptions, Tag, message } from 'antd'
 import { PrinterOutlined, FilePdfOutlined, CloseOutlined } from '@ant-design/icons'
-import type { Report } from '../../stores/consultationStore'
-import type { Consultation } from '../../stores/consultationStore'
-import type { Patient } from '../../stores/patientStore'
+
+interface Report {
+  id: string
+  title: string
+  content: string
+  createdAt: string
+  createdBy: string
+  patientName?: string
+  treatmentSuggestion?: string
+  followupPlan?: string
+  consultationTime?: string
+  responsibleExpert?: string
+  chiefComplaint?: string
+  diagnosisSummary?: string
+  examRecommendations?: string
+  treatmentRecommendations?: string
+  followupSchedule?: string
+  historyOfPresentIllness?: string
+  pastHistory?: string
+  physicalExamination?: string
+  auxiliaryExamination?: string
+  consultationOpinion?: string
+  experts?: any[]
+}
+
+interface Consultation {
+  id: string
+  patientName: string
+  status: string
+  type?: string
+  location?: string
+  responsibleExpert?: string
+  experts?: any[]
+}
+
+interface Patient {
+  id: string
+  name: string
+  age?: number
+  gender?: string
+  inpatientNo?: string
+  department?: string
+  doctor?: string
+  mainDiagnosis?: string
+}
 
 const { Title, Text, Paragraph } = Typography
 
@@ -167,7 +209,7 @@ export default function ReportView({ report, consultation, patient, open, onClos
         <div className="mb-4">
           <Text strong>参与会诊专家：</Text>
           <Space wrap className="mt-2">
-            {consultation?.experts?.map(e => (
+            {consultation?.experts?.map((e: any) => (
               <Tag key={e.id} color="blue">{e.name} {e.title}</Tag>
             ))}
           </Space>

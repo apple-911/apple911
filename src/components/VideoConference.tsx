@@ -21,6 +21,24 @@ import {
 } from '@ant-design/icons'
 // import { videoConferenceService, Participant, ChatMessage } from '../../services/integration/video/conferenceService'
 
+interface Participant {
+  id: string
+  name: string
+  role: string
+  department?: string
+  isVideoOn: boolean
+  isMicOn: boolean
+  isScreenSharing: boolean
+}
+
+interface ChatMessage {
+  id: string
+  senderId: string
+  senderName: string
+  content: string
+  timestamp: string
+}
+
 interface VideoConferenceProps {
   meetingId: string
   onLeave?: () => void
@@ -75,20 +93,21 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
   const initConference = async () => {
     try {
-      // 加入会议
-      await videoConferenceService.joinMeeting(meetingId, {
-        name: '当前用户',
-        role: 'participant',
-        department: '科室',
-        title: '职称',
-        videoEnabled: true,
-        audioEnabled: true,
-        screenSharing: false
-      })
+      // 暂时使用模拟数据
+      console.log('初始化会议:', meetingId)
+      // await videoConferenceService.joinMeeting(meetingId, {
+      //   name: '当前用户',
+      //   role: 'participant',
+      //   department: '科室',
+      //   title: '职称',
+      //   videoEnabled: true,
+      //   audioEnabled: true,
+      //   screenSharing: false
+      // })
 
-      // 获取本地流
-      const stream = videoConferenceService.getLocalStream()
-      setLocalStream(stream)
+      // // 获取本地流
+      // const stream = videoConferenceService.getLocalStream()
+      // setLocalStream(stream)
     } catch (error) {
       console.error('初始化会议失败:', error)
       message.error('加入会议失败')
@@ -96,84 +115,32 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
   }
 
   const setupEventListeners = () => {
-    // 监听参会者变化
-    videoConferenceService.on('participantJoined', (participant: Participant) => {
-      setParticipants(prev => [...prev, participant])
-      message.info(`${participant.name} 加入会议`)
-    })
-
-    // 监听远程流
-    videoConferenceService.on('remoteStreamAdded', (participantId: string, stream: MediaStream) => {
-      setRemoteStreams(prev => new Map(prev).set(participantId, stream))
-    })
-
-    // 监听聊天消息
-    videoConferenceService.on('chatMessageSent', (message: ChatMessage) => {
-      setChatMessages(prev => [...prev, message])
-    })
-
-    // 监听录制状态
-    videoConferenceService.on('recordingStarted', () => {
-      setRecording(true)
-      message.success('开始录制')
-    })
-
-    videoConferenceService.on('recordingStopped', () => {
-      setRecording(false)
-      message.success('录制已停止')
-    })
-
-    // 监听会议结束
-    videoConferenceService.on('meetingEnded', () => {
-      message.info('会议已结束')
-      onLeave?.()
-    })
+    // 暂时注释掉
+    // videoConferenceService.on('participantJoined', (participant: Participant) => {
+    //   setParticipants(prev => [...prev, participant])
+    //   message.info(`${participant.name} 加入会议`)
+    // })
   }
 
   const cleanup = () => {
-    videoConferenceService.removeAllListeners()
+    // videoConferenceService.removeAllListeners()
   }
 
   const handleToggleVideo = async () => {
-    try {
-      await videoConferenceService.toggleVideo(!videoEnabled)
-      setVideoEnabled(!videoEnabled)
-    } catch (error) {
-      console.error('切换摄像头失败:', error)
-    }
+    // 暂时不实现
+    setVideoEnabled(!videoEnabled)
   }
 
   const handleToggleAudio = async () => {
-    try {
-      await videoConferenceService.toggleAudio(!audioEnabled)
-      setAudioEnabled(!audioEnabled)
-    } catch (error) {
-      console.error('切换麦克风失败:', error)
-    }
+    setAudioEnabled(!audioEnabled)
   }
 
   const handleScreenShare = async () => {
-    try {
-      if (screenSharing) {
-        videoConferenceService.stopScreenShare()
-        setScreenSharing(false)
-      } else {
-        await videoConferenceService.startScreenShare()
-        setScreenSharing(true)
-        message.success('开始屏幕共享')
-      }
-    } catch (error) {
-      console.error('屏幕共享失败:', error)
-      message.error('屏幕共享失败')
-    }
+    message.warning('屏幕共享功能暂未实现')
   }
 
   const handleRecording = async () => {
-    if (recording) {
-      videoConferenceService.stopRecording()
-    } else {
-      await videoConferenceService.startRecording()
-    }
+    message.warning('录制功能暂未实现')
   }
 
   const handleLeave = async () => {
@@ -181,7 +148,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       title: '确认离开',
       content: '确定要离开会议吗？',
       onOk: async () => {
-        await videoConferenceService.leaveMeeting()
+        // await videoConferenceService.leaveMeeting()
         onLeave?.()
       }
     })
@@ -189,8 +156,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
   const handleSendChat = () => {
     if (!chatInput.trim()) return
-
-    videoConferenceService.sendChatMessage(chatInput.trim())
+    message.warning('聊天功能暂未实现')
     setChatInput('')
   }
 

@@ -1,9 +1,23 @@
 import { useState } from 'react'
 import { Typography, Button, Space, Tooltip, Tag } from 'antd'
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
-import { maskName, maskPhone, maskIdCard } from '../../utils/helpers'
+// import { maskName, maskPhone, maskIdCard } from '../../utils/helpers'
 
 const { Text } = Typography
+
+// 临时实现
+const maskName = (name: string) => {
+  if (name.length <= 2) return name.charAt(0) + '*';
+  return name.charAt(0) + '*'.repeat(name.length - 2) + name.charAt(name.length - 1);
+}
+
+const maskPhone = (phone: string) => {
+  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+}
+
+const maskIdCard = (idCard: string) => {
+  return idCard.replace(/(\d{6})\d{8}(\d{4})/, '$1********$2');
+}
 
 interface SensitiveTextProps {
   value: string
@@ -32,7 +46,7 @@ export default function SensitiveText({
 
     switch (type) {
       case 'name':
-        return maskName(value, 'masked')
+        return maskName(value)
       case 'phone':
         return maskPhone(value)
       case 'idCard':

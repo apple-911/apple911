@@ -259,9 +259,9 @@ export const mockLogs = [
 ]
 
 export const mockTeams = [
-  { id: 'T1', name: '肺癌MDT团队', leader: '张明华', memberCount: 5, description: '专注于肺癌多学科诊疗' },
-  { id: 'T2', name: '消化道肿瘤MDT团队', leader: '王建国', memberCount: 4, description: '消化道恶性肿瘤综合治疗' },
-  { id: 'T3', name: '乳腺疾病MDT团队', leader: '陈伟', memberCount: 4, description: '乳腺疾病多学科讨论' },
+  { id: 'T1', name: '肺癌 MDT 团队', leader: '张明华', memberCount: 5, description: '专注于肺癌多学科诊疗', members: ['E1', 'E2', 'E3', 'E4', 'E5'] },
+  { id: 'T2', name: '消化道肿瘤 MDT 团队', leader: '王建国', memberCount: 4, description: '消化道恶性肿瘤综合治疗', members: ['E2', 'E6', 'E7', 'E8'] },
+  { id: 'T3', name: '乳腺疾病 MDT 团队', leader: '陈伟', memberCount: 4, description: '乳腺疾病多学科讨论', members: ['E3', 'E9', 'E10', 'E11'] },
 ]
 
 export const mockRoles = [

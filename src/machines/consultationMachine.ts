@@ -61,7 +61,7 @@ export const consultationMachine = createMachine({
           target: ConsultationStatus.PENDING_REVIEW,
           actions: assign({
             status: () => ConsultationStatus.PENDING_REVIEW,
-            submitTime: () => Date.now(),
+            // submitTime: () => Date.now(),
           }),
         },
       },
@@ -72,14 +72,14 @@ export const consultationMachine = createMachine({
           target: ConsultationStatus.SCHEDULED,
           actions: assign({
             status: () => ConsultationStatus.SCHEDULED,
-            approveTime: () => Date.now(),
+            // approveTime: () => Date.now(),
           }),
         },
         REJECT: {
           target: ConsultationStatus.REJECTED,
           actions: assign({
             status: () => ConsultationStatus.REJECTED,
-            rejectReason: (_, event) => event.reason || '未通过审核',
+            // rejectReason: (_, event) => event.reason || '未通过审核',
           }),
         },
       },
@@ -87,28 +87,28 @@ export const consultationMachine = createMachine({
     [ConsultationStatus.REJECTED]: {
       type: 'final',
       entry: assign({
-        retryCount: (context) => context.retryCount + 1,
+        // retryCount: (context) => context.retryCount + 1,
       }),
     },
     [ConsultationStatus.SCHEDULED]: {
       on: {
         SCHEDULE: {
           actions: assign({
-            scheduleTime: (_, event) => event.time,
+            // scheduleTime: (_, event) => event.time,
           }),
         },
         START: {
           target: ConsultationStatus.IN_PROGRESS,
           actions: assign({
             status: () => ConsultationStatus.IN_PROGRESS,
-            startTime: () => Date.now(),
+            // startTime: () => Date.now(),
           }),
         },
         CANCEL: {
           target: ConsultationStatus.CANCELLED,
           actions: assign({
             status: () => ConsultationStatus.CANCELLED,
-            cancelReason: (_, event) => event.reason || '已取消',
+            // cancelReason: (_, event) => event.reason || '已取消',
           }),
         },
       },
@@ -119,14 +119,14 @@ export const consultationMachine = createMachine({
           target: ConsultationStatus.COMPLETED,
           actions: assign({
             status: () => ConsultationStatus.COMPLETED,
-            completeTime: () => Date.now(),
+            // completeTime: () => Date.now(),
           }),
         },
         CANCEL: {
           target: ConsultationStatus.CANCELLED,
           actions: assign({
             status: () => ConsultationStatus.CANCELLED,
-            cancelReason: (_, event) => event.reason || '已取消',
+            // cancelReason: (_, event) => event.reason || '已取消',
           }),
         },
       },

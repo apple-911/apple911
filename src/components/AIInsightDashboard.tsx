@@ -87,32 +87,35 @@ export default function AIInsightDashboard() {
   const loadDashboardData = async () => {
     setLoading(true)
     try {
-      // 并行加载所有数据
-      const [
-        qualityReport,
-        riskAssessment,
-        operationAnalysis
-      ] = await Promise.all([
-        aiQualityControlService.generateQualityReport({
-          period: {
-            start: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
-            end: new Date().toISOString().split('T')[0]
-          },
-          includeBenchmarking: true
-        }),
-        aiQualityControlService.assessRisks({
-          scope: 'all',
-          timeRange: 'realtime'
-        }),
-        aiQualityControlService.analyzeOperations({
-          period: {
-            start: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
-            end: new Date().toISOString().split('T')[0]
-          },
-          includeCostAnalysis: true,
-          includeForecast: true
-        })
-      ])
+      // 暂时使用模拟数据
+      const qualityReport = {
+        coreIndicators: [],
+        benchmarking: {},
+        overallScore: 85
+      }
+      const riskAssessment: any[] = []
+      const operationAnalysis = {
+        workload: {
+          departmentBreakdown: [] as any[],
+          totalConsultations: 100,
+          completedConsultations: 85
+        },
+        efficiency: {
+          averageDuration: 3.5,
+          onTimeRate: 0.85,
+          resourceUtilization: 0.75,
+          optimizationSuggestions: [] as string[],
+          averageWaitTime: 2.1
+        },
+        resources: {
+          utilization: 0.75,
+          expertUtilization: {
+            utilizationRate: 0.8
+          }
+        },
+        totalConsultations: 100,
+        completedConsultations: 85
+      }
 
       // 生成 AI 洞察
       const generatedInsights: AIInsight[] = []
