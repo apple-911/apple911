@@ -345,7 +345,12 @@ export default function IntelligentScheduler({
         />
       )}
 
-      <Card title={<CalendarOutlined className="mr-2" />选择日期}>
+      <Card title={
+        <Space>
+          <CalendarOutlined className="mr-2" />
+          <span>选择日期</span>
+        </Space>
+      }>
         <DatePicker
           value={selectedDate}
           onChange={(date) => {
@@ -360,7 +365,12 @@ export default function IntelligentScheduler({
 
       {selectedDate && renderRecommendedSlots()}
 
-      <Card title={<ClockCircleOutlined className="mr-2" />选择时间}>
+      <Card title={
+        <Space>
+          <ClockCircleOutlined className="mr-2" />
+          <span>选择时间</span>
+        </Space>
+      }>
         <div className="space-y-3">
           <TimePicker
             value={selectedTime}
@@ -375,7 +385,12 @@ export default function IntelligentScheduler({
       </Card>
 
       <Card
-        title={<TeamOutlined className="mr-2" />会诊专家}
+        title={
+          <Space>
+            <TeamOutlined className="mr-2" />
+            <span>会诊专家</span>
+          </Space>
+        }
         extra={
           <Button size="small" onClick={() => setShowExpertSelector(true)}>
             调整专家
