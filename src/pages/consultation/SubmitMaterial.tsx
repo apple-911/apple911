@@ -1179,7 +1179,7 @@ export default function SubmitMaterial() {
                 size="small"
                 className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200"
               >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-64 overflow-y-auto p-3 bg-white rounded border border-green-100 shadow-sm">
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-green-100 shadow-sm">
                   {selectedTask.pastHistory}
                 </div>
               </Card>
@@ -1191,7 +1191,7 @@ export default function SubmitMaterial() {
                 size="small"
                 className="bg-gradient-to-r from-cyan-50 to-teal-50 border border-cyan-200"
               >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-cyan-100 shadow-sm">
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-cyan-100 shadow-sm">
                   {selectedTask.physicalExamination}
                 </div>
               </Card>
@@ -1204,7 +1204,7 @@ export default function SubmitMaterial() {
                 size="small"
                 className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200"
               >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-purple-100 shadow-sm">
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-purple-100 shadow-sm">
                   {selectedTask.auxiliaryExamination}
                 </div>
               </Card>
@@ -1217,7 +1217,7 @@ export default function SubmitMaterial() {
                 size="small"
                 className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200"
               >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-indigo-100 shadow-sm">
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-indigo-100 shadow-sm">
                   {selectedTask.meetingRecord}
                 </div>
               </Card>
@@ -1230,7 +1230,7 @@ export default function SubmitMaterial() {
                 size="small"
                 className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200"
               >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-purple-100 shadow-sm">
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-purple-100 shadow-sm">
                   {selectedTask.consultationReport}
                 </div>
               </Card>
