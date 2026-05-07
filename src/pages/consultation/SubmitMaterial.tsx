@@ -1067,6 +1067,50 @@ export default function SubmitMaterial() {
                     </div>
                   </div>
                 )}
+
+                {/* 会诊录音 */}
+                {selectedTask?.recordingUrl && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <AudioOutlined className="text-green-600" />
+                      <Text strong className="text-base">会诊录音</Text>
+                      <Tag color="green" icon={<CheckCircleOutlined />}>已上传</Tag>
+                    </div>
+                    <div className="ml-6 p-3 bg-green-50 rounded border border-green-100 shadow-sm">
+                      <audio controls className="w-full" src={selectedTask.recordingUrl}>
+                        您的浏览器不支持音频播放
+                      </audio>
+                      <div className="mt-2 text-xs text-gray-600">
+                        <Space>
+                          <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.recordingDuration || '未知'}</Tag>
+                          <Tag color="green">格式：MP3</Tag>
+                        </Space>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 会诊录像 */}
+                {selectedTask?.videoUrl && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <PlayCircleOutlined className="text-red-600" />
+                      <Text strong className="text-base">会诊录像</Text>
+                      <Tag color="red" icon={<CheckCircleOutlined />}>已上传</Tag>
+                    </div>
+                    <div className="ml-6 p-3 bg-red-50 rounded border border-red-100 shadow-sm">
+                      <video controls className="w-full rounded" src={selectedTask.videoUrl}>
+                        您的浏览器不支持视频播放
+                      </video>
+                      <div className="mt-2 text-xs text-gray-600">
+                        <Space>
+                          <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.videoDuration || '未知'}</Tag>
+                          <Tag color="red">格式：MP4</Tag>
+                        </Space>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -1271,6 +1315,27 @@ export default function SubmitMaterial() {
                     <Space>
                       <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.recordingDuration || '未知'}</Tag>
                       <Tag color="green">格式：MP3</Tag>
+                    </Space>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* 会诊录像 */}
+            {selectedTask?.videoUrl && (
+              <Card 
+                title={<><PlayCircleOutlined className="text-red-600" /> 会诊录像</>} 
+                size="small"
+                className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200"
+              >
+                <div className="space-y-3">
+                  <video controls className="w-full rounded border border-red-100" src={selectedTask.videoUrl}>
+                    您的浏览器不支持视频播放
+                  </video>
+                  <div className="text-sm text-gray-600">
+                    <Space>
+                      <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.videoDuration || '未知'}</Tag>
+                      <Tag color="red">格式：MP4</Tag>
                     </Space>
                   </div>
                 </div>
