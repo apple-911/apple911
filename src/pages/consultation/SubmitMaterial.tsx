@@ -13,7 +13,8 @@ import {
   BookOutlined,
   UserOutlined,
   TeamOutlined,
-  SafetyOutlined
+  CheckSquareOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -581,42 +582,87 @@ export default function SubmitMaterial() {
 
         {isEditMode && currentStep === 2 && (
           <div className="space-y-4">
-            <Card title="确认提交信息" size="small" className="bg-green-50">
-              <Space direction="vertical">
-                <div><Text strong>患者：</Text>{selectedTask?.patientName}</div>
-                <div><Text strong>会诊时间：</Text>{selectedTask?.meetingDate} {selectedTask?.meetingTime}</div>
-                <div><Text strong>会诊记录：</Text>
-                  <div className="mt-2 p-3 bg-white rounded border text-sm max-h-40 overflow-auto">
-                    <div className="whitespace-pre-line">
-                      {form.getFieldValue('meetingRecord')?.substring(0, 300)}
-                      {form.getFieldValue('meetingRecord')?.length > 300 ? '...' : ''}
+            <Card 
+              title={<><CheckCircleOutlined className="text-green-600" /> 请确认以下信息</>} 
+              size="small"
+              className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200"
+            >
+              <div className="space-y-4">
+                {/* 基本信息 */}
+                <div className="flex items-start gap-3 pb-3 border-b border-green-200">
+                  <UserOutlined className="text-green-600 mt-1" />
+                  <div className="flex-1">
+                    <div className="mb-2">
+                      <Text className="text-gray-600">患者：</Text>
+                      <Text strong className="text-lg">{selectedTask?.patientName}</Text>
+                      <Tag className="ml-2">{selectedTask?.patientInpatientNo}</Tag>
+                    </div>
+                    <div>
+                      <Text className="text-gray-600">会诊时间：</Text>
+                      <Text>{selectedTask?.meetingDate} {selectedTask?.meetingTime}</Text>
                     </div>
                   </div>
                 </div>
-                <div><Text strong>会诊报告：</Text>
-                  <div className="mt-2 p-3 bg-white rounded border text-sm max-h-40 overflow-auto">
-                    <div className="whitespace-pre-line">
-                      {form.getFieldValue('consultationReport')?.substring(0, 300)}
-                      {form.getFieldValue('consultationReport')?.length > 300 ? '...' : ''}
+
+                {/* 会诊记录 */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileTextOutlined className="text-blue-600" />
+                    <Text strong className="text-base">会诊记录</Text>
+                    <Tag color="blue" icon={<CheckCircleOutlined />}>已填写</Tag>
+                  </div>
+                  <div className="ml-6 p-3 bg-white rounded border border-blue-100 text-sm max-h-48 overflow-y-auto shadow-sm">
+                    <div className="whitespace-pre-line text-gray-700 leading-relaxed">
+                      {form.getFieldValue('meetingRecord')?.substring(0, 500)}
+                      {form.getFieldValue('meetingRecord')?.length > 500 ? '...' : ''}
                     </div>
                   </div>
                 </div>
+
+                {/* 会诊报告 */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileTextOutlined className="text-purple-600" />
+                    <Text strong className="text-base">会诊报告</Text>
+                    <Tag color="purple" icon={<CheckCircleOutlined />}>已填写</Tag>
+                  </div>
+                  <div className="ml-6 p-3 bg-white rounded border border-purple-100 text-sm max-h-48 overflow-y-auto shadow-sm">
+                    <div className="whitespace-pre-line text-gray-700 leading-relaxed">
+                      {form.getFieldValue('consultationReport')?.substring(0, 500)}
+                      {form.getFieldValue('consultationReport')?.length > 500 ? '...' : ''}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 会诊建议 */}
                 {form.getFieldValue('recommendations') && (
-                  <div><Text strong>会诊建议：</Text>
-                    <ul className="mt-2 list-disc list-inside text-sm">
-                      {form.getFieldValue('recommendations').split('\n').filter((r: string) => r.trim()).map((rec: string, i: number) => (
-                        <li key={i}>{rec}</li>
-                      ))}
-                    </ul>
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckSquareOutlined className="text-orange-600" />
+                      <Text strong className="text-base">会诊建议</Text>
+                      <Tag color="orange" icon={<CheckCircleOutlined />}>
+                        {form.getFieldValue('recommendations').split('\n').filter((r: string) => r.trim()).length} 条
+                      </Tag>
+                    </div>
+                    <div className="ml-6 p-3 bg-white rounded border border-orange-100 shadow-sm">
+                      <ul className="space-y-1">
+                        {form.getFieldValue('recommendations').split('\n').filter((r: string) => r.trim()).map((rec: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <span className="text-orange-500 mt-1">•</span>
+                            <span>{rec}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 )}
-              </Space>
+              </div>
             </Card>
 
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
+            <div className="p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-lg shadow-sm">
               <Space>
-                <ExclamationCircleOutlined className="text-yellow-600" />
-                <Text className="text-yellow-800">
+                <ExclamationCircleOutlined className="text-amber-600 text-lg" />
+                <Text className="text-amber-800 font-medium">
                   请确认信息无误后提交，提交后将进入审核流程
                 </Text>
               </Space>
