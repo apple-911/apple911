@@ -13,6 +13,11 @@ type ApplicationSource = 'doctor' | 'patient'
 interface ExtendedConsultation extends Consultation {
   source?: ApplicationSource
   sourceDetail?: string
+  age?: number
+  gender?: 'male' | 'female'
+  otherDiagnoses?: string[]
+  consultationPurpose?: string
+  applyDate?: string
 }
 
 export default function PendingReview() {
@@ -23,8 +28,11 @@ export default function PendingReview() {
       patientId: 'P001',
       patientName: '王建国',
       patientInpatientNo: 'ZY2024001234',
+      age: 65,
+      gender: 'male',
       type: '院内',
       applyTime: '2024-03-15 09:30',
+      applyDate: '2024-03-15',
       expectTime: '2024-03-20 14:00',
       status: '待审核',
       urgency: '紧急',
@@ -36,6 +44,8 @@ export default function PendingReview() {
         { id: '4', name: '刘晓燕', department: '病理科', title: '主任医师', status: '空闲' }
       ],
       mainDiagnosis: '左肺鳞癌 III 期',
+      otherDiagnoses: ['高血压 2 级', '2 型糖尿病'],
+      consultationPurpose: '明确分期及后续治疗方案',
       source: 'doctor',
       sourceDetail: '肿瘤科张明华医生申请'
     },
@@ -44,8 +54,11 @@ export default function PendingReview() {
       patientId: 'P006',
       patientName: '李秀英',
       patientInpatientNo: 'ZY2024001256',
+      age: 52,
+      gender: 'female',
       type: '远程',
       applyTime: '2024-03-15 14:20',
+      applyDate: '2024-03-15',
       expectTime: '2024-03-22 10:00',
       status: '待审核',
       urgency: '普通',
@@ -56,6 +69,8 @@ export default function PendingReview() {
         { id: '5', name: '陈伟', department: '肿瘤科', title: '副主任医师', status: '忙碌' }
       ],
       mainDiagnosis: '乳腺癌改良根治术后辅助治疗',
+      otherDiagnoses: ['骨质疏松症'],
+      consultationPurpose: '制定术后辅助化疗方案',
       source: 'doctor',
       sourceDetail: '乳腺外科陈伟医生申请'
     },
@@ -64,8 +79,11 @@ export default function PendingReview() {
       patientId: 'P007',
       patientName: '张建国',
       patientInpatientNo: 'M123456789',
+      age: 58,
+      gender: 'male',
       type: '远程',
       applyTime: '2024-03-16 10:15',
+      applyDate: '2024-03-16',
       expectTime: '2024-03-25 14:30',
       status: '待审核',
       urgency: '普通',
@@ -76,6 +94,7 @@ export default function PendingReview() {
         { id: '6', name: '赵红梅', department: '呼吸科', title: '主任医师', status: '空闲' }
       ],
       mainDiagnosis: '肺癌术后复查',
+      consultationPurpose: '术后复查及康复指导',
       source: 'patient',
       sourceDetail: '患者张建国通过患者端申请'
     },
@@ -84,8 +103,11 @@ export default function PendingReview() {
       patientId: 'P008',
       patientName: '刘芳',
       patientInpatientNo: 'ZY2024001356',
+      age: 71,
+      gender: 'female',
       type: '院内',
       applyTime: '2024-03-16 16:45',
+      applyDate: '2024-03-16',
       expectTime: '2024-03-19 09:00',
       status: '待审核',
       urgency: '特急',
@@ -97,6 +119,8 @@ export default function PendingReview() {
         { id: '8', name: '周丽萍', department: '营养科', title: '副主任医师', status: '空闲' }
       ],
       mainDiagnosis: '胃癌晚期伴多发转移',
+      otherDiagnoses: ['贫血', '低蛋白血症', '腹腔积液'],
+      consultationPurpose: '姑息治疗方案及营养支持',
       source: 'doctor',
       sourceDetail: '消化内科王建国医生申请'
     },
@@ -266,7 +290,12 @@ export default function PendingReview() {
               title={
                 <Space>
                   <Avatar icon={<ExclamationCircleOutlined />} className="!bg-orange-500" />
-                  <span>{consultation.patientName}</span>
+                  <div>
+                    <div className="font-medium">
+                      {consultation.patientName} {consultation.age ? `${consultation.age}岁` : ''} {consultation.gender === 'male' ? '男' : consultation.gender === 'female' ? '女' : ''}
+                    </div>
+                    <div className="text-xs text-gray-500">{consultation.patientInpatientNo}</div>
+                  </div>
                   <Tag color={getUrgencyColor(consultation.urgency)}>{consultation.urgency}</Tag>
                   {getSourceBadge(consultation.source)}
                 </Space>
@@ -285,11 +314,21 @@ export default function PendingReview() {
                     <Text type="secondary" style={{ fontSize: '12px' }}>
                       来源：{consultation.sourceDetail}
                     </Text>
+                    {consultation.otherDiagnoses && consultation.otherDiagnoses.length > 0 && (
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        其他诊断：{consultation.otherDiagnoses.join('、')}
+                      </Text>
+                    )}
                   </Space>
                 </List.Item>
                 <List.Item>
                   <Text strong>主要诊断：</Text>{consultation.mainDiagnosis}
                 </List.Item>
+                {consultation.consultationPurpose && (
+                  <List.Item>
+                    <Text strong>会诊目的：</Text>{consultation.consultationPurpose}
+                  </List.Item>
+                )}
                 <List.Item>
                   <Text strong>邀请专家：</Text>
                   <Space wrap>
@@ -300,17 +339,23 @@ export default function PendingReview() {
                   </Space>
                 </List.Item>
               </List>
-              <div className="flex justify-end gap-2 mt-4">
-                <Button danger icon={<CloseOutlined />} onClick={() => handleReject(consultation)}>
-                  拒绝
-                </Button>
-                <Button icon={<CalendarOutlined />} onClick={() => handleSchedule(consultation)}>
-                  修改排期
-                </Button>
-                <Button type="primary" icon={<CheckOutlined />} className="!bg-green-500 !border-green-500" onClick={() => handleApprove(consultation)}>
-                  通过
-                </Button>
-              </div>
+                <div className="flex justify-between items-center mt-4">
+                  <Button onClick={() => navigate(`/patient/detail/${consultation.patientId}`)}>
+                    <UserOutlined className="mr-1" />
+                    查看患者详情
+                  </Button>
+                  <Space>
+                    <Button danger icon={<CloseOutlined />} onClick={() => handleReject(consultation)}>
+                      拒绝
+                    </Button>
+                    <Button icon={<CalendarOutlined />} onClick={() => handleSchedule(consultation)}>
+                      修改排期
+                    </Button>
+                    <Button type="primary" icon={<CheckOutlined />} className="!bg-green-500 !border-green-500" onClick={() => handleApprove(consultation)}>
+                      通过
+                    </Button>
+                  </Space>
+                </div>
             </Card>
           ))}
         </div>
