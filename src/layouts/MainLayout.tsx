@@ -169,7 +169,14 @@ export default function MainLayout() {
         collapsed={collapsed}
         className="!bg-white"
         width={220}
-        style={{ borderRight: '1px solid var(--border-light)' }}
+        style={{ 
+          borderRight: '1px solid var(--border-light)',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          zIndex: 100
+        }}
       >
         <div className="h-16 flex items-center justify-center border-b" style={{ borderColor: 'var(--border-light)' }}>
           {collapsed ? (
@@ -189,7 +196,7 @@ export default function MainLayout() {
           }}
         />
       </Sider>
-      <Layout>
+      <Layout style={{ marginLeft: collapsed ? 80 : 220 }}>
         <Header className="!bg-white !px-4 flex items-center justify-between !h-16 !leading-16 border-b" style={{ borderColor: 'var(--border-light)' }}>
           <Button
             type="text"
@@ -219,7 +226,14 @@ export default function MainLayout() {
             </Dropdown>
           </div>
         </Header>
-        <Content className="m-4 p-4 rounded-lg" style={{ background: 'var(--bg-paper)' }}>
+        <Content 
+          className="m-4 p-4 rounded-lg" 
+          style={{ 
+            background: 'var(--bg-paper)',
+            overflow: 'auto',
+            height: 'calc(100vh - 32px)'
+          }}
+        >
           <Outlet />
         </Content>
       </Layout>
