@@ -66,6 +66,39 @@ const mockTasks: MaterialTask[] = [
       { name: '刘晓燕', department: '病理科' }
     ],
     status: '待提交',
+    meetingRecord: `2024-03-15 14:00-15:30 在 MDT 会诊中心召开多学科会诊。
+
+参加专家：
+- 胸外科：李芳 副主任医师
+- 放射科：王建国 主任医师
+- 病理科：刘晓燕 主任医师
+- 肿瘤科：张明华 主任医师
+
+会诊过程：
+1. 申请科室汇报病史：患者王建国，65 岁，因"咳嗽、咳痰 3 个月"入院
+2. 病理科汇报：（左肺穿刺）鳞癌，低分化
+3. 放射科汇报：PET-CT 显示左肺上叶占位，伴纵隔淋巴结转移
+4. 胸外科汇报：患者目前无手术指征
+5. 各科专家讨论后一致同意行同步放化疗`,
+    consultationReport: `一、诊断
+左肺鳞癌 III 期（cT4N2M0）
+
+二、治疗方案
+1. 首选治疗方案：同步放化疗
+   - 放疗：根治性放疗，DT 60-66Gy/30-33f
+   - 化疗：紫杉醇 + 卡铂方案
+
+2. 备选治疗方案：免疫治疗联合化疗
+   - PD-1 抑制剂 + 紫杉醇 + 卡铂
+
+三、随访计划
+治疗结束后 4 周复查胸部 CT，之后每 3 个月复查一次。`,
+    recommendations: [
+      '完善基因检测',
+      '评估心肺功能',
+      '营养支持治疗',
+      '定期复查血常规、肝肾功能'
+    ],
     recordingUrl: '/recordings/C001_audio.mp3',
     videoUrl: '/recordings/C001_video.mp4',
     recordingDuration: '1:30:25',
@@ -149,7 +182,15 @@ export default function SubmitMaterial() {
     setSelectedTask(task)
     setCurrentStep(0)
     setModalVisible(true)
-    form.resetFields()
+    
+    // 智能填充已有数据
+    setTimeout(() => {
+      form.setFieldsValue({
+        meetingRecord: task.meetingRecord || '',
+        consultationReport: task.consultationReport || '',
+        recommendations: task.recommendations?.join('\n') || ''
+      })
+    }, 100)
   }
 
   const handleView = (task: MaterialTask) => {
@@ -422,12 +463,25 @@ export default function SubmitMaterial() {
               </Space>
             </Card>
 
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+              <Space>
+                <ExclamationCircleOutlined className="text-blue-600" />
+                <Text className="text-blue-800">
+                  系统已自动填充会诊信息，您可以根据实际情况修改完善
+                </Text>
+              </Space>
+            </div>
+
             <Form form={form} layout="vertical">
               <Form.Item
                 name="meetingRecord"
                 label="会诊记录"
                 rules={[{ required: true, message: '请输入会诊记录' }]}
                 tooltip="详细记录会诊过程，包括专家讨论内容"
+                extra={selectedTask?.meetingRecord ? 
+                  <Tag color="blue">已自动填充</Tag> : 
+                  <Tag>需手动填写</Tag>
+                }
               >
                 <Input.TextArea
                   rows={8}
@@ -442,9 +496,17 @@ export default function SubmitMaterial() {
 
             {selectedTask?.recordingUrl && (
               <Card title={<><AudioOutlined /> 会诊录音（参考）</>} size="small" className="bg-blue-50">
-                <audio controls className="w-full" src={selectedTask.recordingUrl}>
-                  您的浏览器不支持音频播放
-                </audio>
+                <div className="space-y-3">
+                  <audio controls className="w-full" src={selectedTask.recordingUrl}>
+                    您的浏览器不支持音频播放
+                  </audio>
+                  <div className="text-sm text-gray-600">
+                    <Space>
+                      <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.recordingDuration}</Tag>
+                      <Tag color="green">格式：MP3</Tag>
+                    </Space>
+                  </div>
+                </div>
               </Card>
             )}
           </div>
@@ -452,12 +514,25 @@ export default function SubmitMaterial() {
 
         {isEditMode && currentStep === 1 && (
           <div className="space-y-4">
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+              <Space>
+                <ExclamationCircleOutlined className="text-blue-600" />
+                <Text className="text-blue-800">
+                  系统已自动填充会诊报告和建議，您可以根据实际情况修改完善
+                </Text>
+              </Space>
+            </div>
+
             <Form form={form} layout="vertical">
               <Form.Item
                 name="consultationReport"
                 label="会诊报告"
                 rules={[{ required: true, message: '请输入会诊报告' }]}
                 tooltip="最终形成的诊疗方案"
+                extra={selectedTask?.consultationReport ? 
+                  <Tag color="blue">已自动填充</Tag> : 
+                  <Tag>需手动填写</Tag>
+                }
               >
                 <Input.TextArea
                   rows={6}
@@ -472,6 +547,10 @@ export default function SubmitMaterial() {
                 name="recommendations"
                 label="会诊建议"
                 tooltip="给患者的后续治疗建议，每行一条"
+                extra={selectedTask?.recommendations && selectedTask.recommendations.length > 0 ? 
+                  <Tag color="blue">已自动填充 {selectedTask.recommendations.length} 条</Tag> : 
+                  <Tag>需手动填写</Tag>
+                }
               >
                 <Input.TextArea
                   rows={4}
