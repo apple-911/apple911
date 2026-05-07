@@ -15,8 +15,8 @@ import {
   TeamOutlined,
   CheckSquareOutlined,
   SafetyOutlined,
-  StethoscopeOutlined,
-  ExperimentOutlined,
+  MedicineBoxOutlined,
+  ApiOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -1086,7 +1086,7 @@ export default function SubmitMaterial() {
 
             {selectedTask?.physicalExamination && (
               <Card 
-                title={<><StethoscopeOutlined className="text-cyan-600" /> 体格检查</>} 
+                title={<><MedicineBoxOutlined className="text-cyan-600" /> 体格检查</>} 
                 size="small"
                 className="bg-gradient-to-r from-cyan-50 to-teal-50 border border-cyan-200"
               >
@@ -1096,9 +1096,10 @@ export default function SubmitMaterial() {
               </Card>
             )}
 
+            {/* 辅助检查 */}
             {selectedTask?.auxiliaryExamination && (
               <Card 
-                title={<><ExperimentOutlined className="text-purple-600" /> 辅助检查</>} 
+                title={<><ApiOutlined className="text-purple-600" /> 辅助检查</>} 
                 size="small"
                 className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200"
               >
