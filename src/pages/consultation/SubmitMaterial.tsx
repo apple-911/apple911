@@ -804,60 +804,51 @@ export default function SubmitMaterial() {
             <Tabs 
               defaultActiveKey="1" 
               size="small"
+              className="bg-white border border-gray-200 rounded-lg"
               items={[
                 {
                   key: '1',
-                  label: '主诉',
-                  children: selectedTask?.chiefComplaint ? (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm whitespace-pre-line max-h-32 overflow-y-auto">
-                      {selectedTask.chiefComplaint}
+                  label: '📄 主诉',
+                  children: (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.chiefComplaint || '暂无相关记录'}
                     </div>
-                  ) : (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
                   )
                 },
                 {
                   key: '2',
-                  label: '现病史',
-                  children: selectedTask?.presentIllness ? (
-                    <div className="p-3 bg-orange-50 border border-orange-200 rounded text-sm whitespace-pre-line max-h-48 overflow-y-auto">
-                      {selectedTask.presentIllness}
+                  label: '📄 现病史',
+                  children: (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.presentIllness || '暂无相关记录'}
                     </div>
-                  ) : (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
                   )
                 },
                 {
                   key: '3',
-                  label: '既往史',
-                  children: selectedTask?.pastHistory ? (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded text-sm whitespace-pre-line max-h-48 overflow-y-auto">
-                      {selectedTask.pastHistory}
+                  label: '📄 既往史',
+                  children: (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.pastHistory || '暂无相关记录'}
                     </div>
-                  ) : (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
                   )
                 },
                 {
                   key: '4',
-                  label: '体格检查',
-                  children: selectedTask?.physicalExamination ? (
-                    <div className="p-3 bg-cyan-50 border border-cyan-200 rounded text-sm whitespace-pre-line max-h-48 overflow-y-auto">
-                      {selectedTask.physicalExamination}
+                  label: '🩺 体格检查',
+                  children: (
+                    <div className="p-4 bg-cyan-50 border border-cyan-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.physicalExamination || '暂无相关记录'}
                     </div>
-                  ) : (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
                   )
                 },
                 {
                   key: '5',
-                  label: '辅助检查',
-                  children: selectedTask?.auxiliaryExamination ? (
-                    <div className="p-3 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line max-h-48 overflow-y-auto">
-                      {selectedTask.auxiliaryExamination}
+                  label: '🧪 辅助检查',
+                  children: (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.auxiliaryExamination || '暂无相关记录'}
                     </div>
-                  ) : (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
                   )
                 },
               ]}
@@ -927,38 +918,33 @@ export default function SubmitMaterial() {
             <Tabs 
               defaultActiveKey="1" 
               size="small"
+              className="bg-white border border-gray-200 rounded-lg"
               items={[
                 {
                   key: '1',
-                  label: '主诉',
-                  children: selectedTask?.chiefComplaint ? (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm whitespace-pre-line max-h-24 overflow-y-auto">
-                      {selectedTask.chiefComplaint}
+                  label: '📄 主诉',
+                  children: (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.chiefComplaint || '暂无相关记录'}
                     </div>
-                  ) : (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
                   )
                 },
                 {
                   key: '2',
-                  label: '现病史',
-                  children: selectedTask?.presentIllness ? (
-                    <div className="p-3 bg-orange-50 border border-orange-200 rounded text-sm whitespace-pre-line max-h-40 overflow-y-auto">
-                      {selectedTask.presentIllness}
+                  label: '📄 现病史',
+                  children: (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.presentIllness || '暂无相关记录'}
                     </div>
-                  ) : (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
                   )
                 },
                 {
                   key: '3',
-                  label: '辅助检查',
-                  children: selectedTask?.auxiliaryExamination ? (
-                    <div className="p-3 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line max-h-40 overflow-y-auto">
-                      {selectedTask.auxiliaryExamination}
+                  label: '🧪 辅助检查',
+                  children: (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.auxiliaryExamination || '暂无相关记录'}
                     </div>
-                  ) : (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
                   )
                 },
               ]}
