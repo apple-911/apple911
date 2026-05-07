@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Button, Tag, Space, Modal, message, List, Avatar, Typography, Empty, Select, DatePicker, Badge } from 'antd'
+import { Card, Button, Tag, Space, Modal, message, List, Avatar, Typography, Empty, Select, DatePicker } from 'antd'
 import { CheckOutlined, CloseOutlined, CalendarOutlined, ExclamationCircleOutlined, UserOutlined, MedicineBoxOutlined } from '@ant-design/icons'
 import { mockConsultations } from '../../mocks/data'
 import type { Consultation } from '../../stores/consultationStore'
@@ -148,19 +148,15 @@ export default function PendingReview() {
   const getSourceBadge = (source: ApplicationSource | undefined) => {
     if (source === 'patient') {
       return (
-        <Badge 
-          icon={<UserOutlined />} 
-          text="患者申请" 
-          style={{ backgroundColor: '#52c41a' }} 
-        />
+        <Tag icon={<UserOutlined />} color="success">
+          患者申请
+        </Tag>
       )
     }
     return (
-      <Badge 
-        icon={<MedicineBoxOutlined />} 
-        text="医生申请" 
-        style={{ backgroundColor: '#1890ff' }} 
-      />
+      <Tag icon={<MedicineBoxOutlined />} color="processing">
+        医生申请
+      </Tag>
     )
   }
 
