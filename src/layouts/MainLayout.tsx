@@ -18,6 +18,7 @@ import {
   SafetyOutlined,
   ThunderboltOutlined,
   RobotOutlined,
+  BellOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAppStore, Role } from '../stores/appStore'
@@ -30,6 +31,7 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
     { key: '/consultation/apply', icon: <PlusCircleOutlined />, label: '申请会诊' },
     { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
+    { key: '/consultation/submit-material', icon: <FileTextOutlined />, label: '材料提交' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
     { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {
@@ -46,6 +48,7 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
     { key: '/consultation/pending-review', icon: <CheckSquareOutlined />, label: '待审核' },
     { key: '/consultation/schedule', icon: <CalendarOutlined />, label: '排期管理' },
+    { key: '/consultation/material-supervise', icon: <BellOutlined />, label: '材料督办' },
     { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
     { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 export type ConsultationStatus = '待审核' | '已通过' | '已拒绝' | '已完成' | '进行中'
+export type MaterialStatus = '未提交' | '待提交' | '待秘书审核' | '待质控审核' | '审核通过' | '已退回'
 
 export interface Consultation {
   id: string
@@ -21,6 +22,17 @@ export interface Consultation {
     summary: string
     recommendations: string[]
   }
+  // 材料提交相关字段
+  materialStatus?: MaterialStatus  // 材料状态
+  meetingDate?: string  // 会诊日期
+  meetingTime?: string  // 会诊时间段
+  meetingRecord?: string  // 会诊记录
+  consultationReport?: string  // 会诊报告
+  recommendations?: string[]  // 会诊建议
+  recordingUrl?: string  // 录音 URL
+  videoUrl?: string  // 录像 URL
+  submitTime?: string  // 提交时间
+  rejectReason?: string  // 退回原因
 }
 
 export interface Expert {

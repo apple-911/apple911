@@ -10,6 +10,8 @@ import PendingReview from './pages/consultation/PendingReview'
 import Schedule from './pages/consultation/Schedule'
 import MyMeetings from './pages/consultation/MyMeetings'
 import ConsultationDetail from './pages/consultation/Detail'
+import SubmitMaterial from './pages/consultation/SubmitMaterial'
+import MaterialSupervise from './pages/consultation/MaterialSupervise'
 import PatientList from './pages/patient/List'
 import Patient360 from './pages/patient/Patient360'
 import ConsultationRoom from './pages/consultation/Room'
@@ -57,8 +59,10 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/consultation/apply" element={<Apply />} />
           <Route path="/consultation/my-applies" element={<MyApplies />} />
+          <Route path="/consultation/submit-material" element={<SubmitMaterial />} />
           <Route path="/consultation/pending-review" element={<PendingReview />} />
           <Route path="/consultation/schedule" element={<Schedule />} />
+          <Route path="/consultation/material-supervise" element={<MaterialSupervise />} />
           <Route path="/consultation/my-meetings" element={<MyMeetings />} />
           <Route path="/consultation/detail/:id" element={<ConsultationDetail />} />
           <Route path="/consultation/room/:id" element={<ConsultationRoom />} />
