@@ -91,7 +91,7 @@ export default function ScreeningDetail() {
       }
 
       // Mock 数据 - MDTNecessityAssessment
-      const mockAssessment: MDTNecessityAssessment = {
+      const mockAssessment: any = {
         patientInfo: {
           patientId: 'P001',
           name: '张建国',

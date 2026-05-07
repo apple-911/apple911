@@ -4,10 +4,10 @@ import { PrinterOutlined, FilePdfOutlined, CloseOutlined } from '@ant-design/ico
 
 interface Report {
   id: string
-  title: string
-  content: string
-  createdAt: string
-  createdBy: string
+  title?: string
+  content?: string
+  createdAt?: string
+  createdBy?: string
   patientName?: string
   treatmentSuggestion?: string
   followupPlan?: string
