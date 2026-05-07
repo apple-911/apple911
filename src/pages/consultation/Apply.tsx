@@ -1,21 +1,47 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Card, Steps, Form, Input, Select, DatePicker, Button, Table, Tag, Space, message, Modal, Upload, List, Avatar, Typography, Row, Col } from 'antd'
-import { SearchOutlined, UserAddOutlined, UploadOutlined, PlusOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Card, Steps, Form, Input, Select, DatePicker, Button, Table, Tag, Space, message, Modal, Upload, List, Avatar, Typography, Row, Col, Spin, Alert, Badge, Divider, Tooltip, Drawer, Progress } from 'antd'
+import { SearchOutlined, UserAddOutlined, UploadOutlined, PlusOutlined, CheckCircleOutlined, RobotOutlined, ThunderboltOutlined, FileProtectOutlined, WarningOutlined, CheckCircleFilled, StarFilled } from '@ant-design/icons'
 import { mockPatients, mockExperts } from '../../mocks/data'
 import type { ColumnsType } from 'antd/es/table'
 import type { Patient, Expert } from '../../stores/consultationStore'
 import dayjs from 'dayjs'
+import intelligentConsultationService, { IntelligentApplication, ExpertMatch } from '../../services/integration/ai/intelligentConsultationService'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
 
 export default function Apply() {
+  const [searchParams] = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [selectedExperts, setSelectedExperts] = useState<Expert[]>([])
   const [form] = Form.useForm()
   const navigate = useNavigate()
+  
+  // AI 辅助相关状态
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState<IntelligentApplication | null>(null)
+  const [showAiPanel, setShowAiPanel] = useState(false)
+  
+  // 智能匹配专家相关状态
+  const [matchDrawerVisible, setMatchDrawerVisible] = useState(false)
+  const [matchedExperts, setMatchedExperts] = useState<ExpertMatch[]>([])
+  const [matchLoading, setMatchLoading] = useState(false)
+
+  // 从 URL 参数中获取患者 ID 并自动选择患者
+  useEffect(() => {
+    const patientId = searchParams.get('patientId')
+    if (patientId) {
+      // 尝试从 mock 数据中查找患者
+      const patient = mockPatients.find(p => p.id === patientId)
+      if (patient) {
+        setSelectedPatient(patient)
+        setCurrentStep(1)
+        message.success(`已自动选择患者：${patient.name}`)
+      }
+    }
+  }, [searchParams])
 
   const patientColumns: ColumnsType<Patient> = [
     { title: '姓名', dataIndex: 'name', render: (t) => <a onClick={() => setSelectedPatient(mockPatients.find(p => p.name === t) || null)}>{t}</a> },
@@ -40,6 +66,88 @@ export default function Apply() {
 
   const handleRemoveExpert = (expertId: string) => {
     setSelectedExperts(selectedExperts.filter(e => e.id !== expertId))
+  }
+
+  // AI 智能辅助填写
+  const handleAIAssist = async () => {
+    if (!selectedPatient) {
+      message.warning('请先选择患者')
+      return
+    }
+
+    setAiLoading(true)
+    try {
+      // 调用 AI 服务获取智能建议
+      const suggestion = await intelligentConsultationService.getIntelligentApplication(selectedPatient.id)
+      setAiSuggestion(suggestion)
+      setShowAiPanel(true)
+      
+      // 自动填充表单
+      if (suggestion.summary) {
+        form.setFieldsValue({
+          summary: suggestion.summary,
+          type: suggestion.recommendedType,
+          urgency: '紧急'
+        })
+      }
+
+      message.success('AI 智能分析完成！已自动填充部分信息')
+    } catch (error) {
+      console.error('AI 辅助失败:', error)
+      message.error('AI 分析失败，请稍后重试')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  // 应用 AI 推荐的专家
+  const handleApplyAIExperts = () => {
+    if (!aiSuggestion) return
+    
+    const recommendedExpertIds = aiSuggestion.recommendedExperts.map(e => e.id)
+    const expertsToAdd = mockExperts.filter(e => recommendedExpertIds.includes(e.id))
+    
+    setSelectedExperts([...selectedExperts, ...expertsToAdd])
+    message.success(`已添加 ${expertsToAdd.length} 位推荐专家`)
+    setShowAiPanel(false)
+  }
+
+  // 智能匹配专家
+  const handleSmartMatchExperts = async () => {
+    if (!selectedPatient) {
+      message.warning('请先选择患者')
+      return
+    }
+    
+    setMatchLoading(true)
+    setMatchDrawerVisible(true)
+    
+    try {
+      const result = await intelligentConsultationService.recommendExperts({
+        diagnosis: selectedPatient.mainDiagnosis,
+        condition: selectedPatient.mainDiagnosis,
+        urgency: form.getFieldValue('urgency') || '常规',
+        preferredDepartments: form.getFieldValue('departments') || []
+      })
+      
+      setMatchedExperts(result)
+    } catch (error) {
+      message.error('智能匹配失败，请重试')
+      setMatchDrawerVisible(false)
+    } finally {
+      setMatchLoading(false)
+    }
+  }
+
+  // 从匹配结果中选择专家
+  const handleSelectMatchedExpert = (expert: ExpertMatch) => {
+    const fullExpert = mockExperts.find(e => e.id === expert.expertId)
+    if (fullExpert && !selectedExperts.find(e => e.id === fullExpert.id)) {
+      setSelectedExperts([...selectedExperts, fullExpert])
+      message.success(`已添加专家：${expert.name}`)
+    } else if (selectedExperts.find(e => e.id === expert.expertId)) {
+      message.info('该专家已在邀请列表中')
+    }
   }
 
   const handleSubmit = async () => {
@@ -141,7 +249,113 @@ export default function Apply() {
       </Row>
 
       {currentStep >= 1 && (
-        <Card title="会诊信息">
+        <Card 
+          title={
+            <Space>
+              <span>会诊信息</span>
+              <Tooltip title="AI 智能分析患者病情，自动填写会诊信息">
+                <Button
+                  type="primary"
+                  icon={<RobotOutlined />}
+                  onClick={handleAIAssist}
+                  loading={aiLoading}
+                  size="small"
+                >
+                  AI 智能填写
+                </Button>
+              </Tooltip>
+            </Space>
+          }
+        >
+          {/* AI 建议面板 */}
+          {showAiPanel && aiSuggestion && (
+            <Alert
+              type="info"
+              className="mb-4"
+              message={
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Space>
+                      <ThunderboltOutlined style={{ color: '#faad14' }} />
+                      <Text strong>AI 智能分析结果</Text>
+                    </Space>
+                    <Button size="small" onClick={() => setShowAiPanel(false)}>关闭</Button>
+                  </div>
+                  
+                  <Divider style={{ margin: '12px 0' }} />
+                  
+                  <Row gutter={[16, 12]}>
+                    <Col span={12}>
+                      <Text type="secondary">推荐会诊类型：</Text>
+                      <Tag color="blue">{aiSuggestion.recommendedType}</Tag>
+                    </Col>
+                    <Col span={12}>
+                      <Text type="secondary">推荐科室：</Text>
+                      {aiSuggestion.recommendedDepartments.slice(0, 3).map((dept, idx) => (
+                        <Tag key={idx} color="green">{dept.department}</Tag>
+                      ))}
+                    </Col>
+                  </Row>
+                  
+                  <div className="mt-3">
+                    <Text type="secondary">会诊目的建议：</Text>
+                    <ul className="mt-1 ml-4">
+                      {aiSuggestion.purposes.map((purpose, idx) => (
+                        <li key={idx}><Text>{purpose}</Text></li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <Text type="secondary">推荐专家（按匹配度排序）：</Text>
+                    <div className="mt-2">
+                      {aiSuggestion.recommendedExperts.slice(0, 5).map((expert, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-white rounded mb-2">
+                          <Space>
+                            <Avatar size="small">{expert.name[0]}</Avatar>
+                            <div>
+                              <Text strong>{expert.name}</Text>
+                              <Text type="secondary" className="ml-2">{expert.department} · {expert.title}</Text>
+                            </div>
+                          </Space>
+                          <Space>
+                            <Badge count={`${(expert.matchScore * 100).toFixed(0)}%`} style={{ backgroundColor: '#52c41a' }} />
+                            {expert.available ? (
+                              <Tag color="success">可预约</Tag>
+                            ) : (
+                              <Tag color="warning">忙碌</Tag>
+                            )}
+                          </Space>
+                        </div>
+                      ))}
+                    </div>
+                    <Button 
+                      type="primary" 
+                      size="small" 
+                      onClick={handleApplyAIExperts}
+                      icon={<UserAddOutlined />}
+                    >
+                      一键添加推荐专家
+                    </Button>
+                  </div>
+                  
+                  {aiSuggestion.suggestedExams.length > 0 && (
+                    <div className="mt-3">
+                      <Text type="secondary">建议完善的检查：</Text>
+                      <div className="mt-2">
+                        {aiSuggestion.suggestedExams.map((exam, idx) => (
+                          <Tag key={idx} color={exam.urgency === '紧急' ? 'red' : exam.urgency === '常规' ? 'blue' : 'default'}>
+                            {exam.examName} ({exam.urgency})
+                          </Tag>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              }
+            />
+          )}
+          
           <Form form={form} layout="vertical">
             <Row gutter={16}>
               <Col span={12}>
@@ -164,7 +378,17 @@ export default function Apply() {
                 </Form.Item>
               </Col>
               <Col span={24}>
-                <Form.Item label="病情摘要" name="summary">
+                <Form.Item 
+                  label={
+                    <Space>
+                      <span>病情摘要</span>
+                      {aiSuggestion && (
+                        <Tag color="green" icon={<CheckCircleFilled />}>AI 已生成</Tag>
+                      )}
+                    </Space>
+                  } 
+                  name="summary"
+                >
                   <TextArea rows={4} placeholder="请详细描述患者病情、会诊目的及需要讨论的问题..." />
                 </Form.Item>
               </Col>
@@ -186,13 +410,23 @@ export default function Apply() {
 
       {currentStep >= 2 && (
         <Card title="邀请会诊专家">
-          <div className="mb-4 flex gap-4">
-            <Input.Search placeholder="按科室/职称筛选专家" allowClear />
-            <Select placeholder="按科室" allowClear style={{ width: 150 }}>
-              {Array.from(new Set(mockExperts.map(e => e.department))).map(d => (
-                <Select.Option key={d} value={d}>{d}</Select.Option>
-              ))}
-            </Select>
+          <div className="mb-4 flex justify-between items-center">
+            <div className="flex gap-4">
+              <Input.Search placeholder="按科室/职称筛选专家" allowClear style={{ width: 250 }} />
+              <Select placeholder="按科室" allowClear style={{ width: 150 }}>
+                {Array.from(new Set(mockExperts.map(e => e.department))).map(d => (
+                  <Select.Option key={d} value={d}>{d}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <Button 
+              type="primary" 
+              ghost
+              icon={<RobotOutlined />} 
+              onClick={handleSmartMatchExperts}
+            >
+              智能匹配专家
+            </Button>
           </div>
           <Row gutter={[16, 16]}>
             <Col span={16}>
@@ -264,6 +498,130 @@ export default function Apply() {
           </div>
         </Card>
       )}
+
+      {/* 智能匹配专家抽屉 */}
+      <Drawer
+        title={
+          <Space>
+            <RobotOutlined style={{ color: '#1890ff' }} />
+            <span>AI 智能匹配专家</span>
+            {selectedPatient && <Tag color="blue">{selectedPatient.name}</Tag>}
+          </Space>
+        }
+        placement="right"
+        width={700}
+        open={matchDrawerVisible}
+        onClose={() => {
+          setMatchDrawerVisible(false)
+          setMatchedExperts([])
+        }}
+      >
+        {matchLoading ? (
+          <div className="text-center py-20">
+            <Progress type="circle" percent={100} status="active" />
+            <div className="mt-4">
+              <Text type="secondary">正在进行智能匹配...</Text>
+            </div>
+          </div>
+        ) : matchedExperts.length > 0 ? (
+          <>
+            <Alert
+              type="info"
+              message="智能匹配结果"
+              description="基于患者病情、专家专长、历史案例、可用时间等多维度进行智能匹配，推荐最合适的专家组合。"
+              showIcon
+              className="mb-4"
+            />
+            
+            <List
+              dataSource={matchedExperts}
+              renderItem={(expert) => (
+                <List.Item
+                  actions={[
+                    <Button 
+                      key="add" 
+                      type="primary" 
+                      size="small"
+                      icon={<PlusOutlined />}
+                      onClick={() => handleSelectMatchedExpert(expert)}
+                      disabled={!!selectedExperts.find(e => e.id === expert.expertId)}
+                    >
+                      {selectedExperts.find(e => e.id === expert.expertId) ? '已添加' : '邀请'}
+                    </Button>
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={
+                      <div className="relative">
+                        <Avatar className="!bg-medical-blue" size={48}>{expert.name[0]}</Avatar>
+                        {expert.recommended && (
+                          <div className="absolute -top-1 -right-1">
+                            <StarFilled className="text-yellow-400 text-sm" />
+                          </div>
+                        )}
+                      </div>
+                    }
+                    title={
+                      <Space>
+                        <Text strong>{expert.name}</Text>
+                        <Tag>{expert.department}</Tag>
+                        <Tag color={expert.title === '主任医师' ? 'gold' : 'blue'}>{expert.title}</Tag>
+                        {expert.recommended && <Tag color="red">推荐</Tag>}
+                      </Space>
+                    }
+                    description={
+                      <div className="space-y-2">
+                        <Text type="secondary">{expert.specialty}</Text>
+                        
+                        <div className="flex items-center gap-4 mt-2">
+                          <div className="flex items-center gap-1">
+                            <Text type="secondary" className="text-xs">匹配度：</Text>
+                            <Progress 
+                              percent={expert.matchScore} 
+                              size="small" 
+                              style={{ width: 100 }}
+                              strokeColor={
+                                expert.matchScore >= 90 ? '#52c41a' :
+                                expert.matchScore >= 80 ? '#1890ff' :
+                                expert.matchScore >= 70 ? '#faad14' : '#ff4d4f'
+                              }
+                            />
+                          </div>
+                          <Tag color={expert.availability === '空闲' ? 'green' : expert.availability === '忙碌' ? 'orange' : 'default'}>
+                            {expert.availability}
+                          </Tag>
+                        </div>
+                        
+                        <div className="mt-2">
+                          <Text type="secondary" className="text-xs">匹配原因：</Text>
+                          <ul className="mt-1 space-y-1">
+                            {expert.matchReasons.map((reason, idx) => (
+                              <li key={idx} className="text-xs text-gray-600">• {reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        
+                        <div className="flex gap-4 mt-2 text-xs">
+                          <Text type="secondary">近期案例：{expert.recentCases}例</Text>
+                          <Text type="secondary">成功率：{expert.successRate}%</Text>
+                          <Text type="secondary">平均评分：{expert.averageRating}分</Text>
+                        </div>
+                      </div>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          </>
+        ) : (
+          <Alert
+            type="warning"
+            message="未找到匹配专家"
+            description="请确保已选择患者并填写了会诊信息，然后重新尝试智能匹配。"
+            showIcon
+          />
+        )}
+      </Drawer>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Tabs, Tag, Space, Button, Descriptions, List, Avatar, Typography, Row, Col, Timeline, message, Modal, Badge } from 'antd'
+import { Card, Tabs, Tag, Space, Button, Descriptions, List, Avatar, Typography, Row, Col, Timeline, message, Modal, Badge, Alert } from 'antd'
 import {
   UserOutlined,
   TeamOutlined,
@@ -11,6 +11,7 @@ import {
   ArrowLeftOutlined,
   EditOutlined,
   DownloadOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { mockConsultations, mockPatients, mockReports } from '../../mocks/data'
 import type { Patient } from '../../stores/consultationStore'

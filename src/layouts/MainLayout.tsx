@@ -16,6 +16,8 @@ import {
   CheckSquareOutlined,
   BarChartOutlined,
   SafetyOutlined,
+  ThunderboltOutlined,
+  RobotOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAppStore, Role } from '../stores/appStore'
@@ -29,6 +31,7 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/consultation/apply', icon: <PlusCircleOutlined />, label: '申请会诊' },
     { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
+    { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {
       key: 'followup',
       icon: <CalendarOutlined />,
@@ -46,6 +49,7 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
     { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
+    { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {
       key: 'followup',
       icon: <CalendarOutlined />,
@@ -62,6 +66,7 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
     { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
+    { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {
       key: 'followup',
       icon: <CalendarOutlined />,
@@ -77,6 +82,7 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/quality/tasks', icon: <SafetyOutlined />, label: '质控任务' },
     { key: '/statistics', icon: <BarChartOutlined />, label: '统计分析' },
     { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
+    { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
   ],
   '系统管理员': [
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
@@ -88,11 +94,10 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
   ],
   '超级管理员': [
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
-    { key: '/consultation/pending-review', icon: <CheckSquareOutlined />, label: '待审核' },
-    { key: '/consultation/schedule', icon: <CalendarOutlined />, label: '排期管理' },
     { key: '/consultation/my-meetings', icon: <CalendarOutlined />, label: '我的待参会' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
     { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
+    { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {
       key: 'followup',
       icon: <CalendarOutlined />,

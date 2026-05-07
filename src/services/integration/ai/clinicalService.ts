@@ -4,7 +4,7 @@
  * 提供智能诊断建议、治疗方案推荐、药物相互作用检查等功能
  */
 
-import { aiApi } from '../../utils/api'
+import { aiApi } from '../../../utils/api'
 
 // AI 诊断建议
 export interface AIDiagnosis {

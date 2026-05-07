@@ -4,7 +4,7 @@
  * 基于区块链技术实现病历数据的不可篡改存证、验证和追溯
  */
 
-import { api } from '../../utils/api'
+import { api } from '../../../utils/api'
 
 // 区块信息
 export interface Block {

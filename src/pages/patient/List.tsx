@@ -1,20 +1,50 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Button, Input, Select, Space, Tag, Typography, Modal, message } from 'antd'
-import { SearchOutlined, EyeOutlined, MedicineBoxOutlined, UserOutlined } from '@ant-design/icons'
+import { Card, Table, Button, Input, Select, Space, Tag, Typography, Modal, message, Badge, Tooltip } from 'antd'
+import { SearchOutlined, EyeOutlined, MedicineBoxOutlined, UserOutlined, ThunderboltOutlined, RobotOutlined } from '@ant-design/icons'
 import { mockPatients, mockConsultations } from '../../mocks/data'
 import type { Patient } from '../../stores/consultationStore'
 import type { ColumnsType } from 'antd/es/table'
+import aiPatientScreeningService, { MDTNecessityAssessment } from '../../services/integration/ai/aiPatientScreeningService'
 
 const { Title, Text } = Typography
 
+interface PatientWithAI extends Patient {
+  aiAssessment?: MDTNecessityAssessment
+  aiLoading?: boolean
+}
+
 export default function PatientList() {
-  const [data, setData] = useState(mockPatients)
+  const [data, setData] = useState<PatientWithAI[]>(mockPatients)
   const [searchText, setSearchText] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [applyModalVisible, setApplyModalVisible] = useState(false)
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const [selectedPatient, setSelectedPatient] = useState<PatientWithAI | null>(null)
   const navigate = useNavigate()
+
+  // 加载 AI 评估
+  useEffect(() => {
+    loadAIAssessments()
+  }, [])
+
+  const loadAIAssessments = async () => {
+    // 为所有患者加载 AI MDT 评估
+    const updatedData = [...data]
+    for (let i = 0; i < updatedData.length; i++) {
+      try {
+        updatedData[i].aiLoading = true
+        setData([...updatedData])
+        
+        const assessment = await aiPatientScreeningService.assessMDTNecessity(updatedData[i].id)
+        updatedData[i].aiAssessment = assessment
+        updatedData[i].aiLoading = false
+      } catch (error) {
+        console.error(`加载患者 ${updatedData[i].id} 的 AI 评估失败:`, error)
+        updatedData[i].aiLoading = false
+      }
+    }
+    setData([...updatedData])
+  }
 
   const filteredData = data.filter(p => {
     if (searchText) {
@@ -29,7 +59,7 @@ export default function PatientList() {
     return true
   })
 
-  const handleApplyConsultation = (patient: Patient) => {
+  const handleApplyConsultation = (patient: PatientWithAI) => {
     setSelectedPatient(patient)
     setApplyModalVisible(true)
   }
@@ -39,7 +69,7 @@ export default function PatientList() {
     message.success(`已为 ${selectedPatient?.name} 提交会诊申请`)
   }
 
-  const columns: ColumnsType<Patient> = [
+  const columns: ColumnsType<PatientWithAI> = [
     {
       title: '姓名',
       dataIndex: 'name',
@@ -59,29 +89,97 @@ export default function PatientList() {
       render: (t) => t ? <Tag>{t}</Tag> : <Text type="secondary">暂无</Text>
     },
     {
+      title: 'AI MDT 预判',
+      key: 'aiAssessment',
+      width: 140,
+      render: (_, record) => {
+        if (record.aiLoading) {
+          return <Badge color="processing" text="AI 评估中..." />
+        }
+        if (!record.aiAssessment) {
+          return <Text type="secondary">未评估</Text>
+        }
+        
+        const score = record.aiAssessment.necessityScore
+        const level = record.aiAssessment.recommendationLevel
+        
+        let color = 'default'
+        let text = level as string
+        let icon = null
+        
+        if (level === '强烈推荐') {
+          color = 'red'
+          text = `强烈推荐`
+          icon = <ThunderboltOutlined />
+        } else if (level === '推荐') {
+          color = 'orange'
+          text = '推荐'
+        } else if (level === '可考虑') {
+          color = 'blue'
+          text = '可考虑'
+        } else {
+          color = 'green'
+          text = '不推荐'
+        }
+        
+        return (
+          <Tooltip title={
+            <div style={{ padding: '4px 0' }}>
+              <div><strong>评分：</strong>{score}分</div>
+              <div><strong>置信度：</strong>{record.aiAssessment.confidence}%</div>
+              <div><strong>推荐类型：</strong>{record.aiAssessment.recommendedType}</div>
+              <div><strong>紧急程度：</strong>{record.aiAssessment.urgency}</div>
+            </div>
+          }>
+            <Tag color={color} style={{ minWidth: '80px', textAlign: 'center' }}>
+              {icon && <span style={{ marginRight: 4 }}>{icon}</span>}
+              {text}
+            </Tag>
+          </Tooltip>
+        )
+      }
+    },
+    {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 220,
       fixed: 'right',
-      render: (_, record) => (
-        <Space wrap size="small">
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/patient/360/${record.id}`)}
-          >
-            查看 360
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            icon={<MedicineBoxOutlined />}
-            onClick={() => handleApplyConsultation(record)}
-          >
-            发起会诊
-          </Button>
-        </Space>
-      )
+      render: (_, record) => {
+        const showAIAlert = record.aiAssessment && record.aiAssessment.necessityScore >= 80
+        
+        return (
+          <Space wrap size="small">
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/patient/360/${record.id}`)}
+            >
+              查看 360
+            </Button>
+            
+            {showAIAlert ? (
+              <Button
+                size="small"
+                type="primary"
+                danger
+                icon={<ThunderboltOutlined />}
+                onClick={() => handleApplyConsultation(record)}
+              >
+                发起会诊
+              </Button>
+            ) : (
+              <Button
+                size="small"
+                type="primary"
+                icon={<MedicineBoxOutlined />}
+                onClick={() => handleApplyConsultation(record)}
+              >
+                发起会诊
+              </Button>
+            )}
+          </Space>
+        )
+      }
     },
   ]
 

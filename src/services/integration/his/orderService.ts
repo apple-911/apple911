@@ -5,7 +5,7 @@
  */
 
 import type { HISOrder, SyncResult } from '../types'
-import { hisApi } from '../../utils/api'
+import { hisApi } from '../../../utils/api'
 
 export class HISOrderService {
   /**

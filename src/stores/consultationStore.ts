@@ -52,6 +52,14 @@ export interface Report {
   responsibleExpert: string
   status: '草稿' | '待签名' | '已签名' | '已归档'
   content?: string
+  chiefComplaint?: string
+  historyOfPresentIllness?: string
+  pastHistory?: string
+  physicalExamination?: string
+  auxiliaryExamination?: string
+  consultationOpinion?: string
+  treatmentSuggestion?: string
+  followupPlan?: string
 }
 
 export interface FollowupPlan {

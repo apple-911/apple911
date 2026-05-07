@@ -4,7 +4,7 @@
  * 支持手写签名、CA 证书签名、时间戳等功能
  */
 
-import { api } from '../../utils/api'
+import { api } from '../../../utils/api'
 
 // 签名数据
 export interface Signature {

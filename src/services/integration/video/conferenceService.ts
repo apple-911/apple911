@@ -1,13 +1,11 @@
 /**
- * 实时音视频会诊服务
- * 
+ * 实时音视频会诊服�? * 
  * 基于 WebRTC 实现多方视频会议、屏幕共享、会诊协作等功能
  */
 
 import { EventEmitter } from '../../../utils/EventEmitter'
 
-// 参会者信息
-export interface Participant {
+// 参会者信�?export interface Participant {
   id: string
   name: string
   role: 'host' | 'presenter' | 'participant'
@@ -65,8 +63,7 @@ export class VideoConferenceService extends EventEmitter {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      // 生产环境应使用自己的 STUN/TURN 服务器
-      {
+      // 生产环境应使用自己的 STUN/TURN 服务�?      {
         urls: 'turn:your-turn-server.com',
         username: 'user',
         credential: 'pass'
@@ -98,8 +95,8 @@ export class VideoConferenceService extends EventEmitter {
       this.emit('localStreamReady', stream)
       return stream
     } catch (error) {
-      console.error('获取媒体流失败:', error)
-      throw new Error('无法访问摄像头或麦克风')
+      console.error('获取媒体流失�?', error)
+      throw new Error('无法访问摄像头或麦克�?)
     }
   }
 
@@ -132,8 +129,7 @@ export class VideoConferenceService extends EventEmitter {
         joinedAt: new Date().toISOString()
       }
 
-      // 添加本地参会者
-      if (this.meeting) {
+      // 添加本地参会�?      if (this.meeting) {
         this.meeting.participants.push(participant)
       }
 
@@ -148,11 +144,9 @@ export class VideoConferenceService extends EventEmitter {
   }
 
   /**
-   * 邀请参会者
-   */
+   * 邀请参会�?   */
   async inviteParticipant(participant: Omit<Participant, 'id' | 'joinedAt'>): Promise<void> {
-    // 实际项目中应该通过信使服务器发送邀请
-    console.log('邀请参会者:', participant)
+    // 实际项目中应该通过信使服务器发送邀�?    console.log('邀请参会�?', participant)
     this.emit('participantInvited', participant)
   }
 
@@ -174,16 +168,14 @@ export class VideoConferenceService extends EventEmitter {
       this.emit('remoteStreamAdded', participantId, event.streams[0])
     }
 
-    // 处理 ICE 候选
-    pc.onicecandidate = (event) => {
+    // 处理 ICE 候�?    pc.onicecandidate = (event) => {
       if (event.candidate) {
         this.emit('iceCandidate', participantId, event.candidate)
       }
     }
 
-    // 处理连接状态
-    pc.onconnectionstatechange = () => {
-      console.log(`连接状态 [${participantId}]:`, pc.connectionState)
+    // 处理连接状�?    pc.onconnectionstatechange = () => {
+      console.log(`连接状�?[${participantId}]:`, pc.connectionState)
       this.emit('connectionStateChange', participantId, pc.connectionState)
     }
 
@@ -213,8 +205,7 @@ export class VideoConferenceService extends EventEmitter {
   }
 
   /**
-   * 添加 ICE 候选
-   */
+   * 添加 ICE 候�?   */
   async addIceCandidate(participantId: string, candidate: RTCIceCandidateInit): Promise<void> {
     const pc = this.peerConnections.get(participantId)
     if (pc) {
@@ -223,8 +214,7 @@ export class VideoConferenceService extends EventEmitter {
   }
 
   /**
-   * 开始屏幕共享
-   */
+   * 开始屏幕共�?   */
   async startScreenShare(): Promise<MediaStream> {
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -275,8 +265,7 @@ export class VideoConferenceService extends EventEmitter {
       this.screenStream = null
     }
 
-    // 恢复摄像头
-    if (this.localStream) {
+    // 恢复摄像�?    if (this.localStream) {
       const localVideoTrack = this.localStream.getVideoTracks()[0]
       if (localVideoTrack) {
         this.peerConnections.forEach(pc => {
@@ -292,8 +281,7 @@ export class VideoConferenceService extends EventEmitter {
   }
 
   /**
-   * 切换摄像头
-   */
+   * 切换摄像�?   */
   async toggleVideo(enabled: boolean): Promise<void> {
     if (!this.localStream) return
 
@@ -305,8 +293,7 @@ export class VideoConferenceService extends EventEmitter {
   }
 
   /**
-   * 切换麦克风
-   */
+   * 切换麦克�?   */
   async toggleAudio(enabled: boolean): Promise<void> {
     if (!this.localStream) return
 
@@ -318,8 +305,7 @@ export class VideoConferenceService extends EventEmitter {
   }
 
   /**
-   * 切换摄像头设备
-   */
+   * 切换摄像头设�?   */
   async switchCamera(deviceId: string): Promise<void> {
     if (!this.localStream) return
 
@@ -348,36 +334,32 @@ export class VideoConferenceService extends EventEmitter {
   }
 
   /**
-   * 获取可用摄像头列表
-   */
+   * 获取可用摄像头列�?   */
   async getCameras(): Promise<MediaDeviceInfo[]> {
     const devices = await navigator.mediaDevices.enumerateDevices()
     return devices.filter(d => d.kind === 'videoinput')
   }
 
   /**
-   * 获取可用麦克风列表
-   */
+   * 获取可用麦克风列�?   */
   async getMicrophones(): Promise<MediaDeviceInfo[]> {
     const devices = await navigator.mediaDevices.enumerateDevices()
     return devices.filter(d => d.kind === 'audioinput')
   }
 
   /**
-   * 发送聊天消息
-   */
+   * 发送聊天消�?   */
   sendChatMessage(content: string, type: 'text' | 'image' | 'file' = 'text'): void {
     const message: ChatMessage = {
       id: Date.now().toString(),
       senderId: 'current-user-id',
-      senderName: '我',
+      senderName: '�?,
       content,
       timestamp: new Date().toISOString(),
       type
     }
 
-    // 通过 data channel 发送
-    if (this.dataChannel && this.dataChannel.readyState === 'open') {
+    // 通过 data channel 发�?    if (this.dataChannel && this.dataChannel.readyState === 'open') {
       this.dataChannel.send(JSON.stringify({ type: 'chat', data: message }))
     }
 
@@ -385,8 +367,7 @@ export class VideoConferenceService extends EventEmitter {
   }
 
   /**
-   * 开始录制
-   */
+   * 开始录�?   */
   async startRecording(): Promise<void> {
     if (!this.meeting) return
 
@@ -408,14 +389,13 @@ export class VideoConferenceService extends EventEmitter {
    * 离开会议
    */
   async leaveMeeting(): Promise<void> {
-    // 关闭所有 Peer 连接
+    // 关闭所�?Peer 连接
     this.peerConnections.forEach(pc => {
       pc.close()
     })
     this.peerConnections.clear()
 
-    // 停止本地媒体流
-    if (this.localStream) {
+    // 停止本地媒体�?    if (this.localStream) {
       this.localStream.getTracks().forEach(track => track.stop())
       this.localStream = null
     }
@@ -426,8 +406,7 @@ export class VideoConferenceService extends EventEmitter {
       this.screenStream = null
     }
 
-    // 更新会议状态
-    if (this.meeting) {
+    // 更新会议状�?    if (this.meeting) {
       this.meeting.status = 'ended'
       this.meeting.endTime = new Date().toISOString()
       this.emit('meetingEnded', this.meeting)
@@ -443,15 +422,13 @@ export class VideoConferenceService extends EventEmitter {
   }
 
   /**
-   * 获取本地媒体流
-   */
+   * 获取本地媒体�?   */
   getLocalStream(): MediaStream | null {
     return this.localStream
   }
 
   /**
-   * 获取参会者列表
-   */
+   * 获取参会者列�?   */
   getParticipants(): Participant[] {
     return this.meeting?.participants || []
   }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Statistic, Progress, Table, Tag, Space, Typography, Badge } from 'antd'
+import { Card, Row, Col, Statistic, Progress, Table, Tag, Space, Typography, Badge, Alert, Button } from 'antd'
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
@@ -8,8 +8,11 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   BarChartOutlined,
+  ThunderboltOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
 import { Column } from '@ant-design/plots'
+import aiPatientScreeningService from '../services/integration/ai/aiPatientScreeningService'
 
 const { Title, Text } = Typography
 
@@ -18,8 +21,8 @@ interface DashboardData {
   ongoingConsultations: number
   pendingReview: number
   completedToday: number
-  departmentStats: { name: string; value: number }[]
-  expertWorkload: { name: string; value: number }[]
+  departmentStats: { name: string; value: number; color?: string }[]
+  expertWorkload: { name: string; value: number; color?: string }[]
   qualityScore: number
   recentConsultations: any[]
 }
@@ -28,6 +31,7 @@ export default function DashboardScreen() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<DashboardData | null>(null)
+  const [aiAlerts, setAiAlerts] = useState<any[]>([])
 
   useEffect(() => {
     // 模拟加载数据
@@ -92,6 +96,20 @@ export default function DashboardScreen() {
 
     return () => clearTimeout(timer)
   }, [])
+
+  // 加载 AI 预警
+  useEffect(() => {
+    loadAIAlerts()
+  }, [])
+
+  const loadAIAlerts = async () => {
+    try {
+      const alerts = await aiPatientScreeningService.getAlerts({ level: 'urgent' })
+      setAiAlerts(alerts.slice(0, 3)) // 只显示前 3 条紧急预警
+    } catch (error) {
+      console.error('加载 AI 预警失败:', error)
+    }
+  }
 
   if (loading || !data) {
     return (
@@ -228,7 +246,7 @@ export default function DashboardScreen() {
                   strokeColor={{
                     '0%': '#045126',
                     '100%': '#0d7a3d',
-                  }}
+                  } as any}
                   format={(percent) => (
                     <div className="text-center">
                       <div className="text-5xl font-extrabold" style={{ color: '#045126' }}>
@@ -239,7 +257,6 @@ export default function DashboardScreen() {
                   )}
                   strokeWidth={8}
                   width={160}
-                  height={140}
                 />
               </div>
               
@@ -316,7 +333,7 @@ export default function DashboardScreen() {
                   showInfo={false}
                   size="small"
                   strokeLinecap="round"
-                  stroke_width={8}
+                  strokeWidth={8}
                 />
               </div>
               
@@ -343,7 +360,7 @@ export default function DashboardScreen() {
                   showInfo={false}
                   size="small"
                   strokeLinecap="round"
-                  stroke_width={8}
+                  strokeWidth={8}
                 />
               </div>
               
@@ -370,7 +387,7 @@ export default function DashboardScreen() {
                   showInfo={false}
                   size="small"
                   strokeLinecap="round"
-                  stroke_width={8}
+                  strokeWidth={8}
                 />
               </div>
               
@@ -397,7 +414,7 @@ export default function DashboardScreen() {
                   showInfo={false}
                   size="small"
                   strokeLinecap="round"
-                  stroke_width={8}
+                  strokeWidth={8}
                 />
               </div>
 
@@ -424,7 +441,7 @@ export default function DashboardScreen() {
                   showInfo={false}
                   size="small"
                   strokeLinecap="round"
-                  stroke_width={8}
+                  strokeWidth={8}
                 />
               </div>
             </div>
@@ -641,6 +658,79 @@ export default function DashboardScreen() {
           </Card>
         </Col>
       </Row>
+
+      {/* AI 预警卡片 */}
+      {aiAlerts.length > 0 && (
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <Card 
+              title={
+                <div className="flex items-center gap-2">
+                  <ThunderboltOutlined className="text-yellow-500" style={{ fontSize: '18px' }} />
+                  <span className="font-semibold">AI MDT 紧急预警</span>
+                  <Badge count={aiAlerts.length} style={{ backgroundColor: '#faad14' }} />
+                </div>
+              }
+              headStyle={{ 
+                borderBottom: '2px solid #f0f0f0', 
+                paddingBottom: '12px',
+                background: 'linear-gradient(to right, #fffbe6, #fff)'
+              }}
+              extra={
+                <Button 
+                  type="primary" 
+                  size="small"
+                  icon={<ThunderboltOutlined />}
+                  onClick={() => navigate('/ai/screening')}
+                >
+                  查看全部
+                </Button>
+              }
+            >
+              <div className="space-y-3">
+                {aiAlerts.map((alert) => (
+                  <Alert
+                    key={alert.id}
+                    type="warning"
+                    showIcon
+                    icon={<WarningOutlined />}
+                    message={
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Text strong>{alert.patientName}</Text>
+                          <Text className="ml-2">({alert.department})</Text>
+                          <Tag color="red" className="ml-2">评分：{alert.score}</Tag>
+                        </div>
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={() => navigate(`/ai/screening/${alert.id}`)}
+                        >
+                          处理
+                        </Button>
+                      </div>
+                    }
+                    description={
+                      <div className="mt-1">
+                        <Text type="secondary">{alert.message}</Text>
+                        <div className="mt-1">
+                          {alert.reasons.slice(0, 2).map((reason: string, index: number) => (
+                            <Tag key={index} color="orange" className="mr-1">{reason}</Tag>
+                          ))}
+                        </div>
+                      </div>
+                    }
+                    style={{ 
+                      border: '1px solid #ffe58f',
+                      background: 'linear-gradient(to right, #fffbe6, #fff)'
+                    }}
+                  />
+                ))}
+              </div>
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       {/* 实时会诊列表 */}
       <Row gutter={[16, 16]}>

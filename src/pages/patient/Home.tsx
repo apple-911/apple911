@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, Button, Badge, List, Avatar, Tabs, Tag, Timeline, Statistic, Row, Col, message } from 'antd'
+import { Card, Button, Badge, List, Avatar, Tabs, Tag, Timeline, Statistic, Row, Col, message, Alert } from 'antd'
 import {
   FileTextOutlined,
   CalendarOutlined,
@@ -14,9 +14,13 @@ import {
   MedicineBoxOutlined,
   PhoneOutlined,
   RightOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  ThunderboltOutlined,
+  RobotOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import PatientScreeningAlerts from '../../components/PatientScreeningAlerts'
 
 const { TabPane } = Tabs
 

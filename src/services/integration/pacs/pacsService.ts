@@ -5,7 +5,7 @@
  */
 
 import type { SyncResult } from '../types'
-import { pacsApi } from '../../utils/api'
+import { pacsApi } from '../../../utils/api'
 
 // DICOM 研究
 export interface DicomStudy {

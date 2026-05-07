@@ -4,7 +4,7 @@
  * 负责接入医疗 IoT 设备，实时采集生命体征数据
  */
 
-import { iotApi } from '../../utils/api'
+import { iotApi } from '../../../utils/api'
 
 // 生命体征数据
 export interface VitalSigns {

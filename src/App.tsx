@@ -28,6 +28,9 @@ import TeamList from './pages/admin/TeamList'
 import Roles from './pages/admin/Roles'
 import Logs from './pages/admin/Logs'
 import AuditLogs from './pages/admin/AuditLogs'
+import AIFeatures from './pages/ai/Features'
+import AIScreening from './pages/ai/Screening'
+import ScreeningDetail from './pages/ai/ScreeningDetail'
 // 患者端页面
 import PatientHome from './pages/patient/Home'
 import PatientApply from './pages/patient/Apply'
@@ -60,6 +63,9 @@ function App() {
           <Route path="/consultation/detail/:id" element={<ConsultationDetail />} />
           <Route path="/consultation/room/:id" element={<ConsultationRoom />} />
           <Route path="/consultation/bedside/:id" element={<Bedside />} />
+          <Route path="/ai/features" element={<AIFeatures />} />
+          <Route path="/ai/screening" element={<AIScreening />} />
+          <Route path="/ai/screening/:id" element={<ScreeningDetail />} />
           <Route path="/patient/list" element={<PatientList />} />
           <Route path="/patient/360/:id" element={<Patient360 />} />
           <Route path="/report/list" element={<ReportList />} />

@@ -1,0 +1,761 @@
+/**
+ * AI 患?MDT 需求筛查服?
+ * 
+ * 基于患者病情自动评估是否需?MDT 会诊，提供智能分级和预警
+ * 避免医疗资源浪费，确保真正需要的患者得?MDT 服务
+ */
+
+import { aiApi } from '../../../utils/api'
+
+// MDT 适应症评估结?
+export interface MDTNecessityAssessment {
+  // 患者基本信?
+  patientInfo: {
+    patientId: string
+    name: string
+    age: number
+    gender: string
+    department: string
+    admissionDate: string
+  }
+  // MDT 必要性评?
+  necessityScore: number
+  // 推荐等级
+  recommendationLevel: '强烈推荐' | '推荐' | '可考虑' | '不推荐'
+  // 适应证匹配
+  indications: {
+    matched: MDTIndication[]
+    notMatched: MDTIndication[]
+  }
+  // 评估维度
+  assessmentDimensions: {
+    diseaseComplexity: DiseaseComplexityAssessment
+    treatmentDifficulty: TreatmentDifficultyAssessment
+    prognosis: PrognosisAssessment
+    socialFactors: SocialFactorsAssessment
+  }
+  // 推荐会诊类型
+  recommendedType: '院内 MDT' | '远程 MDT' | '床旁 MDT' | '无需 MDT'
+  // 推荐科室
+  recommendedDepartments: string[]
+  // 紧急程度
+  urgency: '紧急' | '常规' | '择期'
+  // 预期获益
+  expectedBenefits: string[]
+  // 不推荐理由（如适用
+  notRecommendedReasons?: string[]
+  // 置信
+  confidence: number
+}
+
+// MDT 适应?
+export interface MDTIndication {
+  code: string
+  name: string
+  category: '疾病复杂' | '治疗困难' | '预后不良' | '社会因素'
+  description: string
+  weight: number
+  matched: boolean
+  evidence?: string
+}
+
+// 疾病复杂度评?
+export interface DiseaseComplexityAssessment {
+  score: number
+  factors: Array<{
+    factor: string
+    present: boolean
+    weight: number
+    description: string
+  }>
+  diagnosis: {
+    primary: string
+    secondary: string[]
+    icd10: string[]
+    rarity: 'common' | 'uncommon' | 'rare' | 'very_rare'
+    complexity: 'simple' | 'moderate' | 'complex' | 'very_complex'
+  }
+  stage: {
+    tnm?: {
+      t: string
+      n: string
+      m: string
+      stage: string
+    }
+    stage: 'I' | 'II' | 'III' | 'IV'
+    metastasis: boolean
+  }
+  comorbidities: {
+    count: number
+    list: Array<{
+      name: string
+      severity: 'mild' | 'moderate' | 'severe'
+      impact: number
+    }>
+    cci: number // Charlson 合并症指
+  }
+}
+
+// 治疗难度评估
+export interface TreatmentDifficultyAssessment {
+  score: number
+  factors: Array<{
+    factor: string
+    present: boolean
+    weight: number
+    description: string
+  }>
+  previousTreatments: Array<{
+    type: 'surgery' | 'chemotherapy' | 'radiotherapy' | 'targeted' | 'immunotherapy'
+    regimen: string
+    duration: string
+    response: 'CR' | 'PR' | 'SD' | 'PD'
+    toxicity: string
+  }>
+  currentChallenges: string[]
+  availableOptions: number
+  guidelineCompliance: 'compliant' | 'partially_compliant' | 'non_compliant'
+}
+
+// 预后评估
+export interface PrognosisAssessment {
+  score: number
+  factors: Array<{
+    factor: string
+    present: boolean
+    impact: 'positive' | 'negative' | 'neutral'
+    weight: number
+  }>
+  survivalEstimate: {
+    months6: number
+    oneYear: number
+    twoYear: number
+    fiveYear: number
+  }
+  qualityOfLife: {
+    current: number
+    predicted: number
+    trend: 'improving' | 'stable' | 'declining'
+  }
+  recurrenceRisk: 'low' | 'intermediate' | 'high'
+}
+
+// 社会因素评估
+export interface SocialFactorsAssessment {
+  score: number
+  factors: Array<{
+    factor: string
+    present: boolean
+    impact: number
+    description: string
+  }>
+  economicStatus: 'low' | 'medium' | 'high'
+  familySupport: 'poor' | 'moderate' | 'good' | 'excellent'
+  insuranceType: 'self_pay' | 'basic' | 'commercial' | 'comprehensive'
+  psychologicalState: 'good' | 'mild_anxiety' | 'moderate_anxiety' | 'severe_anxiety'
+  healthLiteracy: 'low' | 'medium' | 'high'
+}
+
+// 筛查规则
+export interface ScreeningRule {
+  id: string
+  name: string
+  category: 'absolute' | 'relative' | 'exclusion'
+  priority: number
+  conditions: Array<{
+    field: string
+    operator: 'equals' | 'contains' | 'greater_than' | 'less_than' | 'in' | 'not_in'
+    value: any
+    weight: number
+  }>
+  action: {
+    type: 'recommend' | 'exclude' | 'flag'
+    level: 'strong' | 'moderate' | 'weak'
+    message: string
+  }
+  evidence: {
+    guideline: string
+    level: 'I' | 'II' | 'III' | 'IV' | 'V'
+  }
+}
+
+// 预警信息
+export interface ScreeningAlert {
+  id: string
+  type: 'mdt_needed' | 'mdt_not_needed' | 'needs_review'
+  level: 'info' | 'warning' | 'urgent'
+  title: string
+  message: string
+  patientId: string
+  patientName: string
+  department: string
+  score: number
+  recommendation: string
+  reasons: string[]
+  suggestedActions: string[]
+  timestamp: string
+  reviewed: boolean
+  reviewedBy?: string
+  reviewedAt?: string
+  reviewComment?: string
+}
+
+// 批量筛查结果
+export interface BatchScreeningResult {
+  totalPatients: number
+  screenedPatients: number
+  mdtNeeded: number
+  mdtNotNeeded: number
+  needsReview: number
+  results: Array<{
+    patientId: string
+    patientName: string
+    score: number
+    recommendation: MDTNecessityAssessment['recommendationLevel']
+    urgency: MDTNecessityAssessment['urgency']
+    alerts: number
+  }>
+  statistics: {
+    averageScore: number
+    scoreDistribution: {
+      high: number // 80-100
+      medium: number // 60-79
+      low: number // 40-59
+      veryLow: number // 0-39
+    }
+    departmentBreakdown: Array<{
+      department: string
+      total: number
+      mdtNeeded: number
+      percentage: number
+    }>
+  }
+  timestamp: string
+}
+
+export class AIPatientScreeningService {
+  /**
+   * 单个患?MDT 需求评?
+   * @param patientId 患?ID
+   */
+  async assessMDTNecessity(patientId: string): Promise<MDTNecessityAssessment> {
+    // TODO: 调用实际 API
+    // const response = await aiApi.post('/screening/mdt-necessity', {
+    //   patientId,
+    //   timestamp: new Date().toISOString()
+    // })
+    // return response.data as MDTNecessityAssessment
+
+    // 胰腺癌患?
+    if (patientId === 'P004' || patientId === 'P005') {
+      return {
+        patientInfo: {
+          patientId,
+          name: '陈国强',
+          age: 58,
+          gender: '男',
+          department: '普外科',
+          admissionDate: '2024-01-10'
+        },
+        necessityScore: 92,
+        recommendationLevel: '强烈推荐',
+        indications: {
+          matched: [
+            { code: 'A01', name: '恶性肿瘤晚?, category: '疾病复杂', description: '胰腺IV 期，伴多发转?, weight: 0.35, matched: true }',
+            { code: 'A02', name: '疑难重症', category: '疾病复杂', description: '病情复杂，诊断困?, weight: 0.25, matched: true }',
+            { code: 'B01', name: '治疗方案选择困难', category: '治疗困难', description: '多种治疗方案需要权?, weight: 0.2, matched: true }',
+            { code: 'C01', name: '预后不良', category: '预后不良', description: '晚期胰腺癌预后差', weight: 0.25, matched: true }',
+          ],
+          notMatched: [
+            { code: 'D01', name: '罕见, category: '疾病复杂', description: '罕见疾病', weight: 0.15, matched: false }',
+          ]
+        },
+        assessmentDimensions: {
+          diseaseComplexity: {
+            score: 10,
+            factors: [],
+            diagnosis: {
+              primary: '胰腺癌（胰头癌）IV ?',
+              secondary: ['梗阻性黄?, '2 型糖尿病', '肝功能异?]',
+              icd10: ['C25.1', 'E83.1', 'E11.9', 'K72.9']',
+              rarity: 'uncommon',
+              complexity: 'very_complex'
+            },
+            stage: {
+              tnm: { t: 'T4', n: 'M1', m: 'M1', stage: 'IV' }',
+              stage: 'IV',
+              metastasis: true
+            },
+            comorbidities: {
+              count: 3,
+              list: [
+                { name: '梗阻性黄?, severity: 'severe', impact: 0.9 }',
+                { name: '2 型糖尿病', severity: 'moderate', impact: 0.6 }',
+                { name: '肝功能异?, severity: 'moderate', impact: 0.7 }
+              ],
+              cci: 6
+            }
+          },
+          treatmentDifficulty: {
+            score: 10,
+            factors: [],
+            previousTreatments: [],
+            currentChallenges: [
+              '晚期胰腺癌无法手术根?',
+              '肿瘤侵犯血管，无法切除',
+              '合并梗阻性黄疸需要处?',
+              '需要平衡根治性治疗与姑息治疗',
+              '多学科治疗方案需要协?
+            ],
+            availableOptions: 4,
+            guidelineCompliance: 'partially_compliant' as const
+          },
+          prognosis: {
+            score: 9,
+            factors: [],
+            survivalEstimate: {
+              months6: 0.45,
+              oneYear: 0.25,
+              twoYear: 0.10,
+              fiveYear: 0.03
+            },
+            recurrenceRisk: 'high' as const',
+            qualityOfLife: {
+              current: 50,
+              predicted: 45,
+              trend: 'declining' as const
+            }
+          },
+          socialFactors: {
+            score: 6,
+            factors: [],
+            economicStatus: 'medium' as const',
+            familySupport: 'good' as const',
+            insuranceType: 'basic' as const',
+            psychologicalState: 'moderate_anxiety' as const',
+            healthLiteracy: 'medium' as const
+          }
+        },
+        recommendedType: '院内 MDT',
+        recommendedDepartments: ['普外科, '肿瘤内科', '放疗科, '影像科, '介入科, '消化内科', '内分泌科']',
+        urgency: '紧急',
+        expectedBenefits: [
+          '明确诊断和分?',
+          '评估手术可能性和根治机会',
+          '制定综合治疗方案（手术化疗/放疗/靶向?',
+          '制定姑息治疗和对症支持方?',
+          '评估介入治疗指征（如胆道引流',
+          '延长生存期，改善生活质量'
+        ],
+        confidence: 0.95
+      }
+    }
+
+    // 默认 Mock 数据（肺癌）
+    return {
+      patientInfo: {
+        patientId,
+        name: '张建国',
+        age: 65,
+        gender: '男',
+        department: '呼吸内科',
+        admissionDate: '2024-01-05'
+      },
+      necessityScore: 85,
+      recommendationLevel: '强烈推荐',
+      indications: {
+        matched: [
+          { code: 'A01', name: '多系统疾?, category: '疾病复杂', description: '患者同时患有多个系统疾?, weight: 0.3, matched: true }',
+          { code: 'A02', name: '疑难重症', category: '疾病复杂', description: '病情复杂，诊断困?, weight: 0.25, matched: true }',
+          { code: 'B01', name: '治疗方案选择困难', category: '治疗困难', description: '存在多种治疗方案，需要权?, weight: 0.2, matched: true }',
+        ],
+        notMatched: [
+          { code: 'D01', name: '罕见, category: '疾病复杂', description: '罕见疾病', weight: 0.15, matched: false }',
+        ]
+      },
+      assessmentDimensions: {
+        diseaseComplexity: {
+          score: 9,
+          factors: [],
+          diagnosis: {
+            primary: '右肺上叶占位性病?',
+            secondary: ['2 型糖尿病', '高血压病 3 ?]',
+            icd10: ['C34.1', 'E11.9', 'I10']',
+            rarity: 'common',
+            complexity: 'complex'
+          },
+          stage: {
+            tnm: { t: 'T2', n: 'N1', m: 'M0', stage: 'IIB' }',
+            stage: 'II',
+            metastasis: false
+          },
+          comorbidities: {
+            count: 2,
+            list: [
+              { name: '2 型糖尿病', severity: 'moderate', impact: 0.6 }',
+              { name: '高血压病 3 ?, severity: 'severe', impact: 0.8 }
+            ],
+            cci: 4
+          }
+        },
+        treatmentDifficulty: {
+          score: 8,
+          factors: [],
+          previousTreatments: [],
+          currentChallenges: [
+            '需要平衡抗肿瘤治疗与基础疾病管理',
+            '手术风险评估复杂',
+            '药物治疗相互作用风险'
+          ],
+          availableOptions: 3,
+          guidelineCompliance: 'compliant' as const
+        },
+        prognosis: {
+          score: 6,
+          factors: [],
+          survivalEstimate: {
+            months6: 0.85,
+            oneYear: 0.75,
+            twoYear: 0.65,
+            fiveYear: 0.45
+          },
+          recurrenceRisk: 'high' as const',
+          qualityOfLife: {
+            current: 65,
+            predicted: 70,
+            trend: 'stable' as const
+          }
+        },
+        socialFactors: {
+          score: 5,
+          factors: [],
+          economicStatus: 'medium' as const',
+          familySupport: 'good' as const',
+          insuranceType: 'basic' as const',
+          psychologicalState: 'mild_anxiety' as const',
+          healthLiteracy: 'medium' as const
+        }
+      },
+      recommendedType: '院内 MDT',
+      recommendedDepartments: ['胸外科, '肿瘤内科', '放疗科, '心内科, '内分泌科']',
+      urgency: '常规',
+      expectedBenefits: [
+        '制定个体化综合治疗方?',
+        '评估手术风险和获?',
+        '优化基础疾病管理',
+        '提高治疗效果，改善预?
+      ],
+      confidence: 0.92
+    }
+  }
+
+  /**
+   * 批量患者筛?
+   * @param patientIds 患?ID 列表
+   * @param filters 过滤条件
+   */
+  async batchScreening(options: {
+    patientIds: string[]
+    filters?: {
+      department?: string
+      admissionDateRange?: {
+        start: string
+        end: string
+      }
+      diagnosis?: string[]
+      excludeMDT?: boolean // 排除已进?MDT 的患?
+    }
+  }): Promise<BatchScreeningResult> {
+    const response = await aiApi.post('/screening/batch', options)
+    return response.data as BatchScreeningResult
+  }
+
+  /**
+   * 实时筛查（患者入院时自动触发
+   * @param patientInfo 患者信?
+   */
+  async realtimeScreening(patientInfo: {
+    patientId: string
+    name: string
+    age: number
+    gender: string
+    department: string
+    chiefComplaint: string
+    preliminaryDiagnosis: string
+    pastHistory: string[]
+  }): Promise<{
+    screeningId: string
+    score: number
+    recommendation: MDTNecessityAssessment['recommendationLevel']
+    alerts: ScreeningAlert[]
+    suggestedActions: string[]
+  }> {
+    const response = await aiApi.post('/screening/realtime', {
+      patientInfo,
+      timestamp: new Date().toISOString()
+    })
+    return response.data
+  }
+
+  /**
+   * 获取筛查规则
+   * @param category 规则类别
+   */
+  async getScreeningRules(category?: 'absolute' | 'relative' | 'exclusion'): Promise<ScreeningRule[]> {
+    const response = await aiApi.get('/screening/rules', {
+      params: { category }
+    })
+    return response.data as ScreeningRule[]
+  }
+
+  /**
+   * 更新筛查规则（管理员功能
+   * @param ruleId 规则 ID
+   * @param updates 更新内容
+   */
+  async updateScreeningRule(ruleId: string, updates: Partial<ScreeningRule>): Promise<ScreeningRule> {
+    const response = await aiApi.put(`/screening/rules/${ruleId}`, updates)
+    return response.data as ScreeningRule
+  }
+
+  /**
+   * 获取预警列表
+   * @param filters 过滤条件
+   */
+  async getAlerts(filters?: {
+    type?: ScreeningAlert['type']
+    level?: ScreeningAlert['level']
+    department?: string
+    reviewed?: boolean
+    dateRange?: {
+      start: string
+      end: string
+    }
+  }): Promise<ScreeningAlert[]> {
+    // TODO: 调用实际 API
+    // const response = await aiApi.get('/screening/alerts', {
+    //   params: filters
+    // })
+    // return response.data as ScreeningAlert[]
+
+    // Mock 数据
+    return [
+      {
+        id: '1',
+        type: 'needs_review' as const',
+        level: 'urgent' as const',
+        title: 'MDT 筛查预警',
+        message: '患者病情复杂，建议 MDT 会诊',
+        patientId: 'P001',
+        patientName: '张建国',
+        department: '呼吸内科',
+        score: 85,
+        recommendation: '建议进行 MDT 会诊',
+        reasons: [
+          '多系统疾病共?',
+          '治疗方案选择困难',
+          '存在高风险因?
+        ],
+        suggestedActions: [
+          '组织胸外科、肿瘤内科、放疗科等多学科会诊',
+          '评估手术指征和风?',
+          '制定个体化综合治疗方?
+        ],
+        timestamp: new Date().toISOString(),
+        reviewed: false
+      },
+      {
+        id: '2',
+        type: 'needs_review' as const',
+        level: 'warning' as const',
+        title: 'MDT 筛查预警',
+        message: '治疗方案选择困难，建?MDT 讨论',
+        patientId: 'P002',
+        patientName: '李秀英',
+        department: '胸外科',
+        score: 72,
+        recommendation: '建议进行 MDT 会诊',
+        reasons: [
+          '治疗方案选择困难',
+          '需要多学科协作'
+        ],
+        suggestedActions: [
+          '组织相关科室会诊讨论',
+          '制定个体化治疗方?
+        ],
+        timestamp: new Date(Date.now() - 86400000).toISOString(),
+        reviewed: false
+      },
+      {
+        id: '3',
+        type: 'mdt_needed' as const',
+        level: 'info' as const',
+        title: 'MDT 筛查预警',
+        message: '患者病情需?MDT 会诊',
+        patientId: 'P003',
+        patientName: '王志华',
+        department: '心内科',
+        score: 68,
+        recommendation: '建议进行 MDT 会诊',
+        reasons: [
+          '合并多种基础疾病',
+          '需要多学科协作管理'
+        ],
+        suggestedActions: [
+          '组织心内科、心外科、麻醉科等多学科会诊'
+        ],
+        timestamp: new Date(Date.now() - 172800000).toISOString(),
+        reviewed: true
+      },
+      {
+        id: '4',
+        type: 'needs_review' as const',
+        level: 'urgent' as const',
+        title: 'MDT 筛查预警',
+        message: '胰腺癌晚期，病情复杂，强烈建?MDT 会诊',
+        patientId: 'P004',
+        patientName: '陈国强',
+        department: '普外科',
+        score: 92,
+        recommendation: '强烈建议进行 MDT 会诊',
+        reasons: [
+          '胰腺癌晚期（IV 期），伴多发转移',
+          '肿瘤标志物显著升?',
+          '合并梗阻性黄疸和糖尿?',
+          '治疗方案选择困难，需要综合评?
+        ],
+        suggestedActions: [
+          '组织普外科、肿瘤内科、放疗科、影像科、介入科等多学科会诊',
+          '评估手术切除可能性和时机',
+          '讨论新辅助治疗方?',
+          '制定姑息治疗和对症支持治疗方?',
+          '评估介入治疗（如胆道引流）指
+        ],
+        timestamp: new Date().toISOString(),
+        reviewed: false
+      }
+    ]
+  }
+
+  /**
+   * 审核预警
+   * @param alertId 预警 ID
+   * @param decision 审核决定
+   */
+  async reviewAlert(alertId: string, decision: {
+    approved: boolean
+    comment?: string
+    reviewerId: string
+  }): Promise<ScreeningAlert> {
+    // TODO: 调用实际 API
+    // const response = await aiApi.post(`/screening/alerts/${alertId}/review`, decision)
+    // return response.data as ScreeningAlert
+
+    // Mock 数据
+    return {
+      id: alertId,
+      type: 'needs_review' as const',
+      level: 'urgent' as const',
+      title: 'MDT 筛查预警',
+      message: '患者病情复杂，建议 MDT 会诊',
+      patientId: 'P001',
+      patientName: '张建国',
+      department: '呼吸内科',
+      score: 85,
+      recommendation: '建议进行 MDT 会诊',
+      reasons: [
+        '多系统疾病共?',
+        '治疗方案选择困难'
+      ],
+      suggestedActions: [
+        '组织多学科会?
+      ],
+      timestamp: new Date().toISOString(),
+      reviewed: true
+    }
+  }
+
+  /**
+   * 获取筛查统计
+   * @param period 统计期间
+   */
+  async getStatistics(period: {
+    start: string
+    end: string
+  }): Promise<{
+    totalScreenings: number
+    mdtNeededRate: number
+    averageScore: number
+    trend: number[]
+    departmentComparison: Array<{
+      department: string
+      total: number
+      mdtNeeded: number
+      rate: number
+    }>
+    accuracyMetrics: {
+      truePositive: number
+      falsePositive: number
+      trueNegative: number
+      falseNegative: number
+      accuracy: number
+      sensitivity: number
+      specificity: number
+    }
+  }> {
+    const response = await aiApi.get('/screening/statistics', {
+      params: period
+    })
+    return response.data
+  }
+
+  /**
+   * 导出筛查报告
+   * @param options 导出选项
+   */
+  async exportReport(options: {
+    format: 'pdf' | 'excel' | 'csv'
+    patientIds?: string[]
+    dateRange?: {
+      start: string
+      end: string
+    }
+    includeDetails: boolean
+  }): Promise<{
+    reportId: string
+    downloadUrl: string
+    expiresAt: string
+    fileSize: number
+  }> {
+    const response = await aiApi.post('/screening/export', options)
+    return response.data
+  }
+
+  /**
+   * 模型性能监控
+   */
+  async getModelPerformance(): Promise<{
+    modelVersion: string
+    lastUpdated: string
+    metrics: {
+      accuracy: number
+      precision: number
+      recall: number
+      f1Score: number
+      auc: number
+    }
+    confusionMatrix: {
+      truePositive: number
+      falsePositive: number
+      trueNegative: number
+      falseNegative: number
+    }
+    recentPredictions: number
+    feedbackScore: number
+  }> {
+    const response = await aiApi.get('/screening/model-performance')
+    return response.data
+  }
+}
+
+export default new AIPatientScreeningService()

@@ -1,17 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Tabs, Table, Tag, Button, Space, Typography, Empty, Modal, Input, List, Avatar } from 'antd'
+import { Card, Tabs, Table, Tag, Button, Space, Typography, Empty, List, Avatar } from 'antd'
 import { CalendarOutlined, VideoCameraOutlined, TeamOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import { mockConsultations } from '../../mocks/data'
 import type { Consultation } from '../../stores/consultationStore'
 
 const { Title, Text } = Typography
-const { TextArea } = Input
 
 export default function MyMeetings() {
   const [activeTab, setActiveTab] = useState('today')
-  const [preOpinionVisible, setPreOpinionVisible] = useState(false)
-  const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null)
   const navigate = useNavigate()
 
   const todayStr = new Date().toISOString().split('T')[0]
@@ -19,11 +16,6 @@ export default function MyMeetings() {
   const todayMeetings = mockConsultations.filter(c => c.status === '进行中')
   const weekMeetings = mockConsultations.filter(c => ['已通过', '进行中'].includes(c.status))
   const futureMeetings = mockConsultations.filter(c => c.status === '已通过')
-
-  const handlePreOpinion = (consultation: Consultation) => {
-    setSelectedConsultation(consultation)
-    setPreOpinionVisible(true)
-  }
 
   const columns = [
     { title: '会诊主题', dataIndex: 'mainDiagnosis', ellipsis: true },
@@ -35,7 +27,7 @@ export default function MyMeetings() {
       title: '操作',
       render: (_: any, record: Consultation) => (
         <Space>
-          {record.status === '进行中' ? (
+          {record.status === '进行中' && (
             <Button
               type="primary"
               icon={<VideoCameraOutlined />}
@@ -43,8 +35,6 @@ export default function MyMeetings() {
             >
               进入会诊室
             </Button>
-          ) : (
-            <Button onClick={() => handlePreOpinion(record)}>预审意见</Button>
           )}
         </Space>
       )
@@ -123,23 +113,6 @@ export default function MyMeetings() {
       <Card title="会诊列表">
         <Table columns={columns} dataSource={mockConsultations} rowKey="id" size="small" pagination={false} />
       </Card>
-
-      <Modal
-        title="填写预审意见"
-        open={preOpinionVisible}
-        onCancel={() => setPreOpinionVisible(false)}
-        onOk={() => {
-          setPreOpinionVisible(false)
-        }}
-      >
-        {selectedConsultation && (
-          <div className="space-y-4">
-            <Text>会诊：{selectedConsultation.mainDiagnosis}</Text>
-            <Text>患者：{selectedConsultation.patientName}</Text>
-            <TextArea rows={4} placeholder="请输入您的预审意见..." />
-          </div>
-        )}
-      </Modal>
     </div>
   )
 }

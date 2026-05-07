@@ -4,7 +4,7 @@
  * 负责与 LIS 系统对接，获取检验申请、检验结果等数据
  */
 
-import { api } from '../../utils/api'
+import { api } from '../../../utils/api'
 
 // 检验申请
 export interface LabOrder {

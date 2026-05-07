@@ -4,7 +4,7 @@
  * 基于 AI 的智能分诊、科室推荐、症状分析等功能
  */
 
-import { aiApi } from '../../utils/api'
+import { aiApi } from '../../../utils/api'
 
 // 症状信息
 export interface Symptom {

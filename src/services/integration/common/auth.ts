@@ -4,7 +4,7 @@
  * 实现 OAuth 2.0 认证流程，获取和管理访问令牌
  */
 
-import { api } from '../../utils/api'
+import { api } from '../../../utils/api'
 
 interface TokenResponse {
   access_token: string

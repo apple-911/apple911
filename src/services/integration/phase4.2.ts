@@ -2,8 +2,7 @@
  * Phase 4.2 高级功能集成统一导出
  */
 
-// DICOM 影像浏览器
-export { DICOMViewer } from '../components/DICOMViewer'
+// DICOM 影像浏览�?export { DICOMViewer } from '../components/DICOMViewer'
 export type { DICOMViewerProps } from '../components/DICOMViewer'
 
 // 视频会议
@@ -15,8 +14,7 @@ export type { Participant, Meeting, ChatMessage } from '../services/integration/
 export { electronicSignatureService } from '../services/integration/signature/signatureService'
 export type { Signature, CACertificate, VerificationResult } from '../services/integration/signature/signatureService'
 
-// LIS 检验系统
-export { lisService } from '../services/integration/lis/lisService'
+// LIS 检验系�?export { lisService } from '../services/integration/lis/lisService'
 export type { LabOrder, LabResult, LabReport, CriticalValue } from '../services/integration/lis/lisService'
 
 // 医保服务

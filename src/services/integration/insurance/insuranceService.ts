@@ -4,7 +4,7 @@
  * 负责与医保系统对接，实现医保结算、费用查询等功能
  */
 
-import { api } from '../../utils/api'
+import { api } from '../../../utils/api'
 
 // 医保患者信息
 export interface InsurancePatient {

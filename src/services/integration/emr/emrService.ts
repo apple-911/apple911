@@ -5,7 +5,7 @@
  */
 
 import type { EMRRecord, SyncResult } from '../types'
-import { emrApi } from '../../utils/api'
+import { emrApi } from '../../../utils/api'
 
 export class EMRService {
   /**

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Button, Space, Typography, Avatar, Tag, List, Input, Tooltip, Layout, Typography as Typ, Badge } from 'antd'
+import { Card, Button, Space, Typography, Avatar, Tag, List, Input, Tooltip, Layout, Typography as Typ, Badge, Drawer, Alert, Divider, Tabs, Collapse, message } from 'antd'
 import {
   AudioOutlined,
   AudioMutedOutlined,
@@ -13,11 +13,36 @@ import {
   MessageOutlined,
   ShareAltOutlined,
   BgColorsOutlined,
+  RobotOutlined,
+  ThunderboltOutlined,
+  FileTextOutlined,
+  CheckCircleOutlined,
+  BulbOutlined,
 } from '@ant-design/icons'
 import { mockConsultations, mockExperts } from '../../mocks/data'
 
 const { Header, Sider, Content } = Layout
 const { Text, Title } = Typ
+const { Panel } = Collapse
+
+// 转写记录类型
+interface TranscriptionSegment {
+  id: string
+  speaker: string
+  text: string
+  timestamp: string
+  isKeyPoint: boolean
+  keywords: string[]
+}
+
+// 关键信息类型
+interface KeyInformation {
+  id: string
+  type: '诊断' | '治疗' | '检查' | '用药' | '随访'
+  content: string
+  speaker: string
+  timestamp: string
+}
 
 export default function ConsultationRoom() {
   const { id } = useParams()
@@ -31,6 +56,13 @@ export default function ConsultationRoom() {
     { id: 3, user: '王建国', message: '影像显示肿瘤有缩小迹象', time: '14:02' },
   ])
   const [newMessage, setNewMessage] = useState('')
+  
+  // 实时转写相关状态
+  const [transcriptionDrawerVisible, setTranscriptionDrawerVisible] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [transcriptionSegments, setTranscriptionSegments] = useState<TranscriptionSegment[]>([])
+  const [keyInformation, setKeyInformation] = useState<KeyInformation[]>([])
+  const [autoTranscribe, setAutoTranscribe] = useState(true)
 
   const consultation = mockConsultations.find(c => c.id === id)
   const participants = consultation?.experts || mockExperts.slice(0, 3)
@@ -42,6 +74,96 @@ export default function ConsultationRoom() {
       { id: Date.now(), user: '我', message: newMessage, time: new Date().toLocaleTimeString().slice(0, 5) }
     ])
     setNewMessage('')
+  }
+
+  // 开始/停止实时转写
+  const toggleTranscription = () => {
+    if (isTranscribing) {
+      setIsTranscribing(false)
+      message.success('已停止实时转写')
+    } else {
+      setIsTranscribing(true)
+      setTranscriptionDrawerVisible(true)
+      message.success('已开始实时转写')
+      
+      // 模拟实时转写（实际应接入语音识别 API）
+      simulateTranscription()
+    }
+  }
+
+  // 模拟实时转写
+  const simulateTranscription = () => {
+    const mockTranscriptions: TranscriptionSegment[] = [
+      {
+        id: '1',
+        speaker: '张明华',
+        text: '根据患者的CT影像，我们可以看到右肺上叶有一个约4.5厘米的占位性病变',
+        timestamp: '14:05:23',
+        isKeyPoint: true,
+        keywords: ['CT影像', '右肺上叶', '占位性病变']
+      },
+      {
+        id: '2',
+        speaker: '李芳',
+        text: '我建议先进行EGFR基因检测，如果阳性可以考虑靶向治疗',
+        timestamp: '14:06:15',
+        isKeyPoint: true,
+        keywords: ['EGFR基因检测', '靶向治疗']
+      },
+      {
+        id: '3',
+        speaker: '陈伟',
+        text: '从放疗的角度来看，可以考虑局部放疗联合靶向治疗',
+        timestamp: '14:07:42',
+        isKeyPoint: true,
+        keywords: ['放疗', '联合治疗']
+      }
+    ]
+
+    const mockKeyInfo: KeyInformation[] = [
+      {
+        id: '1',
+        type: '诊断',
+        content: '右肺上叶占位性病变，约4.5cm',
+        speaker: '张明华',
+        timestamp: '14:05:23'
+      },
+      {
+        id: '2',
+        type: '检查',
+        content: '建议进行EGFR基因检测',
+        speaker: '李芳',
+        timestamp: '14:06:15'
+      },
+      {
+        id: '3',
+        type: '治疗',
+        content: '考虑靶向治疗或放疗联合治疗',
+        speaker: '陈伟',
+        timestamp: '14:07:42'
+      }
+    ]
+
+    // 逐条添加转写内容（模拟实时效果）
+    let index = 0
+    const interval = setInterval(() => {
+      if (index < mockTranscriptions.length && isTranscribing) {
+        setTranscriptionSegments(prev => [...prev, mockTranscriptions[index]])
+        setKeyInformation(prev => [...prev, mockKeyInfo[index]])
+        index++
+      } else {
+        clearInterval(interval)
+      }
+    }, 3000)
+  }
+
+  // 标记关键点
+  const toggleKeyPoint = (segmentId: string) => {
+    setTranscriptionSegments(prev =>
+      prev.map(seg =>
+        seg.id === segmentId ? { ...seg, isKeyPoint: !seg.isKeyPoint } : seg
+      )
+    )
   }
 
   return (
@@ -105,6 +227,16 @@ export default function ConsultationRoom() {
         </div>
         
         <div className="h-20 !bg-gray-800 flex items-center justify-center gap-4">
+          <Tooltip title={isTranscribing ? '停止实时转写' : '开始实时转写'}>
+            <Button 
+              type={isTranscribing ? 'primary' : 'default'} 
+              shape="circle" 
+              size="large"
+              icon={<RobotOutlined />}
+              onClick={toggleTranscription}
+              className={isTranscribing ? '!bg-green-600 text-white' : '!bg-gray-700 text-white'}
+            />
+          </Tooltip>
           <Tooltip title={audioOn ? '关闭麦克风' : '开启麦克风'}>
             <Button 
               type={audioOn ? 'default' : 'text'} 
@@ -187,6 +319,162 @@ export default function ConsultationRoom() {
           </div>
         </div>
       </Sider>
+
+      {/* 实时转写抽屉 */}
+      <Drawer
+        title={
+          <Space>
+            <RobotOutlined style={{ color: '#52c41a' }} />
+            <span>AI 实时转写</span>
+            {isTranscribing && <Badge status="processing" text="转写中" />}
+          </Space>
+        }
+        placement="right"
+        width={500}
+        open={transcriptionDrawerVisible}
+        onClose={() => setTranscriptionDrawerVisible(false)}
+      >
+        <Tabs
+          items={[
+            {
+              key: 'transcription',
+              label: (
+                <span>
+                  <FileTextOutlined />
+                  实时转写
+                </span>
+              ),
+              children: (
+                <div>
+                  {transcriptionSegments.length === 0 ? (
+                    <Alert
+                      type="info"
+                      message="等待开始转写..."
+                      description="点击下方的转写按钮开始实时转写会诊内容"
+                      showIcon
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      {transcriptionSegments.map((segment) => (
+                        <Card
+                          key={segment.id}
+                          size="small"
+                          className={segment.isKeyPoint ? '!border-green-500 !bg-green-50' : ''}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <Space>
+                              <Avatar size="small">{segment.speaker[0]}</Avatar>
+                              <Text strong>{segment.speaker}</Text>
+                              <Text type="secondary" className="text-xs">{segment.timestamp}</Text>
+                            </Space>
+                            <Button
+                              size="small"
+                              type={segment.isKeyPoint ? 'primary' : 'default'}
+                              icon={<CheckCircleOutlined />}
+                              onClick={() => toggleKeyPoint(segment.id)}
+                            >
+                              {segment.isKeyPoint ? '已标记' : '标记'}
+                            </Button>
+                          </div>
+                          <Text className="block mb-2">{segment.text}</Text>
+                          <div>
+                            {segment.keywords.map((keyword, idx) => (
+                              <Tag key={idx} color="blue" className="mb-1">{keyword}</Tag>
+                            ))}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            },
+            {
+              key: 'keyInfo',
+              label: (
+                <span>
+                  <BulbOutlined />
+                  关键信息
+                </span>
+              ),
+              children: (
+                <div>
+                  {keyInformation.length === 0 ? (
+                    <Alert
+                      type="info"
+                      message="暂无关键信息"
+                      description="转写过程中会自动提取关键信息"
+                      showIcon
+                    />
+                  ) : (
+                    <Collapse accordion>
+                      {['诊断', '治疗', '检查', '用药', '随访'].map(type => {
+                        const items = keyInformation.filter(info => info.type === type)
+                        if (items.length === 0) return null
+                        
+                        return (
+                          <Panel
+                            key={type}
+                            header={
+                              <Space>
+                                <Tag color={
+                                  type === '诊断' ? 'red' :
+                                  type === '治疗' ? 'blue' :
+                                  type === '检查' ? 'green' :
+                                  type === '用药' ? 'orange' : 'purple'
+                                }>
+                                  {type}
+                                </Tag>
+                                <Text>{items.length} 条</Text>
+                              </Space>
+                            }
+                          >
+                            {items.map(item => (
+                              <Card key={item.id} size="small" className="mb-2">
+                                <Text className="block mb-1">{item.content}</Text>
+                                <Text type="secondary" className="text-xs">
+                                  {item.speaker} · {item.timestamp}
+                                </Text>
+                              </Card>
+                            ))}
+                          </Panel>
+                        )
+                      })}
+                    </Collapse>
+                  )}
+                </div>
+              )
+            }
+          ]}
+        />
+        
+        <Divider />
+        
+        <Space direction="vertical" className="w-full">
+          <Alert
+            type="info"
+            message="AI 转写说明"
+            description={
+              <ul className="ml-4 text-sm">
+                <li>自动识别发言人</li>
+                <li>自动提取关键词</li>
+                <li>智能标记关键决策点</li>
+                <li>支持手动标记重要内容</li>
+              </ul>
+            }
+            showIcon
+          />
+          <Button
+            type="primary"
+            icon={<RobotOutlined />}
+            onClick={toggleTranscription}
+            block
+            danger={isTranscribing}
+          >
+            {isTranscribing ? '停止转写' : '开始转写'}
+          </Button>
+        </Space>
+      </Drawer>
     </Layout>
   )
 }
