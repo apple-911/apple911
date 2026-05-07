@@ -891,6 +891,22 @@ export default function SubmitMaterial() {
                 </div>
               </Card>
             )}
+
+            {selectedTask?.videoUrl && (
+              <Card title={<><PlayCircleOutlined /> 会诊录像（参考）</>} size="small" className="bg-red-50">
+                <div className="space-y-3">
+                  <video controls className="w-full rounded" src={selectedTask.videoUrl}>
+                    您的浏览器不支持视频播放
+                  </video>
+                  <div className="text-sm text-gray-600">
+                    <Space>
+                      <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.videoDuration}</Tag>
+                      <Tag color="red">格式：MP4</Tag>
+                    </Space>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
         )}
 
@@ -940,6 +956,24 @@ export default function SubmitMaterial() {
                 },
                 {
                   key: '3',
+                  label: '📄 既往史',
+                  children: (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.pastHistory || '暂无相关记录'}
+                    </div>
+                  )
+                },
+                {
+                  key: '4',
+                  label: '🩺 体格检查',
+                  children: (
+                    <div className="p-4 bg-cyan-50 border border-cyan-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
+                      {selectedTask?.physicalExamination || '暂无相关记录'}
+                    </div>
+                  )
+                },
+                {
+                  key: '5',
                   label: '🧪 辅助检查',
                   children: (
                     <div className="p-4 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line min-h-[200px] max-h-[400px] overflow-y-auto">
