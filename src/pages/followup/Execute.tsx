@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Input, Select, DatePicker, Rate, message, Badge, Tabs, Radio, Checkbox, Drawer, Alert, List, Avatar, Divider, Progress } from 'antd'
-import { PhoneOutlined, VideoCameraOutlined, MessageOutlined, PlusOutlined, CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined, RobotOutlined, SendOutlined, AudioOutlined, BulbOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { PhoneOutlined, VideoCameraOutlined, MessageOutlined, PlusOutlined, CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined, RobotOutlined, SendOutlined, AudioOutlined, BulbOutlined, ThunderboltOutlined, FileTextOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import intelligentFollowupService from '../../services/integration/ai/intelligentFollowupService'

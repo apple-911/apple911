@@ -67,6 +67,9 @@ export interface Report {
   consultationOpinion?: string
   treatmentSuggestion?: string
   followupPlan?: string
+  title?: string
+  createdAt?: string
+  createdBy?: string
 }
 
 export interface FollowupPlan {

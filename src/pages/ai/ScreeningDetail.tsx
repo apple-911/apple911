@@ -68,13 +68,13 @@ export default function ScreeningDetail() {
         id: id!,
         type: 'needs_review',
         level: 'urgent',
-        title: 'MDT 筛查预警',
         message: '患者病情复杂，建议 MDT 会诊',
         patientId: 'P001',
         patientName: '张建国',
         department: '呼吸内科',
         score: 85,
-        recommendation: '建议进行 MDT 会诊',
+        indications: [],
+        recommendations: ['建议进行 MDT 会诊'],
         reasons: [
           '多系统疾病共存',
           '治疗方案选择困难',
@@ -86,7 +86,8 @@ export default function ScreeningDetail() {
           '制定个体化综合治疗方案'
         ],
         timestamp: new Date().toISOString(),
-        reviewed: false
+        reviewed: false,
+        createdAt: new Date().toISOString()
       }
 
       // Mock 数据 - MDTNecessityAssessment
@@ -596,7 +597,7 @@ export default function ScreeningDetail() {
         <div className="space-y-3">
           <Alert
             type="warning"
-            message={alert.title}
+            message={alert.message}
             description={alert.message}
             showIcon
           />
@@ -604,7 +605,7 @@ export default function ScreeningDetail() {
             <Text strong>预警原因：</Text>
             <div className="mt-2">
               <Space direction="vertical" style={{ width: '100%' }}>
-                {alert.reasons.map((reason, i) => (
+                {alert.reasons?.map((reason, i) => (
                   <Text key={i} type="secondary" className="block">• {reason}</Text>
                 ))}
               </Space>
@@ -614,7 +615,7 @@ export default function ScreeningDetail() {
             <Text strong>建议措施：</Text>
             <div className="mt-2">
               <Space direction="vertical" style={{ width: '100%' }}>
-                {alert.suggestedActions.map((action, i) => (
+                {alert.suggestedActions?.map((action, i) => (
                   <Text key={i} type="secondary" className="block">• {action}</Text>
                 ))}
               </Space>
