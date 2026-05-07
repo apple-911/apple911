@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Input, Select, Rate, message, Tabs, Descriptions, Divider } from 'antd'
-import { CheckOutlined, CloseOutlined, ExclamationCircleOutlined, FileTextOutlined, BookOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons'
+import { CheckOutlined, CloseOutlined, ExclamationCircleOutlined, FileTextOutlined, BookOutlined, UserOutlined, TeamOutlined, PlayCircleOutlined, AudioOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
 const { Title, Text } = Typography
@@ -23,6 +23,10 @@ interface QualityTask {
   meetingRecord?: string
   consultationReport?: string
   recommendations?: string[]
+  recordingUrl?: string
+  videoUrl?: string
+  recordingDuration?: string
+  videoDuration?: string
 }
 
 const mockTasks: QualityTask[] = [
@@ -79,7 +83,11 @@ const mockTasks: QualityTask[] = [
       '完善基因检测',
       '评估心肺功能',
       '营养支持治疗'
-    ]
+    ],
+    recordingUrl: '/recordings/C001_audio.mp3',
+    videoUrl: '/recordings/C001_video.mp4',
+    recordingDuration: '1:30:25',
+    videoDuration: '1:28:15'
   },
   { 
     id: 'Q002', 
@@ -192,6 +200,58 @@ export default function QualityTasks() {
     />
   )
 
+  const renderRecording = () => (
+    <div className="space-y-4">
+      <Card 
+        title={<><AudioOutlined /> 会诊录音</>} 
+        size="small"
+        className="bg-blue-50"
+      >
+        {selectedTask?.recordingUrl ? (
+          <div className="space-y-3">
+            <audio controls className="w-full" src={selectedTask.recordingUrl}>
+              您的浏览器不支持音频播放
+            </audio>
+            <div className="text-sm text-gray-600">
+              <Space>
+                <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.recordingDuration}</Tag>
+                <Tag color="green">格式：MP3</Tag>
+              </Space>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-gray-400 py-8">暂无录音文件</div>
+        )}
+      </Card>
+    </div>
+  )
+
+  const renderVideo = () => (
+    <div className="space-y-4">
+      <Card 
+        title={<><PlayCircleOutlined /> 会诊录像</>} 
+        size="small"
+        className="bg-green-50"
+      >
+        {selectedTask?.videoUrl ? (
+          <div className="space-y-3">
+            <video controls className="w-full rounded-lg bg-black" style={{ maxHeight: '400px' }} src={selectedTask.videoUrl}>
+              您的浏览器不支持视频播放
+            </video>
+            <div className="text-sm text-gray-600">
+              <Space>
+                <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.videoDuration}</Tag>
+                <Tag color="green">格式：MP4</Tag>
+              </Space>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-gray-400 py-8">暂无录像文件</div>
+        )}
+      </Card>
+    </div>
+  )
+
   const columns: ColumnsType<QualityTask> = [
     { title: '任务ID', dataIndex: 'id' },
     { title: '会诊ID', dataIndex: 'consultationId', render: t => <Tag>#{t}</Tag> },
@@ -287,6 +347,16 @@ export default function QualityTasks() {
                 key: 'report',
                 label: <><BookOutlined /> 会诊报告</>,
                 children: renderReport()
+              },
+              {
+                key: 'recording',
+                label: <><AudioOutlined /> 会诊录音</>,
+                children: renderRecording()
+              },
+              {
+                key: 'video',
+                label: <><PlayCircleOutlined /> 会诊录像</>,
+                children: renderVideo()
               }
             ]}
           />
