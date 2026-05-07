@@ -143,20 +143,22 @@ export default function Schedule() {
             {
               title: '操作',
               key: 'action',
-              width: 150,
+              width: 120,
               render: (_, record) => (
-                <Space size="small">
+                <Space direction="vertical" size="small">
                   <Button
                     type="primary"
                     size="small"
                     icon={<CalendarOutlined />}
                     onClick={() => handleSchedule(record)}
+                    block
                   >
                     智能排期
                   </Button>
                   <Button
                     size="small"
                     onClick={() => navigate(`/consultation/detail/${record.id}`)}
+                    block
                   >
                     详情
                   </Button>
