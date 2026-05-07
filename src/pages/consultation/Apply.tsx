@@ -238,7 +238,7 @@ export default function Apply() {
               <p>
                 <strong>AI 建议：</strong>
                 <ul className="list-disc list-inside mt-1">
-                  {location.state.screeningData.recommendations.map((rec, idx) => (
+                  {location.state.screeningData.recommendations.map((rec: string, idx: number) => (
                     <li key={idx}>{rec}</li>
                   ))}
                 </ul>
@@ -702,7 +702,7 @@ export default function Apply() {
                         <div className="mt-2">
                           <Text type="secondary" className="text-xs">匹配原因：</Text>
                           <ul className="mt-1 space-y-1">
-                            {expert.matchReasons.map((reason, idx) => (
+                            {expert.matchReasons?.map((reason, idx) => (
                               <li key={idx} className="text-xs text-gray-600">• {reason}</li>
                             ))}
                           </ul>

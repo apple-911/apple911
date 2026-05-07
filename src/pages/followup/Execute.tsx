@@ -5,7 +5,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import intelligentFollowupService from '../../services/integration/ai/intelligentFollowupService'
 
-const { Title, Text } = Typography
+const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
 
 // 随访方式

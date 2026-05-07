@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Tabs, Table, Tag, Button, Space, Typography, Empty, List, Avatar } from 'antd'
+import { Card, Tabs, Table, Tag, Button, Space, Typography, Empty, List, Avatar, message } from 'antd'
 import { CalendarOutlined, VideoCameraOutlined, TeamOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import { mockConsultations } from '../../mocks/data'
 import type { Consultation } from '../../stores/consultationStore'
@@ -16,6 +16,10 @@ export default function MyMeetings() {
   const todayMeetings = mockConsultations.filter(c => c.status === '进行中')
   const weekMeetings = mockConsultations.filter(c => ['已通过', '进行中'].includes(c.status))
   const futureMeetings = mockConsultations.filter(c => c.status === '已通过')
+
+  const handlePreOpinion = (item: Consultation) => {
+    message.info('预审功能开发中')
+  }
 
   const columns = [
     { title: '会诊主题', dataIndex: 'mainDiagnosis', ellipsis: true },

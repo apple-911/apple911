@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, Steps, Form, Select, InputNumber, Button, Typography, Result, message, Space, Table } from 'antd'
+import { Card, Steps, Form, Select, InputNumber, Button, Typography, Result, message, Space, Table, Input } from 'antd'
 import { UserOutlined, CalculatorOutlined, CheckCircleOutlined, ArrowLeftOutlined, ArrowRightOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
