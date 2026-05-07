@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Calendar, Badge, List, Avatar, Tag, Space, Button, Modal, DatePicker, message, Typography } from 'antd'
-import { PlusOutlined, TeamOutlined, CalendarOutlined } from '@ant-design/icons'
+import { Card, Calendar, Badge, List, Avatar, Tag, Space, Button, Modal, DatePicker, message, Typography, Tabs, Table, UserOutlined } from 'antd'
+import { PlusOutlined, TeamOutlined, CalendarOutlined, EditOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { mockConsultations, mockExperts } from '../../mocks/data'
-import type { Consultation } from '../../stores/consultationStore'
+import type { Consultation, Expert } from '../../stores/consultationStore'
 import dayjs from 'dayjs'
-import SmartScheduler from '../../components/SmartScheduler'
+import IntelligentScheduler from '../../components/IntelligentScheduler'
 
 const { Title, Text } = Typography
 
 export default function Schedule() {
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs())
-  const [scheduledConsultations, setScheduledConsultations] = useState(mockConsultations.filter(c => c.status === '已通过' || c.status === '进行中'))
+  const [scheduledConsultations, setScheduledConsultations] = useState(mockConsultations.filter(c => c.status === '已通过' || c.status === '已排期'))
+  const [reschedulingConsultation, setReschedulingConsultation] = useState<Consultation | null>(null)
+  const [showScheduler, setShowScheduler] = useState(false)
   const navigate = useNavigate()
 
   const getListData = (value: dayjs.Dayjs) => {
@@ -33,153 +35,248 @@ export default function Schedule() {
     c.expectTime.startsWith(selectedDate.format('YYYY-MM-DD'))
   )
 
-  const handleQuickSchedule = (consultation: Consultation) => {
-    Modal.confirm({
-      title: '快速排期',
-      content: (
-        <div>
-          <p>为 {consultation.patientName} 选择会诊时间：</p>
-          <DatePicker
-            showTime
-            className="!w-full mt-2"
-            defaultValue={dayjs(consultation.expectTime)}
-          />
-        </div>
-      ),
-      onOk: () => {
-        message.success('排期成功，已通知专家')
-      }
-    })
+  // 打开智能排期
+  const handleSchedule = (consultation: Consultation) => {
+    setReschedulingConsultation(consultation)
+    setShowScheduler(true)
   }
 
-  const pendingConsultations = mockConsultations.filter(c => c.status === '待审核').slice(0, 5)
+  // 确认排期
+  const handleConfirmSchedule = (date: dayjs.Dayjs, time: string, selectedExperts: Expert[]) => {
+    const datetime = date.format('YYYY-MM-DD') + ' ' + time
+    message.success(`排期成功！会诊时间：${datetime}`)
+    setShowScheduler(false)
+    setReschedulingConsultation(null)
+    // TODO: 更新会诊状态和专家安排
+  }
+
+  const pendingConsultations = mockConsultations.filter(c => c.status === '待审核')
+
+  // 专家时间数据（Mock）
+  const expertAvailability = mockExperts.map(expert => ({
+    expertId: expert.id,
+    date: dayjs().format('YYYY-MM-DD'),
+    availableSlots: ['09:00', '10:00', '14:00', '15:00', '16:00'],
+    busySlots: ['11:00', '17:00']
+  }))
+
+  // 已安排的会诊（用于冲突检测）
+  const scheduledEvents = scheduledConsultations.map(c => ({
+    id: c.id,
+    title: c.mainDiagnosis,
+    patientName: c.patientName,
+    date: dayjs(c.expectTime),
+    time: c.expectTime.split(' ')[1] || '09:00',
+    experts: c.experts,
+    type: 'consultation' as const
+  }))
 
   return (
     <div className="space-y-4">
       <Title level={4}>会诊排期管理</Title>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <Calendar
-            fullscreen={false}
-            value={selectedDate}
-            onSelect={handleDateSelect}
-            cellRender={(current, info) => {
-              if (info.type === 'date') {
-                const listData = getListData(current)
-                return (
-                  <ul className="events absolute top-0 left-0 w-full p-1">
-                    {listData.map((item, index) => (
-                      <li key={index}>
-                        <Badge status={item.type as any} text={<span className="text-xs">{item.content}</span>} />
-                      </li>
-                    ))}
-                  </ul>
-                )
-              }
-              return info.originNode
-            }}
-          />
-        </Card>
-
-        <Card
-          title={
-            <Space>
-              <CalendarOutlined />
-              <span>{selectedDate.format('MM月DD日')} 会诊安排</span>
-            </Space>
-          }
-        >
-          {selectedDateConsultations.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              <CalendarOutlined className="text-4xl mb-2" />
-              <p>当日暂无会诊</p>
-            </div>
-          ) : (
-            <List
-              dataSource={selectedDateConsultations}
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button key="enter" type="link" size="small" onClick={() => navigate(`/consultation/room/${item.id}`)}>
-                      进入
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={<Avatar icon={<TeamOutlined />} className="!bg-medical-blue" />}
-                    title={item.mainDiagnosis}
-                    description={
-                      <Space direction="vertical" size={0}>
-                        <Text>{item.patientName}</Text>
-                        <Text type="secondary" className="text-xs">{item.expectTime}</Text>
-                      </Space>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-        </Card>
-      </div>
-
+      {/* 待排期列表 */}
       <Card
         title={
           <Space>
-            <PlusOutlined />
-            <span>待排期列表</span>
+            <ClockCircleOutlined />
+            <span>待排期申请</span>
             <Tag color="orange">{pendingConsultations.length}</Tag>
           </Space>
         }
       >
-        <List
+        <Table
           dataSource={pendingConsultations}
-          renderItem={(item) => (
-            <List.Item
-              actions={[
-                <Button key="schedule" type="link" size="small" onClick={() => handleQuickSchedule(item)}>
-                  快速排期
-                </Button>,
-              ]}
-            >
-              <List.Item.Meta
-                title={
-                  <Space>
-                    {item.mainDiagnosis}
-                    <Tag color={item.urgency === '紧急' ? 'red' : item.urgency === '特急' ? 'orange' : 'default'}>
-                      {item.urgency}
-                    </Tag>
-                  </Space>
-                }
-                description={
-                  <Space direction="vertical" size={0}>
-                    <Text type="secondary">{item.patientName} | {item.applyDoctor}</Text>
-                    <Text type="secondary" className="text-xs">期望时间：{item.expectTime}</Text>
-                  </Space>
-                }
-              />
-            </List.Item>
-          )}
+          rowKey="id"
+          columns={[
+            {
+              title: '患者信息',
+              dataIndex: 'patientName',
+              render: (name, record) => (
+                <Space>
+                  <Avatar icon={<UserOutlined />} size="small" />
+                  <div>
+                    <div>{name}</div>
+                    <div className="text-xs text-gray-500">{record.patientInpatientNo}</div>
+                  </div>
+                </Space>
+              )
+            },
+            {
+              title: '诊断',
+              dataIndex: 'mainDiagnosis',
+              ellipsis: true
+            },
+            {
+              title: '申请科室',
+              dataIndex: 'department'
+            },
+            {
+              title: '申请医生',
+              dataIndex: 'applyDoctor'
+            },
+            {
+              title: '紧急程度',
+              dataIndex: 'urgency',
+              render: (urgency) => (
+                <Tag color={urgency === '紧急' ? 'red' : urgency === '特急' ? 'orange' : 'default'}>
+                  {urgency}
+                </Tag>
+              )
+            },
+            {
+              title: '期望时间',
+              dataIndex: 'expectTime'
+            },
+            {
+              title: '邀请专家',
+              dataIndex: 'experts',
+              render: (experts: Expert[]) => (
+                <Space wrap>
+                  {experts.slice(0, 2).map(e => (
+                    <Tag key={e.id}>{e.name}</Tag>
+                  ))}
+                  {experts.length > 2 && <Tag>+{experts.length - 2}人</Tag>}
+                </Space>
+              )
+            },
+            {
+              title: '操作',
+              key: 'action',
+              render: (_, record) => (
+                <Space>
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<CalendarOutlined />}
+                    onClick={() => handleSchedule(record)}
+                  >
+                    智能排期
+                  </Button>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => navigate(`/consultation/detail/${record.id}`)}
+                  >
+                    详情
+                  </Button>
+                </Space>
+              )
+            }
+          ]}
         />
       </Card>
 
-      <Card title="智能排期推荐" className="mt-4">
-        <SmartScheduler
-          experts={mockExperts.map(e => ({
-            id: e.id,
-            name: e.name,
-            department: e.department,
-            availableSlots: [
-              { date: dayjs().format('YYYY-MM-DD'), timeSlots: ['09:00', '10:00', '14:00', '15:00'] },
-              { date: dayjs().add(1, 'day').format('YYYY-MM-DD'), timeSlots: ['09:00', '11:00', '14:00'] },
-              { date: dayjs().add(2, 'day').format('YYYY-MM-DD'), timeSlots: ['10:00', '14:00', '16:00'] },
-            ],
-          }))}
-          onSelect={(date, time) => {
-            message.success(`已选择：${date.format('YYYY-MM-DD')} ${time}`)
-          }}
+      {/* 已排期列表 */}
+      <Card
+        title={
+          <Space>
+            <CheckCircleOutlined />
+            <span>已排期会诊</span>
+            <Tag color="green">{scheduledConsultations.length}</Tag>
+          </Space>
+        }
+      >
+        <Table
+          dataSource={scheduledConsultations}
+          rowKey="id"
+          columns={[
+            {
+              title: '患者信息',
+              dataIndex: 'patientName',
+              render: (name, record) => (
+                <Space>
+                  <Avatar icon={<UserOutlined />} size="small" />
+                  <div>
+                    <div>{name}</div>
+                    <div className="text-xs text-gray-500">{record.patientInpatientNo}</div>
+                  </div>
+                </Space>
+              )
+            },
+            {
+              title: '诊断',
+              dataIndex: 'mainDiagnosis',
+              ellipsis: true
+            },
+            {
+              title: '会诊时间',
+              dataIndex: 'expectTime',
+              render: (time) => (
+                <Space>
+                  <CalendarOutlined />
+                  {time}
+                </Space>
+              )
+            },
+            {
+              title: '会诊专家',
+              dataIndex: 'experts',
+              render: (experts: Expert[]) => (
+                <Space wrap>
+                  {experts.slice(0, 3).map(e => (
+                    <Tag key={e.id}>{e.name}({e.department})</Tag>
+                  ))}
+                  {experts.length > 3 && <Tag>+{experts.length - 3}人</Tag>}
+                </Space>
+              )
+            },
+            {
+              title: '操作',
+              key: 'action',
+              render: (_, record) => (
+                <Space>
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => handleSchedule(record)}
+                  >
+                    调整
+                  </Button>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => navigate(`/consultation/room/${record.id}`)}
+                  >
+                    进入
+                  </Button>
+                </Space>
+              )
+            }
+          ]}
         />
       </Card>
+
+      {/* 智能排期 Modal */}
+      <Modal
+        title={
+          <Space>
+            <CalendarOutlined />
+            <span>
+              {reschedulingConsultation ? `${reschedulingConsultation.patientName} - 会诊排期` : '会诊排期'}
+            </span>
+          </Space>
+        }
+        open={showScheduler}
+        onCancel={() => {
+          setShowScheduler(false)
+          setReschedulingConsultation(null)
+        }}
+        footer={null}
+        width={800}
+      >
+        {reschedulingConsultation && (
+          <IntelligentScheduler
+            experts={reschedulingConsultation.experts}
+            scheduledEvents={scheduledEvents}
+            expertAvailability={expertAvailability}
+            mode={reschedulingConsultation.status === '待审核' ? 'schedule' : 'reschedule'}
+            existingConsultation={reschedulingConsultation}
+            onSchedule={handleConfirmSchedule}
+          />
+        )}
+      </Modal>
     </div>
   )
 }

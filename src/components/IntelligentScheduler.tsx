@@ -1,0 +1,464 @@
+import { useState, useMemo } from 'react'
+import { Card, DatePicker, TimePicker, Button, Tag, Space, Typography, Divider, Alert, List, Avatar, Modal, message, Calendar, Badge, Select } from 'antd'
+import { ClockCircleOutlined, CheckCircleOutlined, UserOutlined, WarningOutlined, TeamOutlined, CalendarOutlined, SyncOutlined } from '@ant-design/icons'
+import type { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
+import isBetween from 'dayjs/plugin/isBetween'
+
+dayjs.extend(isBetween)
+
+const { Text, Title } = Typography
+
+interface Expert {
+  id: string
+  name: string
+  department: string
+  title: string
+  status: '空闲' | '忙碌' | '离线'
+  avatar?: string
+}
+
+interface ScheduledEvent {
+  id: string
+  title: string
+  patientName: string
+  date: Dayjs
+  time: string
+  experts: Expert[]
+  type: 'consultation' | 'meeting' | 'other'
+}
+
+interface ExpertAvailability {
+  expertId: string
+  date: string
+  availableSlots: string[]
+  busySlots: string[]
+}
+
+interface IntelligentSchedulerProps {
+  experts: Expert[]
+  scheduledEvents?: ScheduledEvent[]
+  expertAvailability?: ExpertAvailability[]
+  duration?: number
+  onSchedule?: (date: Dayjs, time: string, selectedExperts: Expert[]) => void
+  mode?: 'schedule' | 'reschedule'
+  existingConsultation?: any
+}
+
+/**
+ * 智能排期组件
+ * 支持：
+ * - 专家时间冲突检测
+ * - 智能推荐最优时间段
+ * - 多专家时间协调
+ * - 排期调整（改期、改专家）
+ */
+export default function IntelligentScheduler({
+  experts,
+  scheduledEvents = [],
+  expertAvailability = [],
+  duration = 60,
+  onSchedule,
+  mode = 'schedule',
+  existingConsultation,
+}: IntelligentSchedulerProps) {
+  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null)
+  const [selectedTime, setSelectedTime] = useState<Dayjs | null>(null)
+  const [selectedExperts, setSelectedExperts] = useState<Expert[]>(experts)
+  const [showExpertSelector, setShowExpertSelector] = useState(false)
+
+  // 获取某天某时间的专家空闲情况
+  const getExpertAvailabilityAtTime = useMemo(() => {
+    return (date: Dayjs, time: string) => {
+      const dateStr = date.format('YYYY-MM-DD')
+      return experts.map(expert => {
+        const availability = expertAvailability.find(
+          a => a.expertId === expert.id && a.date === dateStr
+        )
+        
+        // 检查是否有已安排的会诊冲突
+        const hasConflict = scheduledEvents.some(event => 
+          event.date.isSame(date, 'day') && 
+          event.time === time &&
+          event.experts.some(e => e.id === expert.id)
+        )
+
+        const isBusy = availability?.busySlots.includes(time) || hasConflict
+        const isAvailable = availability?.availableSlots.includes(time) && !isBusy
+
+        return {
+          expert,
+          isAvailable: isAvailable,
+          isBusy: isBusy,
+          reason: hasConflict ? '已有会诊安排' : isBusy ? '其他安排' : isAvailable ? '空闲' : '未设置'
+        }
+      })
+    }
+  }, [experts, expertAvailability, scheduledEvents])
+
+  // 计算推荐时间段
+  const recommendedSlots = useMemo(() => {
+    if (!selectedDate || experts.length === 0) return []
+
+    const slots: {
+      time: string
+      score: number
+      availableExperts: Expert[]
+      busyExperts: Expert[]
+      totalExperts: number
+    }[] = []
+
+    // 生成当天所有可能的时间段（8:00 - 18:00，每 30 分钟一个）
+    const timeSlots: string[] = []
+    for (let hour = 8; hour <= 17; hour++) {
+      timeSlots.push(`${hour.toString().padStart(2, '0')}:00`)
+      timeSlots.push(`${hour.toString().padStart(2, '0')}:30`)
+    }
+
+    timeSlots.forEach(time => {
+      const availability = getExpertAvailabilityAtTime(selectedDate, time)
+      const availableExperts = availability.filter(a => a.isAvailable).map(a => a.expert)
+      const busyExperts = availability.filter(a => a.isBusy)
+
+      const score = (availableExperts.length / experts.length) * 100
+
+      slots.push({
+        time,
+        score,
+        availableExperts,
+        busyExperts,
+        totalExperts: experts.length
+      })
+    })
+
+    // 按分数排序，取前 8 个推荐
+    return slots
+      .filter(s => s.score >= 50) // 只显示至少 50% 专家可用的时间段
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+  }, [selectedDate, experts, getExpertAvailabilityAtTime])
+
+  // 检查当前选择是否有冲突
+  const conflictCheck = useMemo(() => {
+    if (!selectedDate || !selectedTime) return null
+
+    const availability = getExpertAvailabilityAtTime(selectedDate, selectedTime.format('HH:mm'))
+    const busyExperts = availability.filter(a => a.isBusy)
+    const unavailableExperts = availability.filter(a => !a.isAvailable)
+
+    return {
+      hasConflict: busyExperts.length > 0,
+      busyExperts,
+      unavailableExperts,
+      availableCount: availability.filter(a => a.isAvailable).length,
+      totalCount: experts.length
+    }
+  }, [selectedDate, selectedTime, getExpertAvailabilityAtTime, experts])
+
+  const handleConfirmSchedule = () => {
+    if (!selectedDate || !selectedTime) {
+      message.warning('请选择日期和时间')
+      return
+    }
+
+    if (conflictCheck && conflictCheck.hasConflict) {
+      Modal.confirm({
+        title: '确认排期',
+        content: (
+          <div>
+            <p>以下专家时间有冲突：</p>
+            <List
+              size="small"
+              dataSource={conflictCheck.busyExperts}
+              renderItem={(item: any) => (
+                <List.Item>
+                  <List.Item.Meta
+                    avatar={<Avatar icon={<UserOutlined />} />}
+                    title={item.expert.name}
+                    description={item.reason}
+                  />
+                </List.Item>
+              )}
+            />
+            <p className="mt-2">确定要继续排期吗？</p>
+          </div>
+        ),
+        onOk: () => {
+          onSchedule?.(selectedDate, selectedTime.format('HH:mm'), selectedExperts)
+        }
+      })
+    } else {
+      onSchedule?.(selectedDate, selectedTime.format('HH:mm'), selectedExperts)
+    }
+  }
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'success'
+    if (score >= 60) return 'processing'
+    return 'warning'
+  }
+
+  const getTimeSlotColor = (time: string) => {
+    const slot = recommendedSlots.find(s => s.time === time)
+    if (!slot) return 'default'
+    return getScoreColor(slot.score)
+  }
+
+  // 渲染专家选择器
+  const renderExpertSelector = () => (
+    <Modal
+      title="选择会诊专家"
+      open={showExpertSelector}
+      onCancel={() => setShowExpertSelector(false)}
+      onOk={() => setShowExpertSelector(false)}
+      width={600}
+    >
+      <div className="space-y-3">
+        <Alert
+          message={`已选择 ${selectedExperts.length} 位专家`}
+          type="info"
+          showIcon
+        />
+        <List
+          dataSource={experts}
+          renderItem={(expert) => {
+            const isSelected = selectedExperts.some(e => e.id === expert.id)
+            return (
+              <List.Item
+                className="cursor-pointer hover:bg-gray-50"
+                onClick={() => {
+                  if (isSelected) {
+                    setSelectedExperts(selectedExperts.filter(e => e.id !== expert.id))
+                  } else {
+                    setSelectedExperts([...selectedExperts, expert])
+                  }
+                }}
+              >
+                <List.Item.Meta
+                  avatar={
+                    <Badge status={expert.status === '空闲' ? 'success' : expert.status === '忙碌' ? 'error' : 'default'}>
+                      <Avatar icon={<UserOutlined />} src={expert.avatar} />
+                    </Badge>
+                  }
+                  title={
+                    <Space>
+                      <Text strong>{expert.name}</Text>
+                      <Tag>{expert.department}</Tag>
+                      <Tag>{expert.title}</Tag>
+                    </Space>
+                  }
+                  description={
+                    <Text type="secondary">
+                      状态：{expert.status === '空闲' ? '空闲' : expert.status === '忙碌' ? '忙碌' : '离线'}
+                    </Text>
+                  }
+                />
+                <Tag color={isSelected ? 'green' : 'default'}>
+                  {isSelected ? '已选择' : '未选择'}
+                </Tag>
+              </List.Item>
+            )
+          }}
+        />
+      </div>
+    </Modal>
+  )
+
+  // 渲染推荐时间段
+  const renderRecommendedSlots = () => (
+    <div className="space-y-2">
+      <Title level={5}>
+        <ClockCircleOutlined className="mr-2" />
+        智能推荐时间段
+      </Title>
+      {recommendedSlots.length === 0 ? (
+        <Alert
+          message="暂无推荐时间段"
+          description="请选择日期或调整专家组合"
+          type="info"
+          showIcon
+        />
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {recommendedSlots.map((slot) => (
+            <Button
+              key={slot.time}
+              onClick={() => {
+                setSelectedTime(dayjs(slot.time, 'HH:mm'))
+                message.success(`选择时间 ${slot.time}，${slot.availableExperts.length}/${slot.totalExperts} 位专家可用`)
+              }}
+            >
+              <Space direction="vertical" size={0} className="w-full">
+                <Text strong>{slot.time}</Text>
+                <Text type="secondary" className="text-xs">
+                  {slot.availableExperts.length}/{slot.totalExperts} 专家
+                </Text>
+                <Tag color={getScoreColor(slot.score)} className="mt-1">
+                  {Math.round(slot.score)}% 可用
+                </Tag>
+              </Space>
+            </Button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
+  // 渲染冲突提示
+  const renderConflictAlert = () => {
+    if (!conflictCheck) return null
+
+    if (conflictCheck.hasConflict) {
+      return (
+        <Alert
+          message={`${conflictCheck.busyExperts.length} 位专家时间冲突`}
+          description={
+            <List
+              size="small"
+              dataSource={conflictCheck.busyExperts}
+              renderItem={(item: any) => (
+                <List.Item className="!py-1">
+                  <List.Item.Meta
+                    avatar={<WarningOutlined className="text-orange-500" />}
+                    title={item.expert.name}
+                    description={item.reason}
+                  />
+                </List.Item>
+              )}
+            />
+          }
+          type="warning"
+          showIcon
+        />
+      )
+    }
+
+    if (conflictCheck.availableCount < conflictCheck.totalCount) {
+      return (
+        <Alert
+          message={`部分专家不可用`}
+          description={`${conflictCheck.availableCount}/${conflictCheck.totalCount} 位专家可用，${conflictCheck.totalCount - conflictCheck.availableCount} 位专家不可用`}
+          type="info"
+          showIcon
+        />
+      )
+    }
+
+    return (
+      <Alert
+        message={`${conflictCheck.availableCount} 位专家均可用`}
+        type="success"
+        showIcon
+        icon={<CheckCircleOutlined />}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 模式提示 */}
+      {mode === 'reschedule' && existingConsultation && (
+        <Alert
+          message={`调整排期：${existingConsultation.patientName}`}
+          description={
+            <Space>
+              <span>原时间：{existingConsultation.expectTime}</span>
+              <SyncOutlined spin />
+              <span>新时间：待选择</span>
+            </Space>
+          }
+          type="info"
+          showIcon
+        />
+      )}
+
+      {/* 日期选择 */}
+      <Card title={<CalendarOutlined className="mr-2" />选择日期}>
+        <DatePicker
+          value={selectedDate}
+          onChange={(date) => {
+            setSelectedDate(date)
+            setSelectedTime(null)
+          }}
+          disabledDate={(current) => current && current < dayjs().startOf('day')}
+          style={{ width: '100%' }}
+          size="large"
+        />
+      </Card>
+
+      {/* 智能推荐 */}
+      {selectedDate && renderRecommendedSlots()}
+
+      {/* 时间选择 */}
+      <Card title={<ClockCircleOutlined className="mr-2" />选择时间}>
+        <div className="space-y-3">
+          <TimePicker
+            value={selectedTime}
+            onChange={(time) => setSelectedTime(time)}
+            format="HH:mm"
+            minuteStep={30}
+            disabledHours={() => {
+              if (!selectedDate) return []
+              const availableHours = recommendedSlots.map(s => parseInt(s.time.split(':')[0]))
+              const allHours = Array.from({ length: 24 }, (_, i) => i)
+              return allHours.filter(h => !availableHours.includes(h))
+            }}
+            style={{ width: '100%' }}
+            size="large"
+          />
+          {renderConflictAlert()}
+        </div>
+      </Card>
+
+      {/* 专家选择 */}
+      <Card
+        title={<TeamOutlined className="mr-2" />会诊专家}
+        extra={
+          <Button size="small" onClick={() => setShowExpertSelector(true)}>
+            调整专家
+          </Button>
+        }
+      >
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {selectedExperts.map(expert => (
+              <Tag key={expert.id} icon={<UserOutlined />} closable onClose={() => {
+                setSelectedExperts(selectedExperts.filter(e => e.id !== expert.id))
+              }}>
+                {expert.name} ({expert.department})
+              </Tag>
+            ))}
+          </div>
+          <Text type="secondary">
+            共 {selectedExperts.length} 位专家
+          </Text>
+        </div>
+      </Card>
+
+      {/* 确认按钮 */}
+      <div className="flex justify-center gap-3 pt-4">
+        <Button
+          size="large"
+          onClick={() => {
+            setSelectedDate(null)
+            setSelectedTime(null)
+            setSelectedExperts(experts)
+          }}
+        >
+          重置
+        </Button>
+        <Button
+          type="primary"
+          size="large"
+          icon={<CheckCircleOutlined />}
+          onClick={handleConfirmSchedule}
+          disabled={!selectedDate || !selectedTime}
+        >
+          {mode === 'reschedule' ? '确认调整' : '确认排期'}
+        </Button>
+      </div>
+
+      {renderExpertSelector()}
+    </div>
+  )
+}
