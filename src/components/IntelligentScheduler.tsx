@@ -254,7 +254,7 @@ export default function IntelligentScheduler({
           showIcon
         />
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {recommendedSlots.map((slot: any) => (
             <Button
               key={slot.time}
@@ -262,15 +262,16 @@ export default function IntelligentScheduler({
                 setSelectedTime(dayjs(slot.time, 'HH:mm'))
                 message.success(`选择时间 ${slot.time}，${slot.availableExperts.length}/${slot.totalExperts} 位专家可用`)
               }}
-              className="h-auto py-2"
+              className="h-full"
+              style={{ minHeight: '80px' }}
             >
-              <div className="w-full text-center">
-                <div className="text-base font-semibold mb-1">{slot.time}</div>
-                <div className="text-xs text-gray-500 mb-1">
+              <div className="flex flex-col items-center justify-center w-full gap-1">
+                <div className="text-sm font-bold">{slot.time}</div>
+                <div className="text-xs text-gray-500">
                   {slot.availableExperts.length}/{slot.totalExperts} 专家
                 </div>
-                <Tag color={getScoreColor(slot.score)} className="mt-1">
-                  {Math.round(slot.score)}% 可用
+                <Tag color={getScoreColor(slot.score)} style={{ fontSize: '10px', padding: '0 4px' }}>
+                  {Math.round(slot.score)}%
                 </Tag>
               </div>
             </Button>
