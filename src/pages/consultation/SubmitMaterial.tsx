@@ -1161,154 +1161,29 @@ export default function SubmitMaterial() {
 
         {!isEditMode && (
           <div className="space-y-4">
-            {/* 基本信息卡片 */}
+            {/* MDT 会诊核心信息 - 优先展示 */}
             <Card 
-              title={<><UserOutlined className="text-blue-600" /> 基本信息</>} 
+              title={<><FileTextOutlined className="text-indigo-600" /> MDT 会诊记录</>} 
               size="small"
-              className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200"
+              className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 shadow-md"
             >
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 pb-3 border-b border-blue-100">
-                  <UserOutlined className="text-blue-600 mt-1" />
-                  <div className="flex-1">
-                    <div className="mb-2">
-                      <Text className="text-gray-600">患者：</Text>
-                      <Text strong className="text-lg">{selectedTask?.patientName}</Text>
-                      <Tag className="ml-2">{selectedTask?.patientInpatientNo}</Tag>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <Text className="text-gray-600">会诊日期：</Text>
-                        <Text>{selectedTask?.meetingDate}</Text>
-                      </div>
-                      <div>
-                        <Text className="text-gray-600">会诊时间：</Text>
-                        <Text>{selectedTask?.meetingTime}</Text>
-                      </div>
-                      <div>
-                        <Text className="text-gray-600">申请科室：</Text>
-                        <Text>{selectedTask?.department}</Text>
-                      </div>
-                      <div>
-                        <Text className="text-gray-600">申请医生：</Text>
-                        <Text>{selectedTask?.applyDoctor}</Text>
-                      </div>
-                      {selectedTask?.submitTime && (
-                        <div>
-                          <Text className="text-gray-600">提交时间：</Text>
-                          <Text>{selectedTask.submitTime}</Text>
-                        </div>
-                      )}
-                      <div>
-                        <Text className="text-gray-600">状态：</Text>
-                        <Tag color={selectedTask?.status === '审核通过' ? 'green' : 'blue'}>
-                          {selectedTask?.status}
-                        </Tag>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 参会专家 */}
-                <div className="flex items-start gap-3">
-                  <TeamOutlined className="text-blue-600 mt-1" />
-                  <div className="flex-1">
-                    <Text strong className="text-gray-700">参会专家：</Text>
-                    <Space wrap className="mt-2">
-                      {selectedTask?.experts.map((e, i) => (
-                        <Tag key={i} color="blue" className="text-sm">
-                          {e.name}({e.department})
-                        </Tag>
-                      ))}
-                    </Space>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* 病历资料 */}
-            {selectedTask?.chiefComplaint && (
-              <Card 
-                title={<><FileTextOutlined className="text-amber-600" /> 主诉</>} 
-                size="small"
-                className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
-              >
-                <div className="text-sm text-gray-700 leading-relaxed">
-                  {selectedTask.chiefComplaint}
-                </div>
-              </Card>
-            )}
-
-            {selectedTask?.presentIllness && (
-              <Card 
-                title={<><FileTextOutlined className="text-orange-600" /> 现病史</>} 
-                size="small"
-                className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200"
-              >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-orange-100 shadow-sm">
-                  {selectedTask.presentIllness}
-                </div>
-              </Card>
-            )}
-
-            {selectedTask?.pastHistory && (
-              <Card 
-                title={<><FileTextOutlined className="text-green-600" /> 既往史</>} 
-                size="small"
-                className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200"
-              >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-green-100 shadow-sm">
-                  {selectedTask.pastHistory}
-                </div>
-              </Card>
-            )}
-
-            {selectedTask?.physicalExamination && (
-              <Card 
-                title={<><MedicineBoxOutlined className="text-cyan-600" /> 体格检查</>} 
-                size="small"
-                className="bg-gradient-to-r from-cyan-50 to-teal-50 border border-cyan-200"
-              >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-cyan-100 shadow-sm">
-                  {selectedTask.physicalExamination}
-                </div>
-              </Card>
-            )}
-
-            {/* 辅助检查 */}
-            {selectedTask?.auxiliaryExamination && (
-              <Card 
-                title={<><ApiOutlined className="text-purple-600" /> 辅助检查</>} 
-                size="small"
-                className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200"
-              >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-purple-100 shadow-sm">
-                  {selectedTask.auxiliaryExamination}
-                </div>
-              </Card>
-            )}
-
-            {/* 会诊记录 */}
-            {selectedTask?.meetingRecord && (
-              <Card 
-                title={<><FileTextOutlined className="text-indigo-600" /> 会诊记录</>} 
-                size="small"
-                className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200"
-              >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-indigo-100 shadow-sm">
+              {selectedTask?.meetingRecord ? (
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-[600px] overflow-y-auto p-3 bg-white rounded border border-indigo-100">
                   {selectedTask.meetingRecord}
                 </div>
-              </Card>
-            )}
+              ) : (
+                <div className="text-gray-500 text-sm py-8 text-center">暂无会诊记录</div>
+              )}
+            </Card>
 
             {/* 会诊报告 */}
             {selectedTask?.consultationReport && (
               <Card 
-                title={<><FileTextOutlined className="text-purple-600" /> 会诊报告</>} 
+                title={<><FileTextOutlined className="text-purple-600" /> MDT 会诊报告</>} 
                 size="small"
-                className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200"
+                className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 shadow-md"
               >
-                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed min-h-[200px] max-h-[400px] overflow-y-auto p-3 bg-white rounded border border-purple-100 shadow-sm">
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-[600px] overflow-y-auto p-3 bg-white rounded border border-purple-100">
                   {selectedTask.consultationReport}
                 </div>
               </Card>
@@ -1317,15 +1192,15 @@ export default function SubmitMaterial() {
             {/* 会诊建议 */}
             {selectedTask?.recommendations && selectedTask.recommendations.length > 0 && (
               <Card 
-                title={<><CheckSquareOutlined className="text-orange-600" /> 会诊建议</>} 
+                title={<><CheckSquareOutlined className="text-orange-600" /> MDT 会诊建议</>} 
                 size="small"
-                className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200"
+                className="bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 shadow-md"
               >
-                <div className="p-3 bg-white rounded border border-orange-100 shadow-sm">
+                <div className="p-3 bg-white rounded border border-orange-100">
                   <ul className="space-y-2">
                     {selectedTask.recommendations.map((rec, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                        <span className="text-orange-500 mt-1">•</span>
+                        <span className="text-orange-500 mt-1 font-bold">✓</span>
                         <span>{rec}</span>
                       </li>
                     ))}
@@ -1334,129 +1209,183 @@ export default function SubmitMaterial() {
               </Card>
             )}
 
-            {/* 会诊录音 */}
-            {selectedTask?.recordingUrl && (
+            {/* 音视频资料 */}
+            {(selectedTask?.recordingUrl || selectedTask?.videoUrl) && (
               <Card 
-                title={<><AudioOutlined className="text-green-600" /> 会诊录音</>} 
+                title={<><PlayCircleOutlined className="text-red-600" /> MDT 会诊音视频</>} 
                 size="small"
-                className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200"
+                className="bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-200 shadow-md"
               >
-                <div className="space-y-3">
-                  <audio controls className="w-full" src={selectedTask.recordingUrl}>
-                    您的浏览器不支持音频播放
-                  </audio>
-                  <div className="text-sm text-gray-600">
-                    <Space>
-                      <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.recordingDuration || '未知'}</Tag>
-                      <Tag color="green">格式：MP3</Tag>
-                    </Space>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedTask?.recordingUrl && (
+                    <div className="p-3 bg-green-50 rounded border border-green-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AudioOutlined className="text-green-600" />
+                        <Text strong className="text-sm">会诊录音</Text>
+                      </div>
+                      <audio controls className="w-full mb-2" src={selectedTask.recordingUrl}>
+                        您的浏览器不支持音频播放
+                      </audio>
+                      <div className="text-xs text-gray-600">
+                        <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.recordingDuration || '未知'}</Tag>
+                      </div>
+                    </div>
+                  )}
+                  {selectedTask?.videoUrl && (
+                    <div className="p-3 bg-red-50 rounded border border-red-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <PlayCircleOutlined className="text-red-600" />
+                        <Text strong className="text-sm">会诊录像</Text>
+                      </div>
+                      <video controls className="w-full rounded mb-2" src={selectedTask.videoUrl}>
+                        您的浏览器不支持视频播放
+                      </video>
+                      <div className="text-xs text-gray-600">
+                        <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.videoDuration || '未知'}</Tag>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Card>
             )}
 
-            {/* 会诊录像 */}
-            {selectedTask?.videoUrl && (
-              <Card 
-                title={<><PlayCircleOutlined className="text-red-600" /> 会诊录像</>} 
+            {/* 患者信息 Tabs - 折叠展示 */}
+            <Card 
+              title={<><UserOutlined className="text-blue-600" /> 患者病历资料（点击展开）</>} 
+              size="small"
+              className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200"
+            >
+              <Tabs 
+                defaultActiveKey="1" 
                 size="small"
-                className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200"
-              >
-                <div className="space-y-3">
-                  <video controls className="w-full rounded border border-red-100" src={selectedTask.videoUrl}>
-                    您的浏览器不支持视频播放
-                  </video>
-                  <div className="text-sm text-gray-600">
-                    <Space>
-                      <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.videoDuration || '未知'}</Tag>
-                      <Tag color="red">格式：MP4</Tag>
-                    </Space>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* 会诊录像 */}
-            {selectedTask?.videoUrl && (
-              <Card 
-                title={<><PlayCircleOutlined className="text-red-600" /> 会诊录像</>} 
-                size="small"
-                className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200"
-              >
-                <div className="space-y-3">
-                  <video controls className="w-full rounded-lg bg-black" style={{ maxHeight: '400px' }} src={selectedTask.videoUrl}>
-                    您的浏览器不支持视频播放
-                  </video>
-                  <div className="text-sm text-gray-600">
-                    <Space>
-                      <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.videoDuration || '未知'}</Tag>
-                      <Tag color="green">格式：MP4</Tag>
-                    </Space>
-                  </div>
-                </div>
-              </Card>
-            )}
+                className="bg-white border border-gray-200 rounded-lg"
+                items={[
+                  {
+                    key: '1',
+                    label: '👤 基本信息',
+                    children: (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded text-sm">
+                        <div className="space-y-2">
+                          <div><Text strong>患者姓名：</Text>{selectedTask?.patientName}</div>
+                          <div><Text strong>住院号：</Text>{selectedTask?.patientInpatientNo}</div>
+                          <div><Text strong>会诊日期：</Text>{selectedTask?.meetingDate}</div>
+                          <div><Text strong>会诊时间：</Text>{selectedTask?.meetingTime}</div>
+                          <div><Text strong>申请科室：</Text>{selectedTask?.department}</div>
+                          <div><Text strong>申请医生：</Text>{selectedTask?.applyDoctor}</div>
+                          {selectedTask?.submitTime && (
+                            <div><Text strong>提交时间：</Text>{selectedTask.submitTime}</div>
+                          )}
+                          <div>
+                            <Text strong>状态：</Text>
+                            <Tag color={selectedTask?.status === '审核通过' ? 'green' : 'blue'}>
+                              {selectedTask?.status}
+                            </Tag>
+                          </div>
+                        </div>
+                        <Divider className="my-3" />
+                        <div>
+                          <Text strong>参会专家：</Text>
+                          <Space wrap className="mt-2">
+                            {selectedTask?.experts.map((e, i) => (
+                              <Tag key={i} color="blue" className="text-sm">
+                                {e.name}({e.department})
+                              </Tag>
+                            ))}
+                          </Space>
+                        </div>
+                      </div>
+                    )
+                  },
+                  {
+                    key: '2',
+                    label: '📄 主诉',
+                    children: (
+                      <div className="p-4 bg-amber-50 border border-amber-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
+                        {selectedTask?.chiefComplaint || '暂无相关记录'}
+                      </div>
+                    )
+                  },
+                  {
+                    key: '3',
+                    label: '📄 现病史',
+                    children: (
+                      <div className="p-4 bg-orange-50 border border-orange-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
+                        {selectedTask?.presentIllness || '暂无相关记录'}
+                      </div>
+                    )
+                  },
+                  {
+                    key: '4',
+                    label: '📄 既往史',
+                    children: (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
+                        {selectedTask?.pastHistory || '暂无相关记录'}
+                      </div>
+                    )
+                  },
+                  {
+                    key: '5',
+                    label: '🩺 体格检查',
+                    children: (
+                      <div className="p-4 bg-cyan-50 border border-cyan-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
+                        {selectedTask?.physicalExamination || '暂无相关记录'}
+                      </div>
+                    )
+                  },
+                  {
+                    key: '6',
+                    label: '🧪 辅助检查',
+                    children: (
+                      <div className="p-4 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line min-h-[150px] max-h-[400px] overflow-y-auto">
+                        {selectedTask?.auxiliaryExamination || '暂无相关记录'}
+                      </div>
+                    )
+                  },
+                ]}
+              />
+            </Card>
 
             {/* 审批记录 */}
-            {(selectedTask?.secretaryAuditTime || selectedTask?.qualityAuditTime || selectedTask?.rejectReason) && (
+            {(selectedTask?.secretaryAuditTime || selectedTask?.qualityReviewer) && (
               <Card 
-                title={<><CheckCircleOutlined className="text-cyan-600" /> 审批记录</>} 
+                title={<><SafetyOutlined className="text-cyan-600" /> 审批记录</>} 
                 size="small"
                 className="bg-gradient-to-r from-cyan-50 to-teal-50 border border-cyan-200"
               >
-                <div className="space-y-4">
-                  {/* 秘书审核记录 */}
-                  {selectedTask?.secretaryAuditTime ? (
-                    <div className={`p-3 rounded border ${selectedTask.secretaryAuditResult === '通过' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <FileTextOutlined className={selectedTask.secretaryAuditResult === '通过' ? 'text-green-600' : 'text-red-600'} />
-                        <Text strong>MDT 秘书审核</Text>
+                <div className="space-y-3">
+                  {selectedTask?.secretaryAuditTime && (
+                    <div className="p-3 bg-blue-50 rounded border border-blue-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <Text strong className="text-blue-800">MDT 秘书审核</Text>
                         <Tag color={selectedTask.secretaryAuditResult === '通过' ? 'green' : 'red'}>
                           {selectedTask.secretaryAuditResult}
                         </Tag>
                       </div>
-                      <div className="text-sm space-y-1 ml-6">
-                        <div><Text className="text-gray-600">审核时间：</Text>{selectedTask.secretaryAuditTime}</div>
-                        <div><Text className="text-gray-600">审核意见：</Text>{selectedTask.secretaryComment || '-'}</div>
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <div>审核时间：{selectedTask.secretaryAuditTime}</div>
+                        {selectedTask.secretaryComment && (
+                          <div>审核意见：{selectedTask.secretaryComment}</div>
+                        )}
                       </div>
                     </div>
-                  ) : null}
-
-                  {/* 质控审核记录 */}
-                  {selectedTask?.qualityAuditTime ? (
-                    <div className={`p-3 rounded border ${selectedTask.qualityResult === '通过' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <SafetyOutlined className={selectedTask.qualityResult === '通过' ? 'text-green-600' : 'text-red-600'} />
-                        <Text strong>质控员审核</Text>
+                  )}
+                  {selectedTask?.qualityReviewer && (
+                    <div className="p-3 bg-purple-50 rounded border border-purple-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <Text strong className="text-purple-800">质控审核</Text>
                         <Tag color={selectedTask.qualityResult === '通过' ? 'green' : 'red'}>
                           {selectedTask.qualityResult}
                         </Tag>
                       </div>
-                      <div className="text-sm space-y-1 ml-6">
-                        <div><Text className="text-gray-600">审核时间：</Text>{selectedTask.qualityAuditTime}</div>
-                        <div><Text className="text-gray-600">审核人：</Text>{selectedTask.qualityReviewer || '-'}</div>
-                        <div><Text className="text-gray-600">质控评分：</Text>
-                          {selectedTask.qualityScore ? (
-                            <Space>
-                              <Rate disabled defaultValue={selectedTask.qualityScore} allowHalf size="small" />
-                              <Text>{selectedTask.qualityScore}分</Text>
-                            </Space>
-                          ) : '-'}
-                        </div>
-                        <div><Text className="text-gray-600">质控意见：</Text>{selectedTask.qualityComment || '-'}</div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* 退回原因 */}
-                  {selectedTask?.rejectReason && (
-                    <div className="p-3 bg-red-50 border-2 border-red-200 rounded">
-                      <div className="flex items-center gap-2 mb-2">
-                        <ExclamationCircleOutlined className="text-red-600" />
-                        <Text strong>退回原因</Text>
-                      </div>
-                      <div className="ml-6 text-red-700 text-sm">
-                        {selectedTask.rejectReason}
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <div>审核时间：{selectedTask.qualityAuditTime}</div>
+                        <div>审核人：{selectedTask.qualityReviewer}</div>
+                        {selectedTask.qualityScore && (
+                          <div>质控评分：<Tag color="blue">{selectedTask.qualityScore} 分</Tag></div>
+                        )}
+                        {selectedTask.qualityComment && (
+                          <div>审核意见：{selectedTask.qualityComment}</div>
+                        )}
                       </div>
                     </div>
                   )}
