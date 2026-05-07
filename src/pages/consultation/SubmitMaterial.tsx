@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Input, Upload, message, Steps, Divider, Select, Tabs, Descriptions } from 'antd'
 import {
   FileTextOutlined,
@@ -182,16 +182,21 @@ export default function SubmitMaterial() {
     setSelectedTask(task)
     setCurrentStep(0)
     setModalVisible(true)
-    
-    // 智能填充已有数据
-    setTimeout(() => {
-      form.setFieldsValue({
-        meetingRecord: task.meetingRecord || '',
-        consultationReport: task.consultationReport || '',
-        recommendations: task.recommendations?.join('\n') || ''
-      })
-    }, 100)
   }
+
+  // 当 Modal 打开且 selectedTask 变化时，智能填充表单
+  useEffect(() => {
+    if (modalVisible && selectedTask && (selectedTask.status === '待提交' || selectedTask.status === '已退回')) {
+      // 延迟填充，确保表单已初始化
+      setTimeout(() => {
+        form.setFieldsValue({
+          meetingRecord: selectedTask.meetingRecord || '',
+          consultationReport: selectedTask.consultationReport || '',
+          recommendations: selectedTask.recommendations?.join('\n') || ''
+        })
+      }, 200)
+    }
+  }, [modalVisible, selectedTask])
 
   const handleView = (task: MaterialTask) => {
     setSelectedTask(task)
@@ -411,13 +416,23 @@ export default function SubmitMaterial() {
               上一步
             </Button>
           ),
-          <Button
-            key="submit"
-            type="primary"
-            onClick={selectedTask?.status === '已退回' ? handleResubmit : handleUpload}
-          >
-            {selectedTask?.status === '已退回' ? '重新提交' : '提交'}
-          </Button>,
+          currentStep < 2 ? (
+            <Button
+              key="next"
+              type="primary"
+              onClick={() => setCurrentStep(currentStep + 1)}
+            >
+              下一步
+            </Button>
+          ) : (
+            <Button
+              key="submit"
+              type="primary"
+              onClick={selectedTask?.status === '已退回' ? handleResubmit : handleUpload}
+            >
+              {selectedTask?.status === '已退回' ? '重新提交' : '提交'}
+            </Button>
+          ),
         ] : [
           <Button key="close" onClick={() => setModalVisible(false)}>
             关闭
@@ -571,15 +586,30 @@ export default function SubmitMaterial() {
                 <div><Text strong>患者：</Text>{selectedTask?.patientName}</div>
                 <div><Text strong>会诊时间：</Text>{selectedTask?.meetingDate} {selectedTask?.meetingTime}</div>
                 <div><Text strong>会诊记录：</Text>
-                  <div className="mt-2 p-3 bg-white rounded border text-sm">
-                    {form.getFieldValue('meetingRecord')?.substring(0, 200)}...
+                  <div className="mt-2 p-3 bg-white rounded border text-sm max-h-40 overflow-auto">
+                    <div className="whitespace-pre-line">
+                      {form.getFieldValue('meetingRecord')?.substring(0, 300)}
+                      {form.getFieldValue('meetingRecord')?.length > 300 ? '...' : ''}
+                    </div>
                   </div>
                 </div>
                 <div><Text strong>会诊报告：</Text>
-                  <div className="mt-2 p-3 bg-white rounded border text-sm">
-                    {form.getFieldValue('consultationReport')?.substring(0, 200)}...
+                  <div className="mt-2 p-3 bg-white rounded border text-sm max-h-40 overflow-auto">
+                    <div className="whitespace-pre-line">
+                      {form.getFieldValue('consultationReport')?.substring(0, 300)}
+                      {form.getFieldValue('consultationReport')?.length > 300 ? '...' : ''}
+                    </div>
                   </div>
                 </div>
+                {form.getFieldValue('recommendations') && (
+                  <div><Text strong>会诊建议：</Text>
+                    <ul className="mt-2 list-disc list-inside text-sm">
+                      {form.getFieldValue('recommendations').split('\n').filter((r: string) => r.trim()).map((rec: string, i: number) => (
+                        <li key={i}>{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </Space>
             </Card>
 
