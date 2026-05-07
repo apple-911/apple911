@@ -11,7 +11,7 @@ const { Title, Text } = Typography
 
 export default function Schedule() {
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs())
-  const [scheduledConsultations, setScheduledConsultations] = useState(mockConsultations.filter(c => c.status === '已通过' || c.status === '已排期'))
+  const [scheduledConsultations, setScheduledConsultations] = useState(mockConsultations.filter(c => c.status === '已通过'))
   const [reschedulingConsultation, setReschedulingConsultation] = useState<Consultation | null>(null)
   const [showScheduler, setShowScheduler] = useState(false)
   const navigate = useNavigate()
@@ -95,13 +95,13 @@ export default function Schedule() {
               dataIndex: 'patientName',
               width: 120,
               fixed: 'left',
-              render: (name, record) => (
+              render: (name, record: any) => (
                 <Space>
                   <Avatar icon={<UserOutlined />} size="small" />
                   <div>
                     <div className="font-medium">{name}</div>
                     <div className="text-xs text-gray-500">{record.patientInpatientNo}</div>
-                    <div className="text-xs text-gray-400">{record.age}岁 | {record.gender === 'male' ? '男' : '女'}</div>
+                    <div className="text-xs text-gray-400">{record.age ? `${record.age}岁` : ''} {record.gender === 'male' ? '男' : record.gender === 'female' ? '女' : ''}</div>
                   </div>
                 </Space>
               )
@@ -110,7 +110,7 @@ export default function Schedule() {
               title: '诊断信息',
               key: 'diagnosis',
               width: 180,
-              render: (_, record) => (
+              render: (_, record: any) => (
                 <div>
                   <div className="font-medium text-sm">{record.mainDiagnosis}</div>
                   {record.otherDiagnoses && record.otherDiagnoses.length > 0 && (
@@ -126,7 +126,7 @@ export default function Schedule() {
               title: '申请信息',
               key: 'apply',
               width: 120,
-              render: (_, record) => (
+              render: (_, record: any) => (
                 <div>
                   <div className="text-sm">{record.department}</div>
                   <div className="text-xs text-gray-500">{record.applyDoctor}</div>
@@ -138,8 +138,8 @@ export default function Schedule() {
               title: '紧急程度',
               dataIndex: 'urgency',
               width: 90,
-              render: (urgency) => {
-                const colorMap = {
+              render: (urgency: string) => {
+                const colorMap: Record<string, string> = {
                   '特急': 'red',
                   '紧急': 'orange',
                   '普通': 'default'

@@ -13,6 +13,7 @@ interface Expert {
   title: string
   status: '空闲' | '忙碌' | '离线'
   avatar?: string
+  specialty?: string
 }
 
 interface ScheduledEvent {

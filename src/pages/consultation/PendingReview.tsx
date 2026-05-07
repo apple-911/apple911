@@ -296,12 +296,12 @@ export default function PendingReview() {
                     </div>
                     <div className="text-xs text-gray-500">{consultation.patientInpatientNo}</div>
                   </div>
-                  <Tag color={getUrgencyColor(consultation.urgency)} size="small">{consultation.urgency}</Tag>
+                  <Tag color={getUrgencyColor(consultation.urgency)}>{consultation.urgency}</Tag>
                   {getSourceBadge(consultation.source)}
                 </Space>
               }
               extra={
-                <Tag color={consultation.type === '院内' ? 'blue' : 'green'} size="small">{consultation.type}</Tag>
+                <Tag color={consultation.type === '院内' ? 'blue' : 'green'}>{consultation.type}</Tag>
               }
               size="small"
             >
@@ -353,7 +353,7 @@ export default function PendingReview() {
                 </div>
                 <Space wrap>
                   {consultation.experts.map(e => (
-                    <Tag key={e.id} color="blue" size="small">
+                    <Tag key={e.id} color="blue">
                       {e.name}
                       <br />
                       <span className="text-xs">{e.department}</span>
