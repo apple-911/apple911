@@ -120,8 +120,46 @@ const mockTasks: MaterialTask[] = [
     ],
     status: '待质控审核',
     submitTime: '2024-03-14 15:30',
-    meetingRecord: '2024-03-14 10:00-11:00 完成多学科会诊',
-    consultationReport: '术后辅助化疗方案：TC 方案× 4 周期',
+    meetingRecord: `2024-03-14 10:00-11:00 在 MDT 会诊中心召开多学科会诊。
+
+参加专家：
+- 乳腺外科：陈伟 副主任医师
+- 肿瘤科：张明华 主任医师
+
+会诊过程：
+1. 申请科室汇报病史：患者李秀英，52 岁，因"发现右乳肿块 2 个月"入院
+2. 病理科汇报：（右乳穿刺）浸润性导管癌，ER(+), PR(+), HER2(-)
+3. 影像科汇报：右乳外上象限占位，大小约 2.5cm，腋窝淋巴结肿大
+4. 各科专家讨论后一致同意行手术治疗，术后辅助化疗
+
+诊疗方案：
+1. 手术治疗：右乳癌改良根治术
+2. 术后辅助化疗：TC 方案×4 周期`,
+    consultationReport: `一、诊断
+右乳浸润性导管癌 IIB 期（cT2N1M0）
+ER(+), PR(+), HER2(-)
+
+二、治疗方案
+1. 首选治疗方案：手术治疗
+   - 右乳癌改良根治术
+   - 前哨淋巴结活检
+
+2. 术后辅助治疗
+   - 化疗：TC 方案（多西他赛 + 环磷酰胺）×4 周期
+   - 内分泌治疗：他莫昔芬 5 年
+
+三、随访计划
+术后 2 年内每 3 个月复查一次，之后每 6 个月复查一次。`,
+    recommendations: [
+      '完善术前检查',
+      '评估心肺功能',
+      '营养支持治疗',
+      '术后定期复查'
+    ],
+    recordingUrl: '/recordings/C002_audio.mp3',
+    videoUrl: '/recordings/C002_video.mp4',
+    recordingDuration: '1:00:15',
+    videoDuration: '0:58:30',
     secretaryAuditTime: '2024-03-14 16:00',
     secretaryAuditResult: '通过',
     secretaryComment: '材料完整，符合规范'
@@ -142,6 +180,41 @@ const mockTasks: MaterialTask[] = [
     status: '已退回',
     submitTime: '2024-03-13 18:00',
     rejectReason: '会诊记录过于简单，请补充专家讨论详情',
+    meetingRecord: `2024-03-13 15:00-16:30 在 MDT 会诊中心召开多学科会诊。
+
+参加专家：
+- 胃肠外科：王建国 主任医师
+- 肿瘤科：李芳 副主任医师
+
+会诊过程：
+1. 申请科室汇报病史：患者张伟，68 岁，因"腹痛、消瘦 3 个月"入院
+2. 影像科汇报：胃窦部占位，伴腹腔淋巴结转移
+3. 病理科汇报：（胃镜活检）低分化腺癌
+4. 专家讨论：患者目前无手术指征，建议行转化治疗
+
+诊疗方案：
+1. 转化治疗：SOX 方案×4 周期
+2. 评估疗效后考虑手术治疗`,
+    consultationReport: `一、诊断
+胃窦低分化腺癌 IV 期（cT4N3M1）
+
+二、治疗方案
+1. 转化治疗：SOX 方案（替吉奥 + 奥沙利铂）×4 周期
+2. 疗效评估：每 2 周期复查 CT
+3. 手术治疗：如疗效好，考虑行根治性胃切除术
+
+三、随访计划
+治疗期间每周复查血常规，每 2 周期复查 CT。`,
+    recommendations: [
+      '完善基因检测',
+      '营养支持治疗',
+      '疼痛管理',
+      '定期复查血常规、肝肾功能'
+    ],
+    recordingUrl: '/recordings/C003_audio.mp3',
+    videoUrl: '/recordings/C003_video.mp4',
+    recordingDuration: '1:28:45',
+    videoDuration: '1:26:20',
     secretaryAuditTime: '2024-03-13 19:00',
     secretaryAuditResult: '通过',
     secretaryComment: '材料已审核'
