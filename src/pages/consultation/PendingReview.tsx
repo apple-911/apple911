@@ -39,9 +39,9 @@ export default function PendingReview() {
       department: '肿瘤科',
       applyDoctor: '张明华',
       experts: [
-        { id: '1', name: '李芳', department: '胸外科', title: '副主任医师', status: '空闲' },
-        { id: '3', name: '王建国', department: '放射科', title: '主任医师', status: '空闲' },
-        { id: '4', name: '刘晓燕', department: '病理科', title: '主任医师', status: '空闲' }
+        { id: '1', name: '李芳', department: '胸外科', title: '副主任医师', status: '空闲', specialty: '胸部肿瘤' },
+        { id: '3', name: '王建国', department: '放射科', title: '主任医师', status: '空闲', specialty: '放射治疗' },
+        { id: '4', name: '刘晓燕', department: '病理科', title: '主任医师', status: '空闲', specialty: '病理诊断' }
       ],
       mainDiagnosis: '左肺鳞癌 III 期',
       otherDiagnoses: ['高血压 2 级', '2 型糖尿病'],
@@ -65,8 +65,8 @@ export default function PendingReview() {
       department: '乳腺外科',
       applyDoctor: '陈伟',
       experts: [
-        { id: '2', name: '李芳', department: '胸外科', title: '副主任医师', status: '空闲' },
-        { id: '5', name: '陈伟', department: '肿瘤科', title: '副主任医师', status: '忙碌' }
+        { id: '2', name: '李芳', department: '胸外科', title: '副主任医师', status: '空闲', specialty: '胸部肿瘤' },
+        { id: '5', name: '陈伟', department: '肿瘤科', title: '副主任医师', status: '忙碌', specialty: '乳腺肿瘤' }
       ],
       mainDiagnosis: '乳腺癌改良根治术后辅助治疗',
       otherDiagnoses: ['骨质疏松症'],
@@ -90,8 +90,8 @@ export default function PendingReview() {
       department: '肿瘤科',
       applyDoctor: '张建国（患者自行申请）',
       experts: [
-        { id: '1', name: '张明华', department: '肿瘤科', title: '主任医师', status: '空闲' },
-        { id: '6', name: '赵红梅', department: '呼吸科', title: '主任医师', status: '空闲' }
+        { id: '1', name: '张明华', department: '肿瘤科', title: '主任医师', status: '空闲', specialty: '肿瘤内科' },
+        { id: '6', name: '赵红梅', department: '呼吸科', title: '主任医师', status: '空闲', specialty: '呼吸系统疾病' }
       ],
       mainDiagnosis: '肺癌术后复查',
       consultationPurpose: '术后复查及康复指导',
@@ -114,9 +114,9 @@ export default function PendingReview() {
       department: '消化内科',
       applyDoctor: '王建国',
       experts: [
-        { id: '1', name: '张明华', department: '肿瘤科', title: '主任医师', status: '空闲' },
-        { id: '2', name: '李芳', department: '胸外科', title: '副主任医师', status: '空闲' },
-        { id: '8', name: '周丽萍', department: '营养科', title: '副主任医师', status: '空闲' }
+        { id: '1', name: '张明华', department: '肿瘤科', title: '主任医师', status: '空闲', specialty: '肿瘤内科' },
+        { id: '2', name: '李芳', department: '胸外科', title: '副主任医师', status: '空闲', specialty: '胸部肿瘤' },
+        { id: '8', name: '周丽萍', department: '营养科', title: '副主任医师', status: '空闲', specialty: '临床营养' }
       ],
       mainDiagnosis: '胃癌晚期伴多发转移',
       otherDiagnoses: ['贫血', '低蛋白血症', '腹腔积液'],
@@ -137,8 +137,8 @@ export default function PendingReview() {
       department: '泌尿外科',
       applyDoctor: '陈刚（患者自行申请）',
       experts: [
-        { id: '1', name: '张明华', department: '肿瘤科', title: '主任医师', status: '空闲' },
-        { id: '7', name: '孙志强', department: '放疗科', title: '副主任医师', status: '离线' }
+        { id: '1', name: '张明华', department: '肿瘤科', title: '主任医师', status: '空闲', specialty: '肿瘤内科' },
+        { id: '7', name: '孙志强', department: '放疗科', title: '副主任医师', status: '离线', specialty: '放射治疗' }
       ],
       mainDiagnosis: '前列腺癌去势抵抗性',
       source: 'patient',
@@ -157,9 +157,9 @@ export default function PendingReview() {
       department: '神经外科',
       applyDoctor: '刘志远',
       experts: [
-        { id: '1', name: '张明华', department: '肿瘤科', title: '主任医师', status: '空闲' },
-        { id: '3', name: '王建国', department: '放射科', title: '主任医师', status: '空闲' },
-        { id: '4', name: '刘晓燕', department: '病理科', title: '主任医师', status: '空闲' }
+        { id: '1', name: '张明华', department: '肿瘤科', title: '主任医师', status: '空闲', specialty: '肿瘤内科' },
+        { id: '3', name: '王建国', department: '放射科', title: '主任医师', status: '空闲', specialty: '放射治疗' },
+        { id: '4', name: '刘晓燕', department: '病理科', title: '主任医师', status: '空闲', specialty: '病理诊断' }
       ],
       mainDiagnosis: '胶质母细胞瘤术后复发',
       source: 'doctor',
@@ -186,7 +186,7 @@ export default function PendingReview() {
 
   const handleApprove = (consultation: ExtendedConsultation) => {
     const newData = data.filter(d => d.id !== consultation.id)
-    setData(newData)
+    // TODO: 实际应用中应该调用 API 更新状态
     message.success(`已通过 ${consultation.patientName} 的会诊申请（${getSourceLabel(consultation.source)}）`)
   }
 
@@ -195,8 +195,7 @@ export default function PendingReview() {
       title: '确认拒绝',
       content: `确定要拒绝 ${consultation.patientName} 的会诊申请吗？\n\n申请来源：${getSourceLabel(consultation.source)}`,
       onOk: () => {
-        const newData = data.filter(d => d.id !== consultation.id)
-        setData(newData)
+        // TODO: 实际应用中应该调用 API 更新状态
         message.success('已拒绝申请')
       }
     })
@@ -213,8 +212,7 @@ export default function PendingReview() {
         </div>
       ),
       onOk: () => {
-        const newData = data.filter(d => d.id !== consultation.id)
-        setData(newData)
+        // TODO: 实际应用中应该调用 API 更新状态
         message.success('已排期，将通知专家')
         navigate('/consultation/schedule')
       }
