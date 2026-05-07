@@ -104,7 +104,7 @@ export default function IntelligentScheduler({
     timeSlots.forEach(time => {
       const availability = getExpertAvailabilityAtTime(selectedDate, time)
       const availableExperts = availability.filter((a: any) => a.isAvailable).map((a: any) => a.expert)
-      const busyExperts = availability.filter((a: any) => a.isBusy)
+      const busyExperts = availability.filter((a: any) => a.isBusy).map((a: any) => a.expert)
 
       const score = (availableExperts.length / experts.length) * 100
 
