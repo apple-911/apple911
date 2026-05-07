@@ -12,7 +12,8 @@ interface QualityTask {
   patientInpatientNo: string
   age?: number
   gender?: 'male' | 'female'
-  consultationTime: string
+  meetingDate: string  // 会诊日期
+  consultationTime: string  // 会诊时间段（如：14:00-15:30）
   reviewer: string
   status: '待审核' | '已审核' | '已退回'
   score?: number
@@ -20,8 +21,8 @@ interface QualityTask {
   otherDiagnoses?: string[]
   consultationPurpose?: string
   experts?: Array<{ name: string; department: string; title: string }>
-  meetingRecord?: string
-  consultationReport?: string
+  meetingRecord?: string  // 会诊过程记录
+  consultationReport?: string  // 会诊报告
   recommendations?: string[]
   recordingUrl?: string
   videoUrl?: string
@@ -37,7 +38,8 @@ const mockTasks: QualityTask[] = [
     patientInpatientNo: 'ZY2024001234',
     age: 65,
     gender: 'male',
-    consultationTime: '2024-03-15', 
+    consultationTime: '2024-03-15 14:00-15:30', 
+    meetingDate: '2024-03-15',
     reviewer: '质控员 A', 
     status: '待审核',
     mainDiagnosis: '左肺鳞癌 III 期',
@@ -46,7 +48,8 @@ const mockTasks: QualityTask[] = [
     experts: [
       { name: '李芳', department: '胸外科', title: '副主任医师' },
       { name: '王建国', department: '放射科', title: '主任医师' },
-      { name: '刘晓燕', department: '病理科', title: '主任医师' }
+      { name: '刘晓燕', department: '病理科', title: '主任医师' },
+      { name: '张明华', department: '肿瘤科', title: '主任医师' }
     ],
     meetingRecord: `
 2024-03-15 14:00-15:30 在 MDT 会诊中心召开多学科会诊。
@@ -96,12 +99,18 @@ const mockTasks: QualityTask[] = [
     patientInpatientNo: 'ZY2024001256',
     age: 52,
     gender: 'female',
-    consultationTime: '2024-03-14', 
+    consultationTime: '2024-03-14 10:00-11:00',
+    meetingDate: '2024-03-14',
     reviewer: '质控员 A', 
     status: '已审核', 
     score: 4.5,
     mainDiagnosis: '乳腺癌改良根治术后辅助治疗',
-    consultationReport: '术后辅助化疗方案：TC 方案（多西他赛 + 环磷酰胺）× 4 周期'
+    consultationReport: '术后辅助化疗方案：TC 方案（多西他赛 + 环磷酰胺）× 4 周期',
+    meetingRecord: '2024-03-14 10:00-11:00 完成多学科会诊，参加专家 5 人',
+    experts: [
+      { name: '陈伟', department: '乳腺外科', title: '副主任医师' },
+      { name: '张明华', department: '肿瘤科', title: '主任医师' }
+    ]
   },
   { 
     id: 'Q003', 
@@ -110,11 +119,17 @@ const mockTasks: QualityTask[] = [
     patientInpatientNo: 'ZY2024001189',
     age: 58,
     gender: 'male',
-    consultationTime: '2024-03-13', 
+    consultationTime: '2024-03-13 15:00-16:30',
+    meetingDate: '2024-03-13',
     reviewer: '质控员 B', 
     status: '已退回',
     mainDiagnosis: '胃癌晚期',
-    consultationReport: '姑息化疗方案'
+    consultationReport: '姑息化疗方案',
+    meetingRecord: '2024-03-13 15:00-16:30 完成多学科会诊',
+    experts: [
+      { name: '王建国', department: '胃肠外科', title: '主任医师' },
+      { name: '李芳', department: '肿瘤科', title: '副主任医师' }
+    ]
   },
 ]
 
@@ -266,7 +281,16 @@ export default function QualityTasks() {
     { title: '任务 ID', dataIndex: 'id' },
     { title: '会诊 ID', dataIndex: 'consultationId', render: t => <Tag>#{t}</Tag> },
     { title: '患者', dataIndex: 'patientName' },
-    { title: '会诊时间', dataIndex: 'consultationTime' },
+    { 
+      title: '会诊时间', 
+      dataIndex: 'consultationTime',
+      render: (time, record) => (
+        <div>
+          <div>{time}</div>
+          <div className="text-xs text-gray-500">{record.meetingDate}</div>
+        </div>
+      )
+    },
     { title: '审核人', dataIndex: 'reviewer' },
     {
       title: '状态',
