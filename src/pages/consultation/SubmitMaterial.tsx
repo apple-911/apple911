@@ -775,14 +775,17 @@ export default function SubmitMaterial() {
 
         {isEditMode && currentStep === 0 && (
           <div className="space-y-4">
-            <Card title="基本信息" size="small" className="bg-gray-50">
+            <Card title={<><UserOutlined className="text-blue-600" /> 患者基本信息</>} size="small" className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
               <Space direction="vertical">
-                <div><Text strong>患者：</Text>{selectedTask?.patientName} ({selectedTask?.patientInpatientNo})</div>
+                <div><Text strong>患者姓名：</Text>{selectedTask?.patientName}</div>
+                <div><Text strong>住院号：</Text>{selectedTask?.patientInpatientNo}</div>
                 <div><Text strong>会诊时间：</Text>{selectedTask?.meetingDate} {selectedTask?.meetingTime}</div>
+                <div><Text strong>申请科室：</Text>{selectedTask?.department}</div>
+                <div><Text strong>申请医生：</Text>{selectedTask?.applyDoctor}</div>
                 <div><Text strong>参会专家：</Text>
                   <Space wrap>
                     {selectedTask?.experts.map((e, i) => (
-                      <Tag key={i}>{e.name}({e.department})</Tag>
+                      <Tag key={i} color="blue">{e.name}({e.department})</Tag>
                     ))}
                   </Space>
                 </div>
@@ -793,10 +796,72 @@ export default function SubmitMaterial() {
               <Space>
                 <ExclamationCircleOutlined className="text-blue-600" />
                 <Text className="text-blue-800">
-                  系统已自动填充会诊信息，您可以根据实际情况修改完善
+                  以下是患者病历资料，可作为填写会诊记录的参考
                 </Text>
               </Space>
             </div>
+
+            <Tabs 
+              defaultActiveKey="1" 
+              size="small"
+              items={[
+                {
+                  key: '1',
+                  label: '主诉',
+                  children: selectedTask?.chiefComplaint ? (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm whitespace-pre-line max-h-32 overflow-y-auto">
+                      {selectedTask.chiefComplaint}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
+                  )
+                },
+                {
+                  key: '2',
+                  label: '现病史',
+                  children: selectedTask?.presentIllness ? (
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded text-sm whitespace-pre-line max-h-48 overflow-y-auto">
+                      {selectedTask.presentIllness}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
+                  )
+                },
+                {
+                  key: '3',
+                  label: '既往史',
+                  children: selectedTask?.pastHistory ? (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded text-sm whitespace-pre-line max-h-48 overflow-y-auto">
+                      {selectedTask.pastHistory}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
+                  )
+                },
+                {
+                  key: '4',
+                  label: '体格检查',
+                  children: selectedTask?.physicalExamination ? (
+                    <div className="p-3 bg-cyan-50 border border-cyan-200 rounded text-sm whitespace-pre-line max-h-48 overflow-y-auto">
+                      {selectedTask.physicalExamination}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
+                  )
+                },
+                {
+                  key: '5',
+                  label: '辅助检查',
+                  children: selectedTask?.auxiliaryExamination ? (
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line max-h-48 overflow-y-auto">
+                      {selectedTask.auxiliaryExamination}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
+                  )
+                },
+              ]}
+            />
 
             <Form form={form} layout="vertical">
               <Form.Item
@@ -840,14 +905,64 @@ export default function SubmitMaterial() {
 
         {isEditMode && currentStep === 1 && (
           <div className="space-y-4">
+            <Card title={<><UserOutlined className="text-blue-600" /> 患者基本信息</>} size="small" className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <Space direction="vertical">
+                <div><Text strong>患者姓名：</Text>{selectedTask?.patientName}</div>
+                <div><Text strong>住院号：</Text>{selectedTask?.patientInpatientNo}</div>
+                <div><Text strong>会诊时间：</Text>{selectedTask?.meetingDate} {selectedTask?.meetingTime}</div>
+                <div><Text strong>申请科室：</Text>{selectedTask?.department}</div>
+                <div><Text strong>申请医生：</Text>{selectedTask?.applyDoctor}</div>
+              </Space>
+            </Card>
+
             <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
               <Space>
                 <ExclamationCircleOutlined className="text-blue-600" />
                 <Text className="text-blue-800">
-                  系统已自动填充会诊报告和建議，您可以根据实际情况修改完善
+                  以下是患者病历资料，可作为填写会诊报告的参考
                 </Text>
               </Space>
             </div>
+
+            <Tabs 
+              defaultActiveKey="1" 
+              size="small"
+              items={[
+                {
+                  key: '1',
+                  label: '主诉',
+                  children: selectedTask?.chiefComplaint ? (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm whitespace-pre-line max-h-24 overflow-y-auto">
+                      {selectedTask.chiefComplaint}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
+                  )
+                },
+                {
+                  key: '2',
+                  label: '现病史',
+                  children: selectedTask?.presentIllness ? (
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded text-sm whitespace-pre-line max-h-40 overflow-y-auto">
+                      {selectedTask.presentIllness}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
+                  )
+                },
+                {
+                  key: '3',
+                  label: '辅助检查',
+                  children: selectedTask?.auxiliaryExamination ? (
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line max-h-40 overflow-y-auto">
+                      {selectedTask.auxiliaryExamination}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">暂无</div>
+                  )
+                },
+              ]}
+            />
 
             <Form form={form} layout="vertical">
               <Form.Item
