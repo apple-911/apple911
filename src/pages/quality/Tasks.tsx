@@ -122,6 +122,7 @@ export default function QualityTasks() {
   const [tasks, setTasks] = useState(mockTasks)
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedTask, setSelectedTask] = useState<QualityTask | null>(null)
+  const [isReviewMode, setIsReviewMode] = useState(false) // 区分查看模式和审核模式
   const [scores, setScores] = useState<Record<string, number>>({
     document: 0,
     guideline: 0,
@@ -132,6 +133,7 @@ export default function QualityTasks() {
 
   const handleReview = (task: QualityTask) => {
     setSelectedTask(task)
+    setIsReviewMode(task.status === '待审核') // 待审核的任务是审核模式，其他是查看模式
     setModalVisible(true)
   }
 
@@ -143,9 +145,17 @@ export default function QualityTasks() {
   }
 
   const handleReturn = () => {
-    setTasks(tasks.map(t => t.id === selectedTask?.id ? { ...t, status: '已退回' as const } : t))
-    setModalVisible(false)
-    message.warning('已退回要求整改')
+    Modal.confirm({
+      title: '确认退回',
+      content: `确定要退回 ${selectedTask?.patientName} 的会诊质控吗？\n\n退回后，申请医生将收到整改通知，需要修改后重新提交。`,
+      okText: '确认退回',
+      cancelText: '取消',
+      onOk: () => {
+        setTasks(tasks.map(t => t.id === selectedTask?.id ? { ...t, status: '已退回' as const } : t))
+        setModalVisible(false)
+        message.warning('已退回，申请医生将收到整改通知')
+      }
+    })
   }
 
   const renderPatientInfo = () => (
@@ -253,8 +263,8 @@ export default function QualityTasks() {
   )
 
   const columns: ColumnsType<QualityTask> = [
-    { title: '任务ID', dataIndex: 'id' },
-    { title: '会诊ID', dataIndex: 'consultationId', render: t => <Tag>#{t}</Tag> },
+    { title: '任务 ID', dataIndex: 'id' },
+    { title: '会诊 ID', dataIndex: 'consultationId', render: t => <Tag>#{t}</Tag> },
     { title: '患者', dataIndex: 'patientName' },
     { title: '会诊时间', dataIndex: 'consultationTime' },
     { title: '审核人', dataIndex: 'reviewer' },
@@ -273,11 +283,25 @@ export default function QualityTasks() {
     {
       title: '操作',
       render: (_, record) => (
-        record.status === '待审核' && (
-          <Button type="primary" size="small" onClick={() => handleReview(record)}>
-            审核
+        <Space>
+          <Button 
+            size="small" 
+            icon={<FileTextOutlined />}
+            onClick={() => handleReview(record)}
+          >
+            查看
           </Button>
-        )
+          {record.status === '待审核' && (
+            <Button 
+              type="primary" 
+              size="small"
+              icon={<CheckOutlined />}
+              onClick={() => handleReview(record)}
+            >
+              审核
+            </Button>
+          )}
+        </Space>
       )
     },
   ]
@@ -306,13 +330,15 @@ export default function QualityTasks() {
         title={
           <Space>
             <ExclamationCircleOutlined />
-            <span>质控评分 - {selectedTask?.consultationId}</span>
+            <span>
+              {isReviewMode ? '质控审核' : '质控详情'} - {selectedTask?.consultationId}
+            </span>
           </Space>
         }
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         width={900}
-        footer={[
+        footer={isReviewMode ? [
           <Button key="return" danger onClick={handleReturn}>
             <CloseOutlined /> 退回整改
           </Button>,
@@ -321,6 +347,10 @@ export default function QualityTasks() {
           </Button>,
           <Button key="submit" type="primary" onClick={handleSubmit}>
             <CheckOutlined /> 提交审核
+          </Button>,
+        ] : [
+          <Button key="close" onClick={() => setModalVisible(false)}>
+            关闭
           </Button>,
         ]}
       >
@@ -361,53 +391,74 @@ export default function QualityTasks() {
             ]}
           />
 
-          <Divider />
+          {isReviewMode && (
+            <>
+              <Divider />
 
-          <Title level={5}>质控评分</Title>
-          <Form form={form} layout="vertical">
-            <Form.Item label="文书完整性（0-5 分）" tooltip="会诊记录、报告等文书的完整性和规范性">
-              <Space>
-                <Rate
-                  value={scores.document}
-                  onChange={(v) => setScores({ ...scores, document: v })}
-                />
-                <Text type="secondary">{scores.document}分</Text>
-              </Space>
-            </Form.Item>
-            <Form.Item label="指南依从性（0-5 分）" tooltip="治疗方案是否符合临床诊疗指南">
-              <Space>
-                <Rate
-                  value={scores.guideline}
-                  onChange={(v) => setScores({ ...scores, guideline: v })}
-                />
-                <Text type="secondary">{scores.guideline}分</Text>
-              </Space>
-            </Form.Item>
-            <Form.Item label="专家参与度（0-5 分）" tooltip="各学科专家的参与程度和贡献">
-              <Space>
-                <Rate
-                  value={scores.participation}
-                  onChange={(v) => setScores({ ...scores, participation: v })}
-                />
-                <Text type="secondary">{scores.participation}分</Text>
-              </Space>
-            </Form.Item>
-            <Form.Item label="质控意见">
-              <Input.TextArea
-                rows={3}
-                placeholder="请输入质控意见，包括优点、不足及改进建议..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-            </Form.Item>
-          </Form>
+              <Title level={5}>质控评分</Title>
+              <Form form={form} layout="vertical">
+                <Form.Item label="文书完整性（0-5 分）" tooltip="会诊记录、报告等文书的完整性和规范性">
+                  <Space>
+                    <Rate
+                      value={scores.document}
+                      onChange={(v) => setScores({ ...scores, document: v })}
+                    />
+                    <Text type="secondary">{scores.document}分</Text>
+                  </Space>
+                </Form.Item>
+                <Form.Item label="指南依从性（0-5 分）" tooltip="治疗方案是否符合临床诊疗指南">
+                  <Space>
+                    <Rate
+                      value={scores.guideline}
+                      onChange={(v) => setScores({ ...scores, guideline: v })}
+                    />
+                    <Text type="secondary">{scores.guideline}分</Text>
+                  </Space>
+                </Form.Item>
+                <Form.Item label="专家参与度（0-5 分）" tooltip="各学科专家的参与程度和贡献">
+                  <Space>
+                    <Rate
+                      value={scores.participation}
+                      onChange={(v) => setScores({ ...scores, participation: v })}
+                    />
+                    <Text type="secondary">{scores.participation}分</Text>
+                  </Space>
+                </Form.Item>
+                <Form.Item label="质控意见">
+                  <Input.TextArea
+                    rows={3}
+                    placeholder="请输入质控意见，包括优点、不足及改进建议..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                  />
+                </Form.Item>
+              </Form>
 
-          <div className="p-4 bg-blue-50 rounded text-center">
-            <Text strong>综合评分：</Text>
-            <Text className="text-2xl text-medical-blue">
-              {(Object.values(scores).reduce((sum, s) => sum + s, 0) / 3).toFixed(1)} 分
-            </Text>
-          </div>
+              <div className="p-4 bg-blue-50 rounded text-center">
+                <Text strong>综合评分：</Text>
+                <Text className="text-2xl text-medical-blue">
+                  {(Object.values(scores).reduce((sum, s) => sum + s, 0) / 3).toFixed(1)} 分
+                </Text>
+              </div>
+            </>
+          )}
+
+          {!isReviewMode && selectedTask?.score && (
+            <>
+              <Divider />
+              <div className="p-4 bg-green-50 rounded">
+                <Title level={5}>历史评分</Title>
+                <Descriptions column={2} size="small" bordered>
+                  <Descriptions.Item label="综合评分">
+                    <Rate disabled defaultValue={selectedTask.score} allowHalf />
+                    <span className="ml-2 font-bold text-lg">{selectedTask.score.toFixed(1)}分</span>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="审核人">{selectedTask.reviewer}</Descriptions.Item>
+                  <Descriptions.Item label="审核时间" span={2}>2024-03-16 10:30</Descriptions.Item>
+                </Descriptions>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
     </div>
