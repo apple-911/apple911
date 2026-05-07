@@ -671,197 +671,227 @@ export default function SubmitMaterial() {
         )}
 
         {!isEditMode && (
-          <Tabs
-            defaultActiveKey="basic"
-            items={[
-              {
-                key: 'basic',
-                label: <><UserOutlined /> 基本信息</>,
-                children: (
-                  <div className="space-y-4">
-                    <Descriptions bordered column={2} size="small">
-                      <Descriptions.Item label="患者姓名">{selectedTask?.patientName}</Descriptions.Item>
-                      <Descriptions.Item label="病案号">{selectedTask?.patientInpatientNo}</Descriptions.Item>
-                      <Descriptions.Item label="会诊日期">{selectedTask?.meetingDate}</Descriptions.Item>
-                      <Descriptions.Item label="会诊时间">{selectedTask?.meetingTime}</Descriptions.Item>
-                      <Descriptions.Item label="申请科室">{selectedTask?.department}</Descriptions.Item>
-                      <Descriptions.Item label="申请医生">{selectedTask?.applyDoctor}</Descriptions.Item>
-                      <Descriptions.Item label="提交时间">{selectedTask?.submitTime || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="状态">
+          <div className="space-y-4">
+            {/* 基本信息卡片 */}
+            <Card 
+              title={<><UserOutlined className="text-blue-600" /> 基本信息</>} 
+              size="small"
+              className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200"
+            >
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 pb-3 border-b border-blue-100">
+                  <UserOutlined className="text-blue-600 mt-1" />
+                  <div className="flex-1">
+                    <div className="mb-2">
+                      <Text className="text-gray-600">患者：</Text>
+                      <Text strong className="text-lg">{selectedTask?.patientName}</Text>
+                      <Tag className="ml-2">{selectedTask?.patientInpatientNo}</Tag>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <Text className="text-gray-600">会诊日期：</Text>
+                        <Text>{selectedTask?.meetingDate}</Text>
+                      </div>
+                      <div>
+                        <Text className="text-gray-600">会诊时间：</Text>
+                        <Text>{selectedTask?.meetingTime}</Text>
+                      </div>
+                      <div>
+                        <Text className="text-gray-600">申请科室：</Text>
+                        <Text>{selectedTask?.department}</Text>
+                      </div>
+                      <div>
+                        <Text className="text-gray-600">申请医生：</Text>
+                        <Text>{selectedTask?.applyDoctor}</Text>
+                      </div>
+                      {selectedTask?.submitTime && (
+                        <div>
+                          <Text className="text-gray-600">提交时间：</Text>
+                          <Text>{selectedTask.submitTime}</Text>
+                        </div>
+                      )}
+                      <div>
+                        <Text className="text-gray-600">状态：</Text>
                         <Tag color={selectedTask?.status === '审核通过' ? 'green' : 'blue'}>
                           {selectedTask?.status}
                         </Tag>
-                      </Descriptions.Item>
-                    </Descriptions>
-
-                    <Card title="参会专家" size="small" className="mt-4">
-                      <Space wrap>
-                        {selectedTask?.experts.map((e, i) => (
-                          <Tag key={i} color="blue">
-                            {e.name}({e.department})
-                          </Tag>
-                        ))}
-                      </Space>
-                    </Card>
+                      </div>
+                    </div>
                   </div>
-                )
-              },
-              {
-                key: 'record',
-                label: <><BookOutlined /> 会诊记录</>,
-                children: selectedTask?.meetingRecord ? (
-                  <Card size="small">
-                    <div className="whitespace-pre-line text-sm">
-                      {selectedTask.meetingRecord}
-                    </div>
-                  </Card>
-                ) : (
-                  <div className="text-center text-gray-400 py-8">暂无会诊记录</div>
-                )
-              },
-              {
-                key: 'report',
-                label: <><FileTextOutlined /> 会诊报告</>,
-                children: selectedTask?.consultationReport ? (
-                  <Card size="small">
-                    <div className="whitespace-pre-line text-sm">
-                      {selectedTask.consultationReport}
-                    </div>
-                  </Card>
-                ) : (
-                  <div className="text-center text-gray-400 py-8">暂无会诊报告</div>
-                )
-              },
-              {
-                key: 'recommendations',
-                label: <><CheckCircleOutlined /> 会诊建议</>,
-                children: selectedTask?.recommendations && selectedTask.recommendations.length > 0 ? (
-                  <Card size="small">
-                    <ul className="list-disc list-inside text-sm space-y-2">
-                      {selectedTask.recommendations.map((rec, i) => (
-                        <li key={i}>{rec}</li>
+                </div>
+
+                {/* 参会专家 */}
+                <div className="flex items-start gap-3">
+                  <TeamOutlined className="text-blue-600 mt-1" />
+                  <div className="flex-1">
+                    <Text strong className="text-gray-700">参会专家：</Text>
+                    <Space wrap className="mt-2">
+                      {selectedTask?.experts.map((e, i) => (
+                        <Tag key={i} color="blue" className="text-sm">
+                          {e.name}({e.department})
+                        </Tag>
                       ))}
-                    </ul>
-                  </Card>
-                ) : (
-                  <div className="text-center text-gray-400 py-8">暂无会诊建议</div>
-                )
-              },
-              {
-                key: 'audio',
-                label: <><AudioOutlined /> 会诊录音</>,
-                children: selectedTask?.recordingUrl ? (
-                  <Card size="small" className="bg-blue-50">
-                    <div className="space-y-3">
-                      <audio controls className="w-full" src={selectedTask.recordingUrl}>
-                        您的浏览器不支持音频播放
-                      </audio>
-                      <div className="text-sm text-gray-600">
-                        <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.recordingDuration || '未知'}</Tag>
-                        <Tag color="green" className="ml-2">格式：MP3</Tag>
-                      </div>
-                    </div>
-                  </Card>
-                ) : (
-                  <div className="text-center text-gray-400 py-8">暂无录音文件</div>
-                )
-              },
-              {
-                key: 'video',
-                label: <><PlayCircleOutlined /> 会诊录像</>,
-                children: selectedTask?.videoUrl ? (
-                  <Card size="small" className="bg-green-50">
-                    <div className="space-y-3">
-                      <video controls className="w-full rounded-lg bg-black" style={{ maxHeight: '400px' }} src={selectedTask.videoUrl}>
-                        您的浏览器不支持视频播放
-                      </video>
-                      <div className="text-sm text-gray-600">
-                        <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.videoDuration || '未知'}</Tag>
-                        <Tag color="green" className="ml-2">格式：MP4</Tag>
-                      </div>
-                    </div>
-                  </Card>
-                ) : (
-                  <div className="text-center text-gray-400 py-8">暂无录像文件</div>
-                )
-              },
-              {
-                key: 'audit',
-                label: <><CheckCircleOutlined /> 审批记录</>,
-                children: (
-                  <div className="space-y-4">
-                    {/* 秘书审核记录 */}
-                    {selectedTask?.secretaryAuditTime ? (
-                      <Card 
-                        title={<><FileTextOutlined /> MDT 秘书审核</>} 
-                        size="small"
-                        className={selectedTask.secretaryAuditResult === '通过' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}
-                      >
-                        <Descriptions bordered column={2} size="small">
-                          <Descriptions.Item label="审核时间">{selectedTask.secretaryAuditTime}</Descriptions.Item>
-                          <Descriptions.Item label="审核结果">
-                            <Tag color={selectedTask.secretaryAuditResult === '通过' ? 'green' : 'red'}>
-                              {selectedTask.secretaryAuditResult}
-                            </Tag>
-                          </Descriptions.Item>
-                          <Descriptions.Item label="审核意见" span={2}>
-                            {selectedTask.secretaryComment || '-'}
-                          </Descriptions.Item>
-                        </Descriptions>
-                      </Card>
-                    ) : (
-                      <div className="text-center text-gray-400 py-8">暂无秘书审核记录</div>
-                    )}
-
-                    {/* 质控审核记录 */}
-                    {selectedTask?.qualityAuditTime ? (
-                      <Card 
-                        title={<><SafetyOutlined /> 质控员审核</>} 
-                        size="small"
-                        className={selectedTask.qualityResult === '通过' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}
-                      >
-                        <Descriptions bordered column={2} size="small">
-                          <Descriptions.Item label="审核时间">{selectedTask.qualityAuditTime}</Descriptions.Item>
-                          <Descriptions.Item label="审核人">{selectedTask.qualityReviewer || '-'}</Descriptions.Item>
-                          <Descriptions.Item label="审核结果">
-                            <Tag color={selectedTask.qualityResult === '通过' ? 'green' : 'red'}>
-                              {selectedTask.qualityResult}
-                            </Tag>
-                          </Descriptions.Item>
-                          <Descriptions.Item label="质控评分">
-                            {selectedTask.qualityScore ? (
-                              <Space>
-                                <Rate disabled defaultValue={selectedTask.qualityScore} allowHalf />
-                                <Text className="text-sm">{selectedTask.qualityScore}分</Text>
-                              </Space>
-                            ) : (
-                              '-'
-                            )}
-                          </Descriptions.Item>
-                          <Descriptions.Item label="质控意见" span={2}>
-                            {selectedTask.qualityComment || '-'}
-                          </Descriptions.Item>
-                        </Descriptions>
-                      </Card>
-                    ) : (
-                      <div className="text-center text-gray-400 py-8">暂无质控审核记录</div>
-                    )}
-
-                    {/* 退回原因 */}
-                    {selectedTask?.rejectReason && (
-                      <Card 
-                        title={<><ExclamationCircleOutlined /> 退回原因</>} 
-                        size="small"
-                        className="bg-red-50 border border-red-200"
-                      >
-                        <Text type="danger">{selectedTask.rejectReason}</Text>
-                      </Card>
-                    )}
+                    </Space>
                   </div>
-                )
-              }
-            ]}
-          />
+                </div>
+              </div>
+            </Card>
+
+            {/* 会诊记录 */}
+            {selectedTask?.meetingRecord && (
+              <Card 
+                title={<><FileTextOutlined className="text-indigo-600" /> 会诊记录</>} 
+                size="small"
+                className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200"
+              >
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-indigo-100 shadow-sm">
+                  {selectedTask.meetingRecord}
+                </div>
+              </Card>
+            )}
+
+            {/* 会诊报告 */}
+            {selectedTask?.consultationReport && (
+              <Card 
+                title={<><FileTextOutlined className="text-purple-600" /> 会诊报告</>} 
+                size="small"
+                className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200"
+              >
+                <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto p-3 bg-white rounded border border-purple-100 shadow-sm">
+                  {selectedTask.consultationReport}
+                </div>
+              </Card>
+            )}
+
+            {/* 会诊建议 */}
+            {selectedTask?.recommendations && selectedTask.recommendations.length > 0 && (
+              <Card 
+                title={<><CheckSquareOutlined className="text-orange-600" /> 会诊建议</>} 
+                size="small"
+                className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200"
+              >
+                <div className="p-3 bg-white rounded border border-orange-100 shadow-sm">
+                  <ul className="space-y-2">
+                    {selectedTask.recommendations.map((rec, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="text-orange-500 mt-1">•</span>
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Card>
+            )}
+
+            {/* 会诊录音 */}
+            {selectedTask?.recordingUrl && (
+              <Card 
+                title={<><AudioOutlined className="text-green-600" /> 会诊录音</>} 
+                size="small"
+                className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200"
+              >
+                <div className="space-y-3">
+                  <audio controls className="w-full" src={selectedTask.recordingUrl}>
+                    您的浏览器不支持音频播放
+                  </audio>
+                  <div className="text-sm text-gray-600">
+                    <Space>
+                      <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.recordingDuration || '未知'}</Tag>
+                      <Tag color="green">格式：MP3</Tag>
+                    </Space>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* 会诊录像 */}
+            {selectedTask?.videoUrl && (
+              <Card 
+                title={<><PlayCircleOutlined className="text-red-600" /> 会诊录像</>} 
+                size="small"
+                className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200"
+              >
+                <div className="space-y-3">
+                  <video controls className="w-full rounded-lg bg-black" style={{ maxHeight: '400px' }} src={selectedTask.videoUrl}>
+                    您的浏览器不支持视频播放
+                  </video>
+                  <div className="text-sm text-gray-600">
+                    <Space>
+                      <Tag icon={<PlayCircleOutlined />} color="blue">时长：{selectedTask.videoDuration || '未知'}</Tag>
+                      <Tag color="green">格式：MP4</Tag>
+                    </Space>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* 审批记录 */}
+            {(selectedTask?.secretaryAuditTime || selectedTask?.qualityAuditTime || selectedTask?.rejectReason) && (
+              <Card 
+                title={<><CheckCircleOutlined className="text-cyan-600" /> 审批记录</>} 
+                size="small"
+                className="bg-gradient-to-r from-cyan-50 to-teal-50 border border-cyan-200"
+              >
+                <div className="space-y-4">
+                  {/* 秘书审核记录 */}
+                  {selectedTask?.secretaryAuditTime ? (
+                    <div className={`p-3 rounded border ${selectedTask.secretaryAuditResult === '通过' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileTextOutlined className={selectedTask.secretaryAuditResult === '通过' ? 'text-green-600' : 'text-red-600'} />
+                        <Text strong>MDT 秘书审核</Text>
+                        <Tag color={selectedTask.secretaryAuditResult === '通过' ? 'green' : 'red'}>
+                          {selectedTask.secretaryAuditResult}
+                        </Tag>
+                      </div>
+                      <div className="text-sm space-y-1 ml-6">
+                        <div><Text className="text-gray-600">审核时间：</Text>{selectedTask.secretaryAuditTime}</div>
+                        <div><Text className="text-gray-600">审核意见：</Text>{selectedTask.secretaryComment || '-'}</div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* 质控审核记录 */}
+                  {selectedTask?.qualityAuditTime ? (
+                    <div className={`p-3 rounded border ${selectedTask.qualityResult === '通过' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <SafetyOutlined className={selectedTask.qualityResult === '通过' ? 'text-green-600' : 'text-red-600'} />
+                        <Text strong>质控员审核</Text>
+                        <Tag color={selectedTask.qualityResult === '通过' ? 'green' : 'red'}>
+                          {selectedTask.qualityResult}
+                        </Tag>
+                      </div>
+                      <div className="text-sm space-y-1 ml-6">
+                        <div><Text className="text-gray-600">审核时间：</Text>{selectedTask.qualityAuditTime}</div>
+                        <div><Text className="text-gray-600">审核人：</Text>{selectedTask.qualityReviewer || '-'}</div>
+                        <div><Text className="text-gray-600">质控评分：</Text>
+                          {selectedTask.qualityScore ? (
+                            <Space>
+                              <Rate disabled defaultValue={selectedTask.qualityScore} allowHalf size="small" />
+                              <Text>{selectedTask.qualityScore}分</Text>
+                            </Space>
+                          ) : '-'}
+                        </div>
+                        <div><Text className="text-gray-600">质控意见：</Text>{selectedTask.qualityComment || '-'}</div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* 退回原因 */}
+                  {selectedTask?.rejectReason && (
+                    <div className="p-3 bg-red-50 border-2 border-red-200 rounded">
+                      <div className="flex items-center gap-2 mb-2">
+                        <ExclamationCircleOutlined className="text-red-600" />
+                        <Text strong>退回原因</Text>
+                      </div>
+                      <div className="ml-6 text-red-700 text-sm">
+                        {selectedTask.rejectReason}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+          </div>
         )}
       </Modal>
     </div>
