@@ -31,7 +31,7 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
     { key: '/consultation/apply', icon: <PlusCircleOutlined />, label: '申请会诊' },
     { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
-    { key: '/consultation/submit-material', icon: <FileTextOutlined />, label: '材料提交' },
+    { key: '/consultation/submit-material', icon: <FileTextOutlined />, label: 'MDT 材料归档' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
     { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {

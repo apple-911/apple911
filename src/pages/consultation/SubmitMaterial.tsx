@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Input, Upload, message, Steps, Divider } from 'antd'
+import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Input, Upload, message, Steps, Divider, Select } from 'antd'
 import {
   FileTextOutlined,
   UploadOutlined,
@@ -23,6 +23,7 @@ interface MaterialTask {
   meetingDate: string
   meetingTime: string
   department: string
+  applyDoctor: string
   experts: Array<{ name: string; department: string }>
   status: '待提交' | '待秘书审核' | '待质控审核' | '审核通过' | '已退回'
   submitTime?: string
@@ -43,6 +44,7 @@ const mockTasks: MaterialTask[] = [
     meetingDate: '2024-03-15',
     meetingTime: '14:00-15:30',
     department: '肿瘤科',
+    applyDoctor: '张明华',
     experts: [
       { name: '李芳', department: '胸外科' },
       { name: '王建国', department: '放射科' },
@@ -60,6 +62,7 @@ const mockTasks: MaterialTask[] = [
     meetingDate: '2024-03-14',
     meetingTime: '10:00-11:00',
     department: '乳腺外科',
+    applyDoctor: '陈伟',
     experts: [
       { name: '陈伟', department: '乳腺外科' },
       { name: '张明华', department: '肿瘤科' }
@@ -77,6 +80,7 @@ const mockTasks: MaterialTask[] = [
     meetingDate: '2024-03-13',
     meetingTime: '15:00-16:30',
     department: '胃肠外科',
+    applyDoctor: '王建国',
     experts: [
       { name: '王建国', department: '胃肠外科' },
       { name: '李芳', department: '肿瘤科' }
@@ -93,6 +97,7 @@ const mockTasks: MaterialTask[] = [
     meetingDate: '2024-03-12',
     meetingTime: '09:00-10:30',
     department: '消化内科',
+    applyDoctor: '周丽萍',
     experts: [
       { name: '张明华', department: '肿瘤科' },
       { name: '周丽萍', department: '营养科' }
@@ -279,7 +284,7 @@ export default function SubmitMaterial() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <Title level={4}>会诊材料提交</Title>
+        <Title level={4}>MDT 材料归档</Title>
         <Space>
           <Text type="secondary">
             会诊结束后 24-48 小时内提交材料
