@@ -324,7 +324,7 @@ export default function PendingReview() {
                   </div>
                   <div className="col-span-2">
                     <Text type="secondary">来源：</Text>
-                    <Text className="text-xs">{consultation.sourceDetail}</Text>
+                    <Text>{consultation.sourceDetail}</Text>
                   </div>
                 </div>
               
