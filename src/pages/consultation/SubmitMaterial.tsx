@@ -1236,17 +1236,19 @@ export default function SubmitMaterial() {
             </Card>
 
             {/* 会诊报告 */}
-            {selectedTask?.consultationReport && (
-              <Card 
-                title={<><FileTextOutlined className="text-purple-600" /> MDT 会诊报告</>} 
-                size="small"
-                className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 shadow-md"
-              >
+            <Card 
+              title={<><FileTextOutlined className="text-purple-600" /> MDT 会诊报告</>} 
+              size="small"
+              className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 shadow-md"
+            >
+              {selectedTask?.consultationReport ? (
                 <div className="whitespace-pre-line text-sm text-gray-700 leading-relaxed max-h-[600px] overflow-y-auto p-3 bg-white rounded border border-purple-100">
                   {selectedTask.consultationReport}
                 </div>
-              </Card>
-            )}
+              ) : (
+                <div className="text-gray-500 text-sm py-8 text-center">暂无会诊报告</div>
+              )}
+            </Card>
 
             {/* 会诊建议 */}
             {selectedTask?.recommendations && selectedTask.recommendations.length > 0 && (
