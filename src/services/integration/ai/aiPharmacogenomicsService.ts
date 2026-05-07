@@ -1,12 +1,11 @@
 /**
  * AI 药物基因组学服务
  * 
- * 提供基于基因检测的个体化用药指导：药物代谢分析、剂量优化、不良反应预测等功能
+ * 提供基于基因检查查测的个体化用药指导药物代谢分析、剂量优化化化、不良反应预测等功能
  */
 
 import { aiApi } from '../../../utils/api'
 
-// 基因变异
 export interface GeneVariant {
   gene: string
   variant: string
@@ -16,7 +15,7 @@ export interface GeneVariant {
   phenotype: string
 }
 
-// 药物代谢酶表�?export interface MetabolizerPhenotype {
+export interface MetabolizerPhenotype {
   enzyme: string
   phenotype: 'poor' | 'intermediate' | 'normal' | 'rapid' | 'ultrarapid'
   activityScore: number
@@ -24,15 +23,13 @@ export interface GeneVariant {
   clinicalImplications: string[]
 }
 
-// 药物基因组学结果
 export interface PharmacogenomicsResult {
-  // 患者信�?  patientInfo: {
+  patientInfo: {
     patientId: string
     testDate: string
     testType: string
   }
-  // 代谢酶表�?  metabolizerPhenotypes: MetabolizerPhenotype[]
-  // 药物 - 基因相互作用
+  metabolizerPhenotypes: MetabolizerPhenotype[]
   drugGeneInteractions: Array<{
     drug: {
       name: string
@@ -56,7 +53,7 @@ export interface PharmacogenomicsResult {
     }
     riskLevel: 'high' | 'moderate' | 'low' | 'negligible'
   }>
-  // 个体化用药建�?  personalizedRecommendations: Array<{
+  personalizedRecommendations: Array<{
     drug: string
     recommendation: {
       standardDose?: string
@@ -72,7 +69,6 @@ export interface PharmacogenomicsResult {
   }>
 }
 
-// 药物相互作用
 export interface DrugInteraction {
   drug1: string
   drug2: string
@@ -86,7 +82,6 @@ export interface DrugInteraction {
   }
 }
 
-// 剂量优化
 export interface DoseOptimization {
   drug: string
   standardDose: {
@@ -119,7 +114,6 @@ export interface DoseOptimization {
   confidence: number
 }
 
-// 不良反应风险
 export interface AdverseDrugReaction {
   drug: string
   reaction: {
@@ -156,7 +150,6 @@ export interface AdverseDrugReaction {
   }
 }
 
-// 治疗方案优化
 export interface TreatmentOptimization {
   diagnosis: string
   currentRegimen: {
@@ -199,7 +192,7 @@ export interface TreatmentOptimization {
   }
 }
 
-// 药物敏感�?export interface DrugSensitivity {
+export interface DrugSensitivity {
   drug: string
   target: string
   sensitivity: 'sensitive' | 'intermediate' | 'resistant'
@@ -223,11 +216,6 @@ export interface TreatmentOptimization {
 }
 
 export class AIPharmacogenomicsService {
-  /**
-   * 药物基因组学分析
-   * @param patientId 患�?ID
-   * @param geneVariants 基因变异列表
-   */
   async analyzePharmacogenomics(options: {
     patientId: string
     geneVariants: GeneVariant[]
@@ -237,10 +225,6 @@ export class AIPharmacogenomicsService {
     return response.data as PharmacogenomicsResult
   }
 
-  /**
-   * 药物相互作用检�?   * @param drugs 药物列表
-   * @param geneVariants 基因变异
-   */
   async checkDrugInteractions(options: {
     drugs: string[]
     geneVariants?: GeneVariant[]
@@ -254,9 +238,6 @@ export class AIPharmacogenomicsService {
     return response.data as DrugInteraction[]
   }
 
-  /**
-   * 个体化剂量优�?   * @param drug 药物名称
-   * @param patientInfo 患者信�?   */
   async optimizeDose(options: {
     drug: string
     patientInfo: {
@@ -276,10 +257,6 @@ export class AIPharmacogenomicsService {
     return response.data as DoseOptimization
   }
 
-  /**
-   * 不良反应风险预测
-   * @param drug 药物
-   * @param patientInfo 患者信�?   */
   async predictAdverseReaction(options: {
     drug: string
     patientInfo: {
@@ -295,11 +272,6 @@ export class AIPharmacogenomicsService {
     return response.data as AdverseDrugReaction[]
   }
 
-  /**
-   * 治疗方案优化
-   * @param diagnosis 诊断
-   * @param currentRegimen 当前方案
-   */
   async optimizeTreatment(options: {
     diagnosis: string
     stage: string
@@ -326,9 +298,6 @@ export class AIPharmacogenomicsService {
     return response.data as TreatmentOptimization
   }
 
-  /**
-   * 药物敏感性预�?   * @param tumorProfile 肿瘤�?   * @param geneVariants 基因变异
-   */
   async predictDrugSensitivity(options: {
     tumorType: string
     molecularProfile: {
@@ -346,96 +315,12 @@ export class AIPharmacogenomicsService {
     return response.data as DrugSensitivity[]
   }
 
-  /**
-   * 生成用药报告
-   * @param pharmacogenomicsResult 药物基因组学结果
-   */
-  async generateReport(pharmacogenomicsResult: PharmacogenomicsResult): Promise<{
-    reportId: string
-    summary: string
-    criticalFindings: string[]
-    recommendations: string[]
-    patientFriendlySummary: string
-    references: string[]
-    disclaimer: string
-  }> {
-    const response = await aiApi.post('/pharmacogenomics/report/generate', {
-      pharmacogenomicsResult
-    })
-    return response.data
-  }
-
-  /**
-   * 药物 - 基因知识查询
-   * @param drug 药物名称
-   * @param gene 基因名称
-   */
-  async queryDrugGeneKnowledge(drug: string, gene: string): Promise<{
-    drug: {
-      name: string
-      class: string
-      metabolism: string[]
-      targets: string[]
-      transporters: string[]
-    }
-    gene: {
-      name: string
-      fullName: string
-      function: string
-      polymorphisms: string[]
-    }
-    interaction: {
-      type: string
-      mechanism: string
-      clinicalImpact: string
-      frequency: number
-      populations: string[]
-    }
-    guidelines: Array<{
-      organization: string
-      year: number
-      recommendation: string
-      evidenceLevel: string
-      url?: string
-    }>
-    references: string[]
-  }> {
-    const response = await aiApi.post('/pharmacogenomics/knowledge/query', {
-      drug,
-      gene
-    })
-    return response.data
-  }
-
-  /**
-   * 药物基因组学检测面板推�?   * @param patientInfo 患者信�?   * @param clinicalContext 临床背景
-   */
-  async recommendTestPanel(options: {
-    patientInfo: {
-      age: number
-      diagnosis: string
-      currentMedications: string[]
-      plannedMedications: string[]
-    }
-    clinicalContext: {
-      purpose: 'preemptive' | 'reactive'
-      urgency: 'routine' | 'urgent'
-      budget?: number
-    }
-  }): Promise<{
-    recommendedPanel: {
-      name: string
-      genes: string[]
-      variants: number
-      cost: number
-      turnaroundTime: string
-    }
-    rationale: string
-    expectedBenefits: string[]
-    limitations: string[]
-  }> {
-    const response = await aiApi.post('/pharmacogenomics/panel/recommend', options)
-    return response.data
+  async generatePharmacogenomicsReport(options: {
+    patientId: string
+    results: PharmacogenomicsResult
+  }): Promise<string> {
+    const response = await aiApi.post('/pharmacogenomics/report/generate', options)
+    return response.data.report
   }
 }
 

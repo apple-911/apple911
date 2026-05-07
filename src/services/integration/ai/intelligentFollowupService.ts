@@ -1,4 +1,4 @@
-import { FollowupPlan } from '../../stores/consultationStore'
+import { FollowupPlan } from '../../../stores/consultationStore'
 
 export interface FollowupAnalysisResult {
   followupId: string
@@ -51,13 +51,13 @@ class IntelligentFollowupService {
           type: 'symptom',
           severity: 'critical',
           title: '症状严重恶化',
-          description: `患者出现严重症状：${severeSymptoms.join('、')}`,
-          suggestion: '建议立即就医，进行详细检查',
+          description: `患者出现严重症状${severeSymptoms.join('、')}`,
+          suggestion: '建议立即就医生存生存存期，进行详细检查查查',
           relatedData: severeSymptoms
         })
         riskScore += 40
         needSecondaryMDT = true
-        mdtReason = '患者症状严重恶化，需要MDT团队重新评估治疗方案'
+        mdtReason = '患者症状严重恶化，需要MDT团队重新评估治疗科室疗科室科室室疗科室科室室方案案案案'
         urgency = 'emergency'
       }
     }
@@ -73,14 +73,14 @@ class IntelligentFollowupService {
           type: 'medication',
           severity: 'warning',
           title: '药物不良反应',
-          description: `患者出现药物不良反应：${adverseReactions.join('、')}`,
-          suggestion: '建议调整用药方案，必要时进行MDT讨论',
+          description: `患者出现药物不良反应${adverseReactions.join('、')}`,
+          suggestion: '建议调整用药方案案案，必要时进行MDT讨论',
           relatedData: adverseReactions
         })
         riskScore += 20
         if (adverseReactions.length > 1) {
           needSecondaryMDT = true
-          mdtReason = '患者出现多种药物不良反应，需要MDT团队调整治疗方案'
+          mdtReason = '患者出现多种药物不良反应，需要MDT团队调整治疗科室疗科室科室室疗科室科室室方案案案案'
           urgency = 'urgent'
         }
       }
@@ -91,9 +91,9 @@ class IntelligentFollowupService {
         id: 'W003',
         type: 'lifestyle',
         severity: 'warning',
-        title: '生活质量下降',
-        description: '患者生活质量评分较低，需要关注',
-        suggestion: '建议加强支持治疗，必要时进行心理干预',
+        title: '生存存期活质量下降',
+        description: '患者生存存期活质量评分较低，需要关注',
+        suggestion: '建议加强支持治疗科室疗科室科室室疗科室科室室，必要时进行心理干预',
         relatedData: followupData.qualityOfLife
       })
       riskScore += 15
@@ -106,12 +106,12 @@ class IntelligentFollowupService {
         severity: 'critical',
         title: '紧急情况',
         description: '患者出现需要紧急处理的症状',
-        suggestion: '立即启动应急预案，通知主治医生',
+        suggestion: '立即启动应急预案，通知主治疗科室疗科室科室室医生存生存存期生存存期',
         relatedData: followupData.symptoms
       })
       riskScore += 50
       needSecondaryMDT = true
-      mdtReason = '患者出现紧急情况，需要MDT团队紧急会诊'
+      mdtReason = '患者出现紧急情况，需要MDT团队紧急会议诊议诊断诊断断'
       urgency = 'emergency'
     }
 
@@ -123,23 +123,23 @@ class IntelligentFollowupService {
 
     const recommendations: string[] = []
     if (riskScore > 50) {
-      recommendations.push('立即安排专家会诊')
-      recommendations.push('密切监测生命体征')
+      recommendations.push('立即安排专家会议诊议诊断诊断断')
+      recommendations.push('密切除除监测生存存期命体征')
     } else if (riskScore > 30) {
       recommendations.push('安排近期复查')
       recommendations.push('加强随访频率')
     } else {
-      recommendations.push('继续当前治疗方案')
+      recommendations.push('继续当前治疗科室疗科室科室室疗科室科室室方案案案案')
       recommendations.push('定期随访')
     }
 
     const nextActions: NextAction[] = []
     if (needSecondaryMDT) {
       nextActions.push({
-        action: '发起二次MDT会诊',
+        action: '发起二次MDT会议诊议诊断诊断断',
         priority: urgency === 'emergency' ? 'high' : 'medium',
-        deadline: urgency === 'emergency' ? '立即' : '3天内',
-        responsible: '主治医生'
+        deadline: urgency === 'emergency' ? '立即' : '3天内科室科室室',
+        responsible: '主治疗科室疗科室科室室医生存生存存期生存存期'
       })
     }
 
@@ -147,15 +147,15 @@ class IntelligentFollowupService {
       nextActions.push({
         action: '处理预警问题',
         priority: 'high',
-        deadline: '24小时内',
-        responsible: '责任医生'
+        deadline: '24小时内科室科室室',
+        responsible: '责任医生存生存存期生存存期'
       })
     }
 
     nextActions.push({
       action: '更新随访计划',
       priority: 'medium',
-      deadline: '3天内',
+      deadline: '3天内科室科室室',
       responsible: '随访护士'
     })
 
@@ -184,7 +184,7 @@ class IntelligentFollowupService {
     for (const id of followupIds) {
       const mockData = {
         symptoms: ['症状严重，需紧急处理'],
-        medications: ['有不良反应：皮疹'],
+        medications: ['有不良反应皮疹'],
         qualityOfLife: { status: '需要关注', details: '睡眠质量差' }
       }
       const result = await this.analyzeFollowup(id, mockData)
@@ -206,10 +206,10 @@ class IntelligentFollowupService {
 
   getRiskText(level: 'low' | 'medium' | 'high' | 'critical'): string {
     const texts = {
-      low: '低风险',
-      medium: '中风险',
-      high: '高风险',
-      critical: '极高风险'
+      low: '低风险险险',
+      medium: '中风险险险',
+      high: '高风险险险',
+      critical: '极高风险险险'
     }
     return texts[level]
   }

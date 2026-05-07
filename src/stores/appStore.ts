@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type Role = '申请医生' | 'MDT秘书' | '会诊专家' | '质控员' | '系统管理员' | '超级管理员'
+export type Role = '申请医生' | 'MDT 秘书' | '会诊专家' | '质控员' | '系统管理员' | '超级管理员'
 
 export interface User {
   id: string

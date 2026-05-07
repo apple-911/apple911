@@ -462,7 +462,7 @@ export class MedicalRobotService extends EventEmitter {
     }
 
     session.status.status = 'active'
-    session.status.arms.forEach(arm => {
+    session.status.arms.forEach((arm: any) => {
       arm.active = true
     })
     session.status.camera.recording = true
@@ -506,7 +506,7 @@ export class MedicalRobotService extends EventEmitter {
     }
 
     session.status.status = 'standby'
-    session.status.arms.forEach(arm => {
+    session.status.arms.forEach((arm: any) => {
       arm.active = false
     })
     session.status.camera.recording = false
@@ -532,7 +532,7 @@ export class MedicalRobotService extends EventEmitter {
       throw new Error('无效的手术会话')
     }
 
-    const arm = session.status.arms.find(a => a.armId === armId)
+    const arm = session.status.arms.find((a: any) => a.armId === armId)
     if (!arm) {
       throw new Error('无效的机械臂')
     }

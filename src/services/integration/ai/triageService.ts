@@ -243,7 +243,7 @@ export class IntelligentTriageService {
     topSymptoms: Array<{ symptom: string; count: number }>
     topDepartments: Array<{ department: string; count: number }>
   }> {
-    const response = await api.get('/triage/statistics', {
+    const response = await aiApi.get('/triage/statistics', {
       params: { department, startDate, endDate }
     })
     return response.data

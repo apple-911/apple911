@@ -7,6 +7,8 @@
 import type { HISOrder, SyncResult } from '../types'
 import { hisApi } from '../../../utils/api'
 
+export type { HISOrder, SyncResult }
+
 export class HISOrderService {
   /**
    * 获取患者医嘱列表

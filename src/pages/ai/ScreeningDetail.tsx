@@ -30,6 +30,7 @@ import {
   FileTextOutlined,
   CalendarOutlined,
   TeamOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons'
 import aiPatientScreeningService, {
   ScreeningAlert,
@@ -274,6 +275,15 @@ export default function ScreeningDetail() {
                 </Tag>
               }
             />
+            <Tooltip title="驳回 AI 的 MDT 建议">
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleReview(false)}
+              >
+                驳回
+              </Button>
+            </Tooltip>
             <Tooltip title="基于 AI 评估结果发起 MDT 会诊申请">
               <Button
                 type="primary"

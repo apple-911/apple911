@@ -90,8 +90,8 @@ const PatientMessage = () => {
           activeKey={activeTab} 
           onChange={setActiveTab}
           items={[
-            { key: 'all', label: '全部消息', count: allMessages.length },
-            { key: 'unread', label: '未读', count: allMessages.filter(m => !m.read).length },
+            { key: 'all', label: `全部消息 (${allMessages.length})` },
+            { key: 'unread', label: `未读 (${allMessages.filter(m => !m.read).length})` },
             { key: 'read', label: '已读' }
           ]}
         />

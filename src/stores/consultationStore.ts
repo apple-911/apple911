@@ -16,12 +16,18 @@ export interface Consultation {
   applyDoctor: string
   experts: Expert[]
   mainDiagnosis: string
+  location?: string
+  conclusion?: {
+    summary: string
+    recommendations: string[]
+  }
 }
 
 export interface Expert {
   id: string
   name: string
   department: string
+  dept?: string
   title: string
   specialty: string
   status: '空闲' | '忙碌' | '离线'
@@ -36,6 +42,7 @@ export interface Patient {
   inpatientNo: string
   phone: string
   mainDiagnosis: string
+  diagnosis?: string
   lastConsultationTime?: string
   admissionTime: string
   department: string

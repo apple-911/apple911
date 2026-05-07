@@ -303,7 +303,7 @@ export default function Patient360() {
                 </div>
                 <div>
                   <Text type="secondary" className="text-xs">科室</Text>
-                  <div><Tag color="blue" size="small">{patient.department}</Tag></div>
+                  <div><Tag color="blue">{patient.department}</Tag></div>
                 </div>
                 <div>
                   <Text type="secondary" className="text-xs">主治医生</Text>
@@ -319,7 +319,7 @@ export default function Patient360() {
                 </div>
                 <div>
                   <Text type="secondary" className="text-xs">护理级别</Text>
-                  <div><Tag color="green" size="small">二级护理</Tag></div>
+                  <div><Tag color="green">二级护理</Tag></div>
                 </div>
               </div>
               <Divider style={{ margin: '12px 0' }} />
@@ -502,7 +502,7 @@ export default function Patient360() {
                                  <div className="mt-1">
                                    <Space wrap size="small">
                                      {mdtAssessment.recommendedDepartments.map((dept, i) => (
-                                       <Tag key={i} color="blue" size="small">{dept}</Tag>
+                                       <Tag key={i} color="blue">{dept}</Tag>
                                      ))}
                                    </Space>
                                  </div>
@@ -755,7 +755,7 @@ export default function Patient360() {
                               <div className="flex items-center gap-2">
                                 <Text strong>{item.name}</Text>
                                 <Text type="secondary" className="text-xs">{item.phone}</Text>
-                                <Tag color="blue" size="small">{item.title}</Tag>
+                                <Tag color="blue">{item.title}</Tag>
                               </div>
                             }
                             description={
@@ -776,8 +776,8 @@ export default function Patient360() {
                   <Descriptions column={2} size="small">
                     <Descriptions.Item label="入院时间">{patient.admissionTime}</Descriptions.Item>
                     <Descriptions.Item label="病区">胸外科 A 区</Descriptions.Item>
-                    <Descriptions.Item label="护理级别"><Tag color="green" size="small">二级护理</Tag></Descriptions.Item>
-                    <Descriptions.Item label="费用类别"><Tag color="blue" size="small">医保</Tag></Descriptions.Item>
+                    <Descriptions.Item label="护理级别"><Tag color="green">二级护理</Tag></Descriptions.Item>
+                    <Descriptions.Item label="费用类别"><Tag color="blue">医保</Tag></Descriptions.Item>
                     <Descriptions.Item label="联系人">张建国（子）</Descriptions.Item>
                     <Descriptions.Item label="联系电话">138****1234</Descriptions.Item>
                     <Descriptions.Item label="入院方式">步行入院</Descriptions.Item>
@@ -969,7 +969,6 @@ export default function Patient360() {
                         avatar={
                           <Badge 
                             status={c.status === '已完成' ? 'success' : c.status === '进行中' ? 'processing' : 'default'} 
-                            size="large"
                           />
                         }
                         title={
@@ -1019,7 +1018,6 @@ export default function Patient360() {
                         avatar={
                           <Badge 
                             status={f.status === '进行中' ? 'processing' : f.status === '已完成' ? 'success' : 'default'} 
-                            size="large"
                           />
                         }
                         title={

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Card, Steps, Form, Input, Select, DatePicker, Button, Table, Tag, Space, message, Modal, Upload, List, Avatar, Typography, Row, Col, Spin, Alert, Badge, Divider, Tooltip, Drawer, Progress } from 'antd'
 import { SearchOutlined, UserAddOutlined, UploadOutlined, PlusOutlined, CheckCircleOutlined, RobotOutlined, ThunderboltOutlined, FileProtectOutlined, WarningOutlined, CheckCircleFilled, StarFilled } from '@ant-design/icons'
 import { mockPatients, mockExperts } from '../../mocks/data'
@@ -13,6 +13,7 @@ const { Title, Text } = Typography
 
 export default function Apply() {
   const [searchParams] = useSearchParams()
+  const location = useLocation()
   const [currentStep, setCurrentStep] = useState(0)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [selectedExperts, setSelectedExperts] = useState<Expert[]>([])
@@ -29,11 +30,55 @@ export default function Apply() {
   const [matchedExperts, setMatchedExperts] = useState<ExpertMatch[]>([])
   const [matchLoading, setMatchLoading] = useState(false)
 
-  // 从 URL 参数中获取患者 ID 并自动选择患者
+  // 从 URL 参数中获取患者 ID 或随访信息并自动选择患者
   useEffect(() => {
     const patientId = searchParams.get('patientId')
-    if (patientId) {
-      // 尝试从 mock 数据中查找患者
+    const followupId = searchParams.get('followupId')
+    const mdtType = searchParams.get('mdtType')
+    
+    // 如果是筛查推荐的 MDT，从 location.state 获取筛查数据
+    if (mdtType === 'screening' && location.state?.screeningData) {
+      const screeningData = location.state.screeningData
+      // 根据患者姓名查找患者
+      const patient = mockPatients.find(p => p.name === screeningData.patientName)
+      if (patient) {
+        setSelectedPatient(patient)
+        setCurrentStep(1)
+        message.success(`AI 筛查推荐：已自动选择患者 ${patient.name}`)
+        
+        // 自动填充会诊信息
+        setTimeout(() => {
+          form.setFieldsValue({
+            summary: `AI 筛查推荐 MDT - ${screeningData.recommendations.join('；')}`,
+            type: '多学科会诊',
+            urgency: screeningData.level === 'urgent' ? '紧急' : '常规'
+          })
+          message.info('已自动填充会诊信息')
+        }, 500)
+      }
+    }
+    // 如果是二次 MDT，从 location.state 获取随访数据
+    else if (mdtType === 'secondary' && location.state?.followupData) {
+      const followupData = location.state.followupData
+      // 根据患者姓名查找患者
+      const patient = mockPatients.find(p => p.name === followupData.patientName)
+      if (patient) {
+        setSelectedPatient(patient)
+        setCurrentStep(1)
+        message.success(`二次 MDT：已自动选择患者 ${patient.name}`)
+        
+        // 自动填充会诊信息
+        setTimeout(() => {
+          form.setFieldsValue({
+            summary: `二次 MDT 会诊 - ${followupData.mdtReason}`,
+            type: '多学科会诊',
+            urgency: followupData.urgency === 'emergency' ? '紧急' : followupData.urgency === 'urgent' ? '较急' : '常规'
+          })
+          message.info('已自动填充会诊信息')
+        }, 500)
+      }
+    } else if (patientId) {
+      // 普通患者选择
       const patient = mockPatients.find(p => p.id === patientId)
       if (patient) {
         setSelectedPatient(patient)
@@ -41,7 +86,7 @@ export default function Apply() {
         message.success(`已自动选择患者：${patient.name}`)
       }
     }
-  }, [searchParams])
+  }, [searchParams, location.state])
 
   const patientColumns: ColumnsType<Patient> = [
     { title: '姓名', dataIndex: 'name', render: (t) => <a onClick={() => setSelectedPatient(mockPatients.find(p => p.name === t) || null)}>{t}</a> },
@@ -173,6 +218,68 @@ export default function Apply() {
   return (
     <div className="space-y-4">
       <Title level={4}>申请会诊</Title>
+
+      {/* MDT 来源提示 */}
+      {searchParams.get('mdtType') === 'screening' && location.state?.screeningData && (
+        <Alert
+          type="success"
+          message="AI 筛查推荐 MDT"
+          description={
+            <div>
+              <p className="mb-2">
+                <strong>来源：</strong>AI 患者 MDT 需求筛查
+                <Tag color={location.state.screeningData.level === 'urgent' ? 'red' : 'orange'} className="ml-2">
+                  {location.state.screeningData.level === 'urgent' ? '紧急' : '推荐'}
+                </Tag>
+              </p>
+              <p className="mb-1">
+                <strong>患者：</strong>{location.state.screeningData.patientName}
+              </p>
+              <p>
+                <strong>AI 建议：</strong>
+                <ul className="list-disc list-inside mt-1">
+                  {location.state.screeningData.recommendations.map((rec, idx) => (
+                    <li key={idx}>{rec}</li>
+                  ))}
+                </ul>
+              </p>
+            </div>
+          }
+          showIcon
+          className="mb-4"
+        />
+      )}
+
+      {/* 二次 MDT 提示 */}
+      {searchParams.get('mdtType') === 'secondary' && location.state?.followupData && (
+        <Alert
+          type="warning"
+          message="二次 MDT 会诊申请"
+          description={
+            <div>
+              <p className="mb-2">
+                <strong>来源：</strong>随访 AI 分析预警
+                <Tag color="red" className="ml-2">紧急</Tag>
+              </p>
+              <p className="mb-1">
+                <strong>AI 分析原因：</strong>{location.state.followupData.mdtReason}
+              </p>
+              <p>
+                <strong>紧急程度：</strong>
+                <Tag color={
+                  location.state.followupData.urgency === 'emergency' ? 'red' :
+                  location.state.followupData.urgency === 'urgent' ? 'orange' : 'blue'
+                }>
+                  {location.state.followupData.urgency === 'emergency' ? '紧急' :
+                   location.state.followupData.urgency === 'urgent' ? '较急' : '常规'}
+                </Tag>
+              </p>
+            </div>
+          }
+          showIcon
+          className="mb-4"
+        />
+      )}
 
       <Steps
         current={currentStep}

@@ -48,6 +48,8 @@ interface Model3D {
   opacity: number
 }
 
+export type { VRImageViewerProps }
+
 export const VRImageViewer: React.FC<VRImageViewerProps> = ({
   dicomUrl,
   studyId,

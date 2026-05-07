@@ -755,7 +755,7 @@ export default function ReportEdit() {
                             <div className="flex items-center gap-2">
                               <div className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-green-500' : 'bg-gray-300'}`} />
                               <Text strong>{expert.name}</Text>
-                              <Tag color="blue" size="small">{expert.title}</Tag>
+                              <Tag color="blue">{expert.title}</Tag>
                             </div>
                             {index === 0 ? (
                               <Tag color="green" icon={<CheckCircleOutlined />}>已签名</Tag>
@@ -951,7 +951,7 @@ export default function ReportEdit() {
                       {segment.keywords && (
                         <div className="mt-1">
                           {segment.keywords.map((keyword, idx) => (
-                            <Tag key={idx} size="small" className="mr-1">{keyword}</Tag>
+                            <Tag key={idx} className="mr-1">{keyword}</Tag>
                           ))}
                         </div>
                       )}

@@ -112,7 +112,7 @@ export default function PatientScreeningAlerts({
         alertFilters.level = levelFilter
       }
       
-      if (filters.dateRange) {
+      if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
         alertFilters.dateRange = {
           start: filters.dateRange[0].toISOString(),
           end: filters.dateRange[1].toISOString()
@@ -161,6 +161,59 @@ export default function PatientScreeningAlerts({
       console.error('审核失败:', error)
       message.error('审核失败')
     }
+  }
+
+  const handleInitiateMDT = (alert: ScreeningAlert) => {
+    Modal.confirm({
+      title: '发起 MDT 会诊',
+      content: (
+        <div className="py-4">
+          <Alert
+            type="success"
+            message="AI 筛查推荐 MDT"
+            description="系统将为您创建会诊申请，并自动填充患者信息和 AI 评估结果。"
+            showIcon
+            className="mb-4"
+          />
+          <div className="space-y-2">
+            <p><strong>患者：</strong>{alert.patientName}（{alert.patientId}）</p>
+            <p><strong>科室：</strong>{alert.department}</p>
+            <p><strong>预警级别：</strong>
+              <Tag color={getLevelColor(alert.level)}>
+                {alert.level === 'urgent' ? '紧急' : alert.level === 'warning' ? '警告' : '提示'}
+              </Tag>
+            </p>
+            <p><strong>推荐类型：</strong>
+              <Tag color="green">建议 MDT</Tag>
+            </p>
+            <p><strong>AI 建议：</strong></p>
+            <ul className="list-disc list-inside text-gray-700 ml-2">
+              {alert.recommendations.map((rec, idx) => (
+                <li key={idx}>{rec}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+      okText: '确认发起',
+      cancelText: '取消',
+      width: 600,
+      onOk: () => {
+        // 跳转到会诊申请页面，并传递患者信息
+        navigate(`/consultation/apply?patientId=${alert.patientId}&mdtType=screening`, {
+          state: {
+            screeningData: {
+              alertId: alert.id,
+              patientName: alert.patientName,
+              department: alert.department,
+              level: alert.level,
+              recommendations: alert.recommendations
+            }
+          }
+        })
+        message.success('正在跳转到会诊申请页面...')
+      }
+    })
   }
 
   const handleExport = async () => {
@@ -282,6 +335,7 @@ export default function PatientScreeningAlerts({
       title: '预警内容',
       dataIndex: 'message',
       key: 'message',
+      width: 200,
       ellipsis: true,
       responsive: ['lg']
     },
@@ -294,27 +348,9 @@ export default function PatientScreeningAlerts({
       render: (timestamp: string) => dayjs(timestamp).format('YYYY-MM-DD HH:mm')
     },
     {
-      title: '状态',
-      dataIndex: 'reviewed',
-      key: 'reviewed',
-      width: 80,
-      filters: [
-        { text: '待审核', value: false },
-        { text: '已审核', value: true },
-      ],
-      onFilter: (value, record) => record.reviewed === value,
-      render: (reviewed: boolean) => (
-        reviewed ? (
-          <CheckCircleOutlined className="text-green-500" />
-        ) : (
-          <ExclamationCircleOutlined className="text-orange-500" />
-        )
-      )
-    },
-    {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 220,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -328,26 +364,23 @@ export default function PatientScreeningAlerts({
           >
             详情
           </Button>
-          {!record.reviewed && (
-            <>
-              <Button
-                type="link"
-                size="small"
-                className="text-green-600"
-                onClick={() => handleReview(record.id, true)}
-              >
-                通过
-              </Button>
-              <Button
-                type="link"
-                size="small"
-                danger
-                onClick={() => handleReview(record.id, false)}
-              >
-                驳回
-              </Button>
-            </>
-          )}
+          <Button
+            type="link"
+            size="small"
+            className="text-medical-blue"
+            icon={<ThunderboltOutlined />}
+            onClick={() => handleInitiateMDT(record)}
+          >
+            发起 MDT
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            onClick={() => handleReview(record.id, false)}
+          >
+            驳回
+          </Button>
         </Space>
       )
     }
@@ -489,30 +522,6 @@ export default function PatientScreeningAlerts({
           >
             无需 MDT
           </Tag.CheckableTag>
-
-          <Divider type="vertical" style={{ height: 20, margin: '0 4px' }} />
-
-          <Tag.CheckableTag
-            checked={filters.reviewed === undefined}
-            onChange={() => setFilters({ ...filters, reviewed: undefined })}
-            style={{ padding: '2px 10px', borderRadius: 4 }}
-          >
-            全部状态
-          </Tag.CheckableTag>
-          <Tag.CheckableTag
-            checked={filters.reviewed === false}
-            onChange={(checked) => setFilters({ ...filters, reviewed: checked ? false : undefined })}
-            style={{ padding: '2px 10px', borderRadius: 4 }}
-          >
-            待审核
-          </Tag.CheckableTag>
-          <Tag.CheckableTag
-            checked={filters.reviewed === true}
-            onChange={(checked) => setFilters({ ...filters, reviewed: checked ? true : undefined })}
-            style={{ padding: '2px 10px', borderRadius: 4 }}
-          >
-            已审核
-          </Tag.CheckableTag>
         </div>
       </Card>
 
@@ -579,7 +588,15 @@ export default function PatientScreeningAlerts({
                 <Text type="secondary">日期范围</Text>
                 <DatePicker.RangePicker
                   size="small"
-                  onChange={(dates) => setFilters({ ...filters, dateRange: dates as any })}
+                  onChange={(dates) => {
+                    if (dates && dates[0] && dates[1]) {
+                      setFilters({ ...filters, dateRange: dates as any })
+                    } else {
+                      // 清除日期时设置为 undefined
+                      const { dateRange, ...restFilters } = filters
+                      setFilters(restFilters)
+                    }
+                  }}
                 />
               </Space>
             </Col>

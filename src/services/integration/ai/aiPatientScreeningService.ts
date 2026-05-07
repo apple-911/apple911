@@ -1,13 +1,13 @@
 /**
  * AI 患者 MDT 需求筛查服务
  * 
- * 基于患者病情自动评估是否需要 MDT 会诊，提供智能分级和预警
- * 避免医疗资源浪费，确保真正需要的患者得到 MDT 服务
+ * 基于患者病情自动评估是否需要 MDT 会议诊议诊断诊断断，提供智能分级和预警
+ * 避免医生存生存存期疗科室科室室资源浪费，确保真正需要的患者得到 MDT 服务
  */
 
 import { aiApi } from '../../../utils/api'
 
-// MDT 适应症评估结果
+// MDT 适应症评估结果果果
 export interface MDTNecessityAssessment {
   // 患者基本信息
   patientInfo: {
@@ -34,9 +34,9 @@ export interface MDTNecessityAssessment {
     prognosis: PrognosisAssessment
     socialFactors: SocialFactorsAssessment
   }
-  // 推荐会诊类型
-  recommendedType: '院内 MDT' | '远程 MDT' | '床旁 MDT' | '无需 MDT'
-  // 推荐科室
+  // 推荐会议诊议诊断诊断断类型
+  recommendedType: '院内科室科室室 MDT' | '远程 MDT' | '床旁 MDT' | '无需 MDT'
+  // 推荐科室室室
   recommendedDepartments: string[]
   // 紧急程度
   urgency: '紧急' | '常规' | '择期'
@@ -52,7 +52,7 @@ export interface MDTNecessityAssessment {
 export interface MDTIndication {
   code: string
   name: string
-  category: '疾病复杂' | '治疗困难' | '预后不良' | '社会因素'
+  category: '疾病复杂' | '治疗科室疗科室科室室疗科室科室室困难' | '预后不良' | '社会议诊议诊断因素'
   description: string
   weight: number
   matched: boolean
@@ -96,7 +96,7 @@ export interface DiseaseComplexityAssessment {
   }
 }
 
-// 治疗难度评估
+// 治疗科室疗科室科室室疗科室科室室难度评估
 export interface TreatmentDifficultyAssessment {
   score: number
   factors: Array<{
@@ -126,7 +126,7 @@ export interface PrognosisAssessment {
   }
 }
 
-// 社会因素评估
+// 社会议诊议诊断因素评估
 export interface SocialFactorsAssessment {
   score: number
   factors: Array<{
@@ -160,8 +160,8 @@ export interface ScreeningAlert {
   patientId: string
   patientName: string
   department: string
-  type: 'indication' | 'warning' | 'reminder'
-  level: 'high' | 'medium' | 'low'
+  type: 'mdt_needed' | 'needs_review' | 'mdt_not_needed'
+  level: 'urgent' | 'warning' | 'info'
   message: string
   indications: string[]
   recommendations: string[]
@@ -170,6 +170,7 @@ export interface ScreeningAlert {
   reviewedBy?: string
   reviewedAt?: string
   reviewComment?: string
+  score?: number
 }
 
 class AIPatientScreeningService {
@@ -187,16 +188,16 @@ class AIPatientScreeningService {
         name: '陈国强',
         age: 58,
         gender: '男',
-        department: '普外科',
+        department: '普外科室科室室科室室',
         admissionDate: '2024-01-10'
       },
       necessityScore: 92,
       recommendationLevel: '强烈推荐',
       indications: {
         matched: [
-          { code: 'A01', name: '恶性肿瘤晚期', category: '疾病复杂', description: '胰腺癌 IV 期，伴多发转移', weight: 0.35, matched: true },
-          { code: 'A02', name: '疑难重症', category: '疾病复杂', description: '病情复杂，诊断困难', weight: 0.25, matched: true },
-          { code: 'B01', name: '治疗方案选择困难', category: '治疗困难', description: '多种治疗方案需要权衡', weight: 0.2, matched: true },
+          { code: 'A01', name: '恶性肿瘤瘤瘤晚期', category: '疾病复杂', description: '胰腺癌 IV 期，伴多发转移', weight: 0.35, matched: true },
+          { code: 'A02', name: '疑难重症', category: '疾病复杂', description: '病情复杂，诊断断断困难', weight: 0.25, matched: true },
+          { code: 'B01', name: '治疗科室疗科室科室室疗科室科室室方案案案案选择困难', category: '治疗科室疗科室科室室疗科室科室室困难', description: '多种治疗科室疗科室科室室疗科室科室室方案案案案需要权衡', weight: 0.2, matched: true },
           { code: 'C01', name: '预后不良', category: '预后不良', description: '晚期胰腺癌预后差', weight: 0.25, matched: true }
         ],
         notMatched: [
@@ -232,12 +233,12 @@ class AIPatientScreeningService {
           score: 9,
           factors: [],
           treatmentOptions: {
-            available: ['新辅助化疗', '姑息性手术', '支持治疗'],
-            contraindications: ['根治性手术'],
+            available: ['新辅助化疗科室科室室', '姑息性手术术术', '支持治疗科室疗科室科室室疗科室科室室'],
+            contraindications: ['根治疗科室疗科室科室室性手术术术'],
             challenges: [
-              '晚期胰腺癌无法手术根治',
+              '晚期胰腺癌无法手术术术根治疗科室疗科室科室室',
               '合并梗阻性黄疸需要处理',
-              '多学科治疗方案需要协调'
+              '多学科室室治疗科室疗科室科室室疗科室科室室方案案案案需要协调'
             ]
           }
         },
@@ -263,14 +264,14 @@ class AIPatientScreeningService {
           }
         }
       },
-      recommendedType: '院内 MDT',
-      recommendedDepartments: ['普外科', '肿瘤内科', '放疗科', '影像科', '介入科', '消化内科', '内分泌科'],
+      recommendedType: '院内科室科室室 MDT',
+      recommendedDepartments: ['普外科室科室室科室室', '肿瘤瘤瘤内科室科室室科室室', '放疗科室科室科室室科室室科室室', '影像科室科室科室室科室室科室室', '介入科室室', '消化内科室科室室科室室', '内科室科室室分泌科室室'],
       urgency: '紧急',
       expectedBenefits: [
-        '明确诊断和分期',
-        '制定综合治疗方案（手术/化疗/放疗/靶向）',
-        '制定姑息治疗和对症支持方案',
-        '评估介入治疗指征（如胆道引流）'
+        '明确诊断断断和分期',
+        '制定综合治疗科室疗科室科室室疗科室科室室方案案案案（手术术术/化疗科室科室室/放疗科室科室科室室科室室/靶向）',
+        '制定姑息治疗科室疗科室科室室疗科室科室室和对症支持方案案案',
+        '评估介入治疗科室疗科室科室室疗科室科室室指征（如胆道引流）'
       ],
       confidence: 0.95
     }
@@ -282,7 +283,7 @@ class AIPatientScreeningService {
         name: '张建国',
         age: 65,
         gender: '男',
-        department: '胸外科',
+        department: '胸外科室科室科室室科室室科室室',
         admissionDate: '2024-01-15'
       },
       necessityScore: 78,
@@ -290,8 +291,8 @@ class AIPatientScreeningService {
       indications: {
         matched: [
           { code: 'A01', name: '多系统疾病', category: '疾病复杂', description: '患者同时患有多个系统疾病', weight: 0.3, matched: true },
-          { code: 'A02', name: '疑难重症', category: '疾病复杂', description: '病情复杂，诊断困难', weight: 0.25, matched: true },
-          { code: 'B01', name: '治疗方案选择困难', category: '治疗困难', description: '存在多种治疗方案，需要权衡', weight: 0.2, matched: true },
+          { code: 'A02', name: '疑难重症', category: '疾病复杂', description: '病情复杂，诊断断断困难', weight: 0.25, matched: true },
+          { code: 'B01', name: '治疗科室疗科室科室室疗科室科室室方案案案案选择困难', category: '治疗科室疗科室科室室疗科室科室室困难', description: '存在多种治疗科室疗科室科室室疗科室科室室方案案案案，需要权衡', weight: 0.2, matched: true },
           { code: 'C01', name: '预后不良', category: '预后不良', description: '肺癌 III 期，预后较差', weight: 0.25, matched: true }
         ],
         notMatched: [
@@ -303,7 +304,7 @@ class AIPatientScreeningService {
           score: 8,
           factors: [],
           diagnosis: {
-            primary: '右肺上叶占位性病变',
+            primary: '右肺上叶占位性病变变变',
             secondary: ['2 型糖尿病', '高血压病 3 级'],
             icd10: ['C34.1', 'E11.9', 'I10'],
             rarity: 'common',
@@ -326,11 +327,11 @@ class AIPatientScreeningService {
           score: 7,
           factors: [],
           treatmentOptions: {
-            available: ['手术切除', '新辅助化疗', '放疗'],
+            available: ['手术术术切除除除', '新辅助化疗科室科室室', '放疗科室科室科室室科室室'],
             contraindications: [],
             challenges: [
               '患者年龄较大，合并症多',
-              '手术风险较高',
+              '手术术术风险险险较高',
               '需要评估心肺功能'
             ]
           }
@@ -357,14 +358,14 @@ class AIPatientScreeningService {
           }
         }
       },
-      recommendedType: '院内 MDT',
-      recommendedDepartments: ['胸外科', '肿瘤内科', '放疗科', '心内科', '内分泌科'],
+      recommendedType: '院内科室科室室 MDT',
+      recommendedDepartments: ['胸外科室科室科室室科室室科室室', '肿瘤瘤瘤内科室科室室科室室', '放疗科室科室科室室科室室科室室', '心内科室科室科室室科室室科室室', '内科室科室室分泌科室室'],
       urgency: '常规',
       expectedBenefits: [
-        '制定个体化综合治疗方案',
-        '评估手术风险和获益',
-        '优化围手术期管理',
-        '提高治疗效果，改善预后'
+        '制定个体化综合治疗科室疗科室科室室疗科室科室室方案案案案',
+        '评估手术术术风险险险和获益',
+        '优化围手术术术期管理',
+        '提高治疗科室疗科室科室室疗科室科室室效果，改善预后'
       ],
       confidence: 0.88
     }
@@ -409,7 +410,7 @@ class AIPatientScreeningService {
 
   /**
    * 实时筛查（患者入院时自动触发）
-   * @param patientInfo 患者信息
+   * @param patientInfo 患者信息息息
    */
   async realTimeScreen(patientInfo: {
     patientId: string
@@ -426,13 +427,13 @@ class AIPatientScreeningService {
     let score = 0
     const indications: MDTIndication[] = []
 
-    if (patientInfo.diagnosis.includes('癌') || patientInfo.diagnosis.includes('肿瘤')) {
+    if (patientInfo.diagnosis.includes('癌') || patientInfo.diagnosis.includes('肿瘤瘤瘤')) {
       score += 40
       indications.push({
         code: 'A01',
-        name: '恶性肿瘤',
+        name: '恶性肿瘤瘤瘤',
         category: '疾病复杂',
-        description: '诊断为恶性肿瘤',
+        description: '诊断断断为恶性肿瘤瘤瘤',
         weight: 0.35,
         matched: true
       })
@@ -476,10 +477,10 @@ class AIPatientScreeningService {
         notMatched: []
       },
       assessmentDimensions: {} as any,
-      recommendedType: score >= 60 ? '院内 MDT' : '无需 MDT',
+      recommendedType: score >= 60 ? '院内科室科室室 MDT' : '无需 MDT',
       recommendedDepartments: [patientInfo.department],
       urgency: score >= 80 ? '紧急' : '常规',
-      expectedBenefits: ['明确诊断', '制定治疗方案'],
+      expectedBenefits: ['明确诊断断断', '制定治疗科室疗科室科室室疗科室科室室方案案案案'],
       confidence: 0.75
     }
   }
@@ -494,9 +495,9 @@ class AIPatientScreeningService {
       {
         id: 'R001',
         code: 'A01',
-        name: '恶性肿瘤晚期',
+        name: '恶性肿瘤瘤瘤晚期',
         category: 'absolute',
-        description: '恶性肿瘤 III-IV 期',
+        description: '恶性肿瘤瘤瘤 III-IV 期',
         weight: 0.35,
         enabled: true
       },
@@ -505,16 +506,16 @@ class AIPatientScreeningService {
         code: 'A02',
         name: '疑难重症',
         category: 'absolute',
-        description: '病情复杂，诊断困难',
+        description: '病情复杂，诊断断断困难',
         weight: 0.25,
         enabled: true
       },
       {
         id: 'R003',
         code: 'B01',
-        name: '治疗方案选择困难',
+        name: '治疗科室疗科室科室室疗科室科室室方案案案案选择困难',
         category: 'relative',
-        description: '存在多种治疗方案，需要权衡',
+        description: '存在多种治疗科室疗科室科室室疗科室科室室方案案案案，需要权衡',
         weight: 0.2,
         enabled: true
       }
@@ -539,6 +540,10 @@ class AIPatientScreeningService {
       start: string
       end: string
     }
+    scoreRange?: {
+      min: number
+      max: number
+    }
   }): Promise<ScreeningAlert[]> {
     await new Promise(resolve => setTimeout(resolve, 500))
 
@@ -546,87 +551,246 @@ class AIPatientScreeningService {
       {
         id: 'A001',
         patientId: 'P001',
-        patientName: '张建国',
-        department: '胸外科',
-        type: 'indication',
-        level: 'high',
-        message: '患者病情复杂，建议 MDT 会诊',
+        patientName: '陈国强',
+        department: '普外科室科室室科室室',
+        type: 'mdt_needed',
+        level: 'urgent',
+        message: '胰腺癌晚期 IV 期，病情极其复杂，强烈建议 MDT 会议诊议诊断诊断断',
         indications: [
-          '多系统疾病共存',
-          '治疗方案选择困难',
-          '存在高风险因素'
+          '恶性肿瘤瘤瘤晚期（胰腺癌 IV 期）',
+          '伴多发转移（肝转移、腹膜转移）',
+          '合并梗阻性黄疸和 2 型糖尿病',
+          '肿瘤瘤瘤标志物显著升高（CA19-9: 1250 U/mL）',
+          '治疗科室疗科室科室室疗科室科室室方案案案案选择困难，需要综合评估'
         ],
         recommendations: [
-          '组织多学科会诊',
-          '制定个体化治疗方案',
-          '评估手术风险'
+          '立即组织 MDT 会议诊议诊断诊断断（紧急）',
+          '讨论新辅助化疗科室科室室方案案案',
+          '制定姑息治疗科室疗科室科室室疗科室科室室和对症支持治疗科室疗科室科室室疗科室科室室方案案案案',
+          '评估介入治疗科室疗科室科室室疗科室科室室（如胆道引流）指征',
+          '评估靶向治疗科室疗科室科室室疗科室科室室和免疫治疗科室疗科室科室室疗科室科室室可能性'
         ],
-        createdAt: '2024-01-15T10:00:00Z',
-        reviewed: false
+        createdAt: '2024-01-10T08:30:00Z',
+        reviewed: false,
+        score: 92
       },
       {
         id: 'A002',
         patientId: 'P002',
-        patientName: '李秀英',
-        department: '肿瘤内科',
-        type: 'warning',
-        level: 'medium',
-        message: '治疗方案选择困难，建议 MDT 讨论',
+        patientName: '张建国',
+        department: '胸外科室科室科室室科室室科室室',
+        type: 'mdt_needed',
+        level: 'warning',
+        message: '肺癌 III 期，病情复杂，建议 MDT 会议诊议诊断诊断断',
         indications: [
-          '多种治疗方案可选',
-          '需要权衡利弊'
+          '恶性肿瘤瘤瘤（右肺上叶癌 III 期）',
+          '合并 2 型糖尿病和高血压 3 级',
+          '患者年龄较大（65 岁）',
+          '手术术术风险险险评估需要多学科室室协作'
         ],
         recommendations: [
-          '组织 MDT 讨论',
-          '制定个体化治疗方案'
+          '组织 MDT 会议诊议诊断诊断断',
+          '评估手术术术风险险险和获益',
+          '制定个体化综合治疗科室疗科室科室室疗科室科室室方案案案案',
+          '优化围手术术术期管理',
+          '心肺功能评估'
         ],
-        createdAt: '2024-01-16T14:30:00Z',
-        reviewed: true,
-        reviewedBy: '王医生',
-        reviewedAt: '2024-01-16T15:00:00Z',
-        reviewComment: '已安排 MDT 会诊'
+        createdAt: '2024-01-15T10:00:00Z',
+        reviewed: false,
+        score: 78
       },
       {
         id: 'A003',
         patientId: 'P003',
-        patientName: '王志华',
-        department: '心内科',
-        type: 'reminder',
-        level: 'low',
-        message: '患者病情需要 MDT 会诊',
+        patientName: '李秀英',
+        department: '肿瘤瘤瘤内科室科室室科室室',
+        type: 'mdt_needed',
+        level: 'warning',
+        message: '乳腺癌术后复发，治疗科室疗科室科室室疗科室科室室方案案案案选择困难',
         indications: [
-          '合并多种疾病',
-          '需要多学科协作'
+          '乳腺癌术后复发',
+          '既往史史多线治疗科室疗科室科室室疗科室科室室失败',
+          '需要制定后续治疗科室疗科室科室室疗科室科室室方案案案案',
+          '存在基因检查查测指征'
         ],
         recommendations: [
-          '建议 MDT 会诊',
-          '优化治疗方案'
+          '组织 MDT 讨论论论',
+          '制定个体化治疗科室疗科室科室室疗科室科室室方案案案案',
+          '建议基因检查查测指导靶向治疗科室疗科室科室室疗科室科室室',
+          '评估免疫治疗科室疗科室科室室疗科室科室室可能性'
         ],
-        createdAt: '2024-01-17T09:15:00Z',
-        reviewed: false
+        createdAt: '2024-01-16T14:30:00Z',
+        reviewed: true,
+        reviewedBy: '王医生存生存存期生存存期',
+        reviewedAt: '2024-01-16T15:00:00Z',
+        reviewComment: '已安排 MDT 会议诊议诊断诊断断',
+        score: 72
       },
       {
         id: 'A004',
-        patientId: 'P001',
-        patientName: '陈国强',
-        department: '普外科',
-        type: 'indication',
-        level: 'high',
-        message: '胰腺癌晚期，病情复杂，强烈建议 MDT 会诊',
+        patientId: 'P004',
+        patientName: '王志华',
+        department: '呼吸内科室科室室科室室',
+        type: 'needs_review',
+        level: 'info',
+        message: '肺部占位性病变变变，诊断断断不明确',
         indications: [
-          '恶性肿瘤晚期',
-          '肿瘤标志物显著升高',
-          '合并梗阻性黄疸和糖尿病',
-          '治疗方案选择困难，需要综合评估'
+          '肺部占位性病变变变性质待查',
+          '需要鉴别诊断断断',
+          '可能需要多学科室室协作'
         ],
         recommendations: [
-          '立即组织 MDT 会诊',
-          '讨论新辅助治疗方案',
-          '制定姑息治疗和对症支持治疗方案',
-          '评估介入治疗（如胆道引流）指征'
+          '建议 MDT 会议诊议诊断诊断断明确诊断断断',
+          '完善相关检查查查',
+          '必要时行穿刺活检查查'
         ],
-        createdAt: '2024-01-10T08:30:00Z',
-        reviewed: false
+        createdAt: '2024-01-17T09:15:00Z',
+        reviewed: false,
+        score: 55
+      },
+      {
+        id: 'A005',
+        patientId: 'P005',
+        patientName: '刘志刚',
+        department: '肝胆外科室科室室科室室',
+        type: 'mdt_needed',
+        level: 'urgent',
+        message: '肝癌晚期伴门静脉癌栓，病情危重',
+        indications: [
+          '原发性肝癌晚期（CNLC IIIb 期）',
+          '门静脉癌栓形成',
+          '肝功能 Child-Pugh B 级',
+          'AFP 显著升高（>1000 ng/mL）'
+        ],
+        recommendations: [
+          '紧急 MDT 会议诊议诊断诊断断',
+          '评估靶向 + 免疫联合治疗科室疗科室科室室疗科室科室室',
+          '评估介入治疗科室疗科室科室室疗科室科室室（TACE）指征',
+          '评估放疗科室科室科室室科室室可能性',
+          '保肝治疗科室疗科室科室室疗科室科室室和支持治疗科室疗科室科室室疗科室科室室'
+        ],
+        createdAt: '2024-01-18T11:20:00Z',
+        reviewed: false,
+        score: 88
+      },
+      {
+        id: 'A006',
+        patientId: 'P006',
+        patientName: '赵敏',
+        department: '妇科室室',
+        type: 'mdt_needed',
+        level: 'warning',
+        message: '卵巢癌晚期，需要综合治疗科室疗科室科室室疗科室科室室',
+        indications: [
+          '卵巢癌 IIIC 期',
+          '腹腔多发转移',
+          '需要新辅助化疗科室科室室后手术术术',
+          'BRCA 基因检查查测阳性'
+        ],
+        recommendations: [
+          '组织 MDT 会议诊议诊断诊断断',
+          '制定新辅助化疗科室科室室方案案案',
+          '评估手术术术时机和范围',
+          'PARP 抑制剂维持治疗科室疗科室科室室疗科室科室室'
+        ],
+        createdAt: '2024-01-19T13:45:00Z',
+        reviewed: false,
+        score: 75
+      },
+      {
+        id: 'A007',
+        patientId: 'P007',
+        patientName: '孙伟',
+        department: '神经内科室科室室科室室',
+        type: 'mdt_not_needed',
+        level: 'info',
+        message: '脑梗死急性期，病情相对稳定',
+        indications: [
+          '急性脑梗死',
+          'NIHSS 评分 5 分',
+          '无严重并发症'
+        ],
+        recommendations: [
+          '常规治疗科室疗科室科室室疗科室科室室',
+          '定期随访',
+          '康复治疗科室疗科室科室室疗科室科室室'
+        ],
+        createdAt: '2024-01-20T08:00:00Z',
+        reviewed: false,
+        score: 35
+      },
+      {
+        id: 'A008',
+        patientId: 'P008',
+        patientName: '周建华',
+        department: '骨科室室',
+        type: 'needs_review',
+        level: 'warning',
+        message: '骨肉瘤术后复发，治疗科室疗科室科室室疗科室科室室困难',
+        indications: [
+          '骨肉瘤术后复发',
+          '肺转移',
+          '既往史史化疗科室科室室耐药'
+        ],
+        recommendations: [
+          '建议 MDT 会议诊议诊断诊断断',
+          '评估二线化疗科室科室室方案案案',
+          '评估靶向治疗科室疗科室科室室疗科室科室室',
+          '姑息治疗科室疗科室科室室疗科室科室室'
+        ],
+        createdAt: '2024-01-21T10:30:00Z',
+        reviewed: false,
+        score: 68
+      },
+      {
+        id: 'A009',
+        patientId: 'P009',
+        patientName: '吴芳',
+        department: '血液科室室',
+        type: 'mdt_needed',
+        level: 'urgent',
+        message: '急性髓系白血病复发，预后极差',
+        indications: [
+          '急性髓系白血病（AML）复发',
+          '高危染色体核型',
+          '既往史史造血干细胞移植后复发',
+          '年龄 58 岁'
+        ],
+        recommendations: [
+          '紧急 MDT 会议诊议诊断诊断断',
+          '评估挽救性化疗科室科室室',
+          '评估 CAR-T 治疗科室疗科室科室室疗科室科室室',
+          '评估二次移植可能性',
+          '支持治疗科室疗科室科室室疗科室科室室'
+        ],
+        createdAt: '2024-01-22T09:00:00Z',
+        reviewed: false,
+        score: 90
+      },
+      {
+        id: 'A010',
+        patientId: 'P010',
+        patientName: '郑强',
+        department: '泌尿外科室科室室科室室',
+        type: 'mdt_not_needed',
+        level: 'info',
+        message: '前列腺癌根治疗科室疗科室科室室术后，恢复良好',
+        indications: [
+          '前列腺癌根治疗科室疗科室科室室术后',
+          'PSA 控制良好',
+          '无复发征象'
+        ],
+        recommendations: [
+          '定期随访',
+          '内科室科室室分泌治疗科室疗科室科室室疗科室科室室',
+          '生存存期活方案案式指导'
+        ],
+        createdAt: '2024-01-23T14:15:00Z',
+        reviewed: true,
+        reviewedBy: '李医生存生存存期生存存期',
+        reviewedAt: '2024-01-23T15:00:00Z',
+        reviewComment: '无需 MDT，常规随访即可',
+        score: 25
       }
     ]
 
@@ -645,17 +809,23 @@ class AIPatientScreeningService {
       if (filters.reviewed !== undefined) {
         filteredAlerts = filteredAlerts.filter(a => a.reviewed === filters.reviewed)
       }
+      if (filters.scoreRange) {
+        filteredAlerts = filteredAlerts.filter(a => 
+          (a.score || 0) >= filters.scoreRange!.min && 
+          (a.score || 0) <= filters.scoreRange!.max
+        )
+      }
     }
 
     return filteredAlerts
   }
 
   /**
-   * 标记警报为已审核
+   * 标记录录警报为已审核
    */
   async reviewAlert(alertId: string, comment?: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300))
-    console.log(`警报 ${alertId} 已审核，评论：${comment}`)
+    console.log(`警报 ${alertId} 已审核，评论${comment}`)
   }
 
   /**
@@ -663,7 +833,7 @@ class AIPatientScreeningService {
    */
   async batchReviewAlerts(alertIds: string[], comment?: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 500))
-    console.log(`批量审核 ${alertIds.length} 个警报，评论：${comment}`)
+    console.log(`批量审核 ${alertIds.length} 个警报，评论${comment}`)
   }
 
   /**

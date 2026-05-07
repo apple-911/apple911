@@ -36,7 +36,6 @@ export const antdTheme: ThemeConfig = {
       headerBg: '#ffffff',
       headerHeight: 56,
       headerPadding: '0 16px',
-      headerColor: 'rgba(0, 0, 0, 0.85)',
       siderBg: '#ffffff',
       triggerBg: '#ffffff',
       triggerColor: '#045126',
@@ -44,24 +43,21 @@ export const antdTheme: ThemeConfig = {
     
     // 菜单组件
     Menu: {
-      menuItemBg: 'transparent',
-      menuItemSelectedBg: '#e8f0ec',
-      menuItemSelectedColor: '#045126',
-      menuItemSelectedFontWeight: 500,
-      menuItemHoverBg: '#f5f5f5',
-      menuItemColor: 'rgba(0, 0, 0, 0.85)',
-      menuDarkItemSelectedBg: '#045126',
-      menuDarkItemSelectedColor: '#ffffff',
+      itemSelectedBg: '#e8f0ec',
+      itemSelectedColor: '#045126',
+      itemHoverBg: '#f5f5f5',
+      itemColor: 'rgba(0, 0, 0, 0.85)',
+      darkItemSelectedBg: '#045126',
+      darkItemSelectedColor: '#ffffff',
     },
     
     // 按钮组件
     Button: {
       defaultBg: '#ffffff',
-      defaultBorder: '#d9d9d9',
       defaultColor: 'rgba(0, 0, 0, 0.85)',
       primaryColor: '#ffffff',
       defaultHoverBg: '#ffffff',
-      defaultHoverBorder: '#045126',
+      defaultHoverBorderColor: '#045126',
       defaultHoverColor: '#045126',
       primaryShadow: '0 2px 0 rgba(4, 81, 38, 0.2)',
     },
@@ -70,15 +66,12 @@ export const antdTheme: ThemeConfig = {
     Card: {
       colorBorderSecondary: '#f0f0f0',
       headerBg: '#ffffff',
-      headerColor: 'rgba(0, 0, 0, 0.85)',
       headerFontSize: 16,
-      headerFontWeight: 500,
     },
     
     // 表格组件
     Table: {
       headerBg: '#f2f7f4',
-      headerColor: 'rgba(0, 0, 0, 0.85)',
       headerSortHoverBg: '#e8f0ec',
       rowHoverBg: '#f5f5f5',
       rowSelectedBg: '#e8f0ec',
@@ -90,13 +83,11 @@ export const antdTheme: ThemeConfig = {
     Input: {
       hoverBorderColor: '#57826a',
       activeBorderColor: '#045126',
-      activeShadow: '0 0 0 2px rgba(4, 81, 38, 0.1)',
     },
     
     Select: {
       hoverBorderColor: '#57826a',
       activeBorderColor: '#045126',
-      activeShadow: '0 0 0 2px rgba(4, 81, 38, 0.1)',
     },
     
     // 标签页
@@ -108,43 +99,26 @@ export const antdTheme: ThemeConfig = {
     },
     
     // 步骤条
-    Steps: {
-      processIconColor: '#ffffff',
-      processIconBorderColor: '#045126',
-      processTitleColor: '#045126',
-      finishIconColor: '#045126',
-      finishIconBorderColor: '#045126',
-    },
+    Steps: {},
     
     // 时间轴
     Timeline: {
       dotBg: '#ffffff',
-      dotBorderColor: '#045126',
       tailColor: '#f0f0f0',
     },
     
     // 徽章
-    Badge: {
-      color: '#045126',
-    },
+    Badge: {},
     
     // 分页
     Pagination: {
       itemBg: '#ffffff',
-      itemBorderColor: '#d9d9d9',
-      itemBorderColorReverse: '#045126',
       itemActiveBg: '#e8f0ec',
-      itemActiveBorderColor: '#045126',
       itemActiveColor: '#045126',
     },
     
     // 单选框
-    Radio: {
-      buttonCheckedBg: '#ffffff',
-      buttonCheckedColor: '#045126',
-      buttonHoverColor: '#045126',
-      wrapperMargin: '0 8px 0 0',
-    },
+    Radio: {},
     
     // 复选框
     Checkbox: {
@@ -169,13 +143,10 @@ export const antdTheme: ThemeConfig = {
     // 进度条
     Progress: {
       defaultColor: '#045126',
-      successColor: '#52c41a',
     },
     
     // 警告框
-    Alert: {
-      successIconColor: '#52c41a',
-    },
+    Alert: {},
     
     // 树形控件
     Tree: {
@@ -187,7 +158,6 @@ export const antdTheme: ThemeConfig = {
     DatePicker: {
       hoverBorderColor: '#57826a',
       activeBorderColor: '#045126',
-      activeShadow: '0 0 0 2px rgba(4, 81, 38, 0.1)',
       cellHoverWithRangeBg: '#e8f0ec',
       cellActiveWithRangeBg: '#e8f0ec',
       cellRangeBorderColor: '#045126',

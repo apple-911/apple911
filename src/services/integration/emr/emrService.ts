@@ -7,6 +7,8 @@
 import type { EMRRecord, SyncResult } from '../types'
 import { emrApi } from '../../../utils/api'
 
+export type { EMRRecord, SyncResult }
+
 export class EMRService {
   /**
    * 获取患者病历列表

@@ -105,9 +105,10 @@ export default function DashboardScreen() {
   const loadAIAlerts = async () => {
     try {
       const alerts = await aiPatientScreeningService.getAlerts({ level: 'urgent' })
-      setAiAlerts(alerts.slice(0, 3)) // 只显示前 3 条紧急预警
+      setAiAlerts(alerts ? alerts.slice(0, 3) : []) // 只显示前 3 条紧急预警
     } catch (error) {
       console.error('加载 AI 预警失败:', error)
+      setAiAlerts([])
     }
   }
 
@@ -714,7 +715,7 @@ export default function DashboardScreen() {
                       <div className="mt-1">
                         <Text type="secondary">{alert.message}</Text>
                         <div className="mt-1">
-                          {alert.reasons.slice(0, 2).map((reason: string, index: number) => (
+                          {(alert.indications || []).slice(0, 2).map((reason: string, index: number) => (
                             <Tag key={index} color="orange" className="mr-1">{reason}</Tag>
                           ))}
                         </div>

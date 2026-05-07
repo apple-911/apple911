@@ -1,26 +1,25 @@
 /**
  * AI 自然语言处理服务
  * 
- * 提供医疗文本的智能处理：病历结构化、医学术语提取、疾病编码、语义搜索等功能
+ * 提供医生存生存存期疗科室科室室文本的智能处理病历结果果构化、医生存生存存期学术语提取、疾病编码、语义搜索等功能
  */
 
 import { aiApi } from '../../../utils/api'
 
-// 病历结构化结�?export interface EMRStructuring {
-  // 基本信息
+// 病历结果果构化结果果果
+export interface EMRStructuring {
   patientInfo: {
     name: string
     age: number
     gender: string
     mrn: string
   }
-  // 主诉
   chiefComplaint: {
     text: string
     duration: string
     symptoms: string[]
   }
-  // 现病�?  historyOfPresentIllness: {
+  historyOfPresentIllness: {
     onset: string
     course: string
     characteristics: string[]
@@ -29,7 +28,7 @@ import { aiApi } from '../../../utils/api'
     associatedSymptoms: string[]
     treatment: string
   }
-  // 既往�?  pastHistory: {
+  pastHistory: {
     diseases: string[]
     surgeries: Array<{
       name: string
@@ -58,7 +57,7 @@ import { aiApi } from '../../../utils/api'
       indication: string
     }>
   }
-  // 个人�?  personalHistory: {
+  personalHistory: {
     birthplace: string
     residence: string
     smoking: {
@@ -74,19 +73,19 @@ import { aiApi } from '../../../utils/api'
     occupation: string
     exposure: string[]
   }
-  // 婚育�?  marriageHistory: {
+  marriageHistory: {
     status: 'married' | 'single' | 'divorced' | 'widowed'
     age: number
     children: number
   }
-  // 家族�?  familyHistory: Array<{
+  familyHistory: Array<{
     relationship: string
     disease: string
     age?: number
     status: 'alive' | 'deceased'
     causeOfDeath?: string
   }>
-  // 体格检�?  physicalExamination: {
+  physicalExamination: {
     vitalSigns: {
       temperature?: number
       bloodPressure?: string
@@ -104,9 +103,9 @@ import { aiApi } from '../../../utils/api'
     abdomen: string
     spine: string
     limbs: string
-   神经系统: string
+    nervousSystem: string
   }
-  // 辅助检�?  auxiliaryExaminations: Array<{
+  auxiliaryExaminations: Array<{
     type: 'lab' | 'imaging' | 'pathology' | 'other'
     name: string
     date: string
@@ -114,14 +113,12 @@ import { aiApi } from '../../../utils/api'
     abnormal: boolean
     criticalValue: boolean
   }>
-  // 初步诊断
   preliminaryDiagnosis: Array<{
     name: string
     icd10: string
     type: 'main' | 'secondary' | 'complication'
     confidence: number
   }>
-  // 诊疗计划
   treatmentPlan: {
     furtherExams: string[]
     treatments: string[]
@@ -137,9 +134,8 @@ import { aiApi } from '../../../utils/api'
   }
 }
 
-// 医学术语提取
+// 医生存生存存期学术语提取
 export interface MedicalTermExtraction {
-  // 疾病术语
   diseases: Array<{
     term: string
     category: string
@@ -147,7 +143,6 @@ export interface MedicalTermExtraction {
     confidence: number
     context: string
   }>
-  // 症状术语
   symptoms: Array<{
     term: string
     severity?: '轻度' | '中度' | '重度'
@@ -155,14 +150,13 @@ export interface MedicalTermExtraction {
     frequency?: string
     context: string
   }>
-  // 检查检�?  exams: Array<{
+  exams: Array<{
     term: string
     type: 'lab' | 'imaging' | 'pathology' | 'function'
     result?: string
     abnormal?: boolean
     context: string
   }>
-  // 治疗操作
   treatments: Array<{
     term: string
     type: 'medication' | 'surgery' | 'therapy' | 'procedure'
@@ -170,7 +164,6 @@ export interface MedicalTermExtraction {
     frequency?: string
     context: string
   }>
-  // 药物
   drugs: Array<{
     genericName: string
     brandName?: string
@@ -180,7 +173,6 @@ export interface MedicalTermExtraction {
     route?: string
     context: string
   }>
-  // 解剖部位
   anatomy: Array<{
     term: string
     system: string
@@ -224,7 +216,8 @@ export interface SemanticSearch {
   relatedQueries: string[]
 }
 
-// 文本相似�?export interface TextSimilarity {
+// 文本相似度度度
+export interface TextSimilarity {
   text1: string
   text2: string
   similarity: number
@@ -233,7 +226,7 @@ export interface SemanticSearch {
   differences: string[]
 }
 
-// 临床路径推荐
+// 临床路径径径推荐
 export interface ClinicalPathway {
   diagnosis: string
   pathway: {
@@ -262,7 +255,7 @@ export interface ClinicalPathway {
   }
 }
 
-// 医学文献推荐
+// 医生存生存存期学文献推荐荐
 export interface LiteratureRecommendation {
   query: string
   recommendations: Array<{
@@ -292,10 +285,6 @@ export interface LiteratureRecommendation {
 }
 
 export class AINaturalLanguageProcessingService {
-  /**
-   * 病历结构�?   * @param text 病历文本
-   * @param emrType 病历类型
-   */
   async structureEMR(text: string, emrType: 'admission' | 'progress' | 'consultation' | 'discharge'): Promise<EMRStructuring> {
     const response = await aiApi.post('/nlp/emr/structure', {
       text,
@@ -304,10 +293,6 @@ export class AINaturalLanguageProcessingService {
     return response.data as EMRStructuring
   }
 
-  /**
-   * 医学术语提取
-   * @param text 医疗文本
-   */
   async extractMedicalTerms(text: string): Promise<MedicalTermExtraction> {
     const response = await aiApi.post('/nlp/terms/extract', {
       text
@@ -315,10 +300,6 @@ export class AINaturalLanguageProcessingService {
     return response.data as MedicalTermExtraction
   }
 
-  /**
-   * 疾病 ICD-10 编码
-   * @param diagnosis 诊断描述
-   */
   async suggestICD10(diagnosis: string): Promise<ICD10Coding> {
     const response = await aiApi.post('/nlp/coding/icd10', {
       diagnosis
@@ -326,11 +307,6 @@ export class AINaturalLanguageProcessingService {
     return response.data as ICD10Coding
   }
 
-  /**
-   * 语义搜索
-   * @param query 搜索查询
-   * @param filters 过滤条件
-   */
   async semanticSearch(query: string, filters?: {
     type?: 'patient' | 'consultation' | 'report' | 'literature'
     department?: string
@@ -346,10 +322,6 @@ export class AINaturalLanguageProcessingService {
     return response.data as SemanticSearch
   }
 
-  /**
-   * 文本相似度计�?   * @param text1 文本 1
-   * @param text2 文本 2
-   */
   async calculateSimilarity(text1: string, text2: string): Promise<TextSimilarity> {
     const response = await aiApi.post('/nlp/similarity', {
       text1,
@@ -358,10 +330,6 @@ export class AINaturalLanguageProcessingService {
     return response.data as TextSimilarity
   }
 
-  /**
-   * 临床路径推荐
-   * @param diagnosis 诊断
-   * @param patientInfo 患者信�?   */
   async recommendClinicalPathway(options: {
     diagnosis: string
     stage?: string
@@ -375,11 +343,6 @@ export class AINaturalLanguageProcessingService {
     return response.data as ClinicalPathway
   }
 
-  /**
-   * 医学文献推荐
-   * @param query 查询
-   * @param options 选项
-   */
   async recommendLiterature(options: {
     query: string
     diagnosis?: string
@@ -394,9 +357,6 @@ export class AINaturalLanguageProcessingService {
     return response.data as LiteratureRecommendation
   }
 
-  /**
-   * 文本摘要生成
-   * @param text 原文�?   * @param maxLength 最大长�?   */
   async generateSummary(text: string, maxLength: number): Promise<string> {
     const response = await aiApi.post('/nlp/summarize', {
       text,
@@ -405,10 +365,6 @@ export class AINaturalLanguageProcessingService {
     return response.data.summary
   }
 
-  /**
-   * 文本纠错
-   * @param text 输入文本
-   */
   async correctText(text: string): Promise<{
     original: string
     corrected: string
@@ -426,11 +382,6 @@ export class AINaturalLanguageProcessingService {
     return response.data
   }
 
-  /**
-   * 实体链接
-   * @param text 文本
-   * @param entityType 实体类型
-   */
   async linkEntities(text: string, entityType?: 'disease' | 'drug' | 'symptom' | 'anatomy'): Promise<{
     entities: Array<{
       text: string
@@ -446,49 +397,6 @@ export class AINaturalLanguageProcessingService {
     const response = await aiApi.post('/nlp/entity/link', {
       text,
       entityType
-    })
-    return response.data
-  }
-
-  /**
-   * 关系抽取
-   * @param text 文本
-   */
-  async extractRelations(text: string): Promise<{
-    relations: Array<{
-      entity1: {
-        text: string
-        type: string
-      }
-      entity2: {
-        text: string
-        type: string
-      }
-      relation: string
-      confidence: number
-    }>
-  }> {
-    const response = await aiApi.post('/nlp/relation/extract', {
-      text
-    })
-    return response.data
-  }
-
-  /**
-   * 文本分类
-   * @param text 文本
-   * @param taxonomy 分类体系
-   */
-  async classifyText(text: string, taxonomy: 'department' | 'urgency' | 'disease_category'): Promise<{
-    categories: Array<{
-      name: string
-      confidence: number
-      level: number
-    }>
-  }> {
-    const response = await aiApi.post('/nlp/classify', {
-      text,
-      taxonomy
     })
     return response.data
   }

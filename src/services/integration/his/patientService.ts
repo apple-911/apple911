@@ -5,8 +5,10 @@
  */
 
 import type { HISPatient, Patient, SyncResult } from '../types'
-import { DataMapping } from '../../common/dataMapping'
+import { DataMapping } from '../common/dataMapping'
 import { hisApi } from '../../../utils/api'
+
+export type { HISPatient, Patient, SyncResult }
 
 export class HISPatientService {
   private cache = new Map<string, { data: HISPatient; timestamp: number }>()

@@ -238,6 +238,8 @@ export class BlockchainService {
       operation: 'grant_access',
       timestamp: new Date().toISOString(),
       metadata: {
+        institution: 'Unknown',
+        department: 'Unknown',
         purpose: consent.purpose,
         consentId: `consent-${Date.now()}`
       }
@@ -309,6 +311,8 @@ export class BlockchainService {
       operation: 'access',
       timestamp: new Date().toISOString(),
       metadata: {
+        institution: 'Unknown',
+        department: 'Unknown',
         purpose: log.accessPurpose,
         consentId: log.consentId
       }
