@@ -305,32 +305,28 @@ export default function PendingReview() {
               }
               size="small"
             >
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <Text type="secondary">住院号：</Text>
-                  <Text>{consultation.patientInpatientNo}</Text>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <Text type="secondary">申请科室：</Text>
+                    <Text>{consultation.department}</Text>
+                  </div>
+                  <div>
+                    <Text type="secondary">申请医生：</Text>
+                    <Text>{consultation.applyDoctor}</Text>
+                  </div>
+                  <div>
+                    <Text type="secondary">申请时间：</Text>
+                    <Text>{consultation.applyTime}</Text>
+                  </div>
+                  <div>
+                    <Text type="secondary">期望时间：</Text>
+                    <Text>{consultation.expectTime}</Text>
+                  </div>
+                  <div className="col-span-2">
+                    <Text type="secondary">来源：</Text>
+                    <Text className="text-xs">{consultation.sourceDetail}</Text>
+                  </div>
                 </div>
-                <div>
-                  <Text type="secondary">申请科室：</Text>
-                  <Text>{consultation.department}</Text>
-                </div>
-                <div>
-                  <Text type="secondary">申请医生：</Text>
-                  <Text>{consultation.applyDoctor}</Text>
-                </div>
-                <div>
-                  <Text type="secondary">申请时间：</Text>
-                  <Text>{consultation.applyTime}</Text>
-                </div>
-                <div>
-                  <Text type="secondary">期望时间：</Text>
-                  <Text>{consultation.expectTime}</Text>
-                </div>
-                <div>
-                  <Text type="secondary">来源：</Text>
-                  <Text className="text-xs">{consultation.sourceDetail}</Text>
-                </div>
-              </div>
               
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <div className="mb-2">
