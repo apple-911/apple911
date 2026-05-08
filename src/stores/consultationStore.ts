@@ -33,6 +33,35 @@ export interface Consultation {
   videoUrl?: string  // 录像 URL
   submitTime?: string  // 提交时间
   rejectReason?: string  // 退回原因
+  
+  // 病历资料（从 HIS 系统读取或手动上传）
+  medicalRecords?: {
+    chiefComplaint?: string  // 主诉
+    presentIllness?: string  // 现病史
+    pastHistory?: string  // 既往史
+    physicalExamination?: string  // 体格检查
+    auxiliaryExamination?: string  // 辅助检查
+    initialDiagnosis?: string  // 初步诊断
+    treatmentPlan?: string  // 治疗方案
+  }
+  
+  // 上传的文件列表
+  uploadedFiles?: UploadedFile[]
+  
+  // HIS 系统对接标识
+  hisDataSynced?: boolean  // 是否已从 HIS 同步
+  hisSyncTime?: string  // HIS 同步时间
+}
+
+export interface UploadedFile {
+  id: string
+  fileName: string
+  fileType: '病历' | '检查报告' | '检验报告' | '病理报告' | '影像资料' | '其他'
+  fileSize: number  // 字节
+  uploadTime: string
+  uploadUrl: string
+  thumbnailUrl?: string
+  fromHIS?: boolean  // 是否来自 HIS 系统
 }
 
 export interface Expert {
@@ -61,6 +90,56 @@ export interface Patient {
   doctor: string
   allergies?: string[]
   history?: string[]
+  imagingExams?: ImagingExam[]
+  labTests?: LabTest[]
+  pathologyReports?: PathologyReport[]
+  otherExams?: OtherExam[]
+}
+
+export interface ImagingExam {
+  id: string
+  type: 'CT' | 'MRI' | 'X 光' | '超声' | 'PET-CT' | '骨扫描' | '其他'
+  examDate: string
+  examBody: string
+  findings: string
+  impression: string
+  reportDoctor?: string
+  reportUrl?: string
+  imageUrl?: string
+}
+
+export interface LabTest {
+  id: string
+  testName: string
+  testDate: string
+  testItem: string
+  result: string
+  unit: string
+  referenceRange: string
+  flag?: '↑' | '↓' | 'H' | 'L' | '正常'
+  reportUrl?: string
+}
+
+export interface PathologyReport {
+  id: string
+  reportDate: string
+  sampleType: string
+  sampleSite: string
+  microscopicFindings: string
+  pathologicalDiagnosis: string
+  immunohistochemistry?: string
+  molecularTest?: string
+  reportDoctor?: string
+  reportUrl?: string
+}
+
+export interface OtherExam {
+  id: string
+  examType: string
+  examDate: string
+  findings: string
+  conclusion: string
+  reportUrl?: string
 }
 
 export interface Report {

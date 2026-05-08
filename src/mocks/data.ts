@@ -19,13 +19,140 @@ export const mockPatients: Patient[] = [
     age: 62,
     inpatientNo: 'ZY2024001234',
     phone: '138****5678',
-    mainDiagnosis: '左肺鳞癌III期',
+    mainDiagnosis: '左肺鳞癌 III 期',
     lastConsultationTime: '2024-03-15',
     admissionTime: '2024-03-01',
     department: '肿瘤科',
     doctor: '张明华',
     allergies: ['青霉素'],
-    history: ['高血压病史10年', '2型糖尿病史5年']
+    history: ['高血压病史 10 年', '2 型糖尿病史 5 年'],
+    imagingExams: [
+      {
+        id: 'CT001',
+        type: 'CT',
+        examDate: '2024-03-10',
+        examBody: '胸部增强 CT',
+        findings: '左肺上叶占位性病变，大小约 4.5cm×3.8cm，边界不清，呈分叶状，增强扫描不均匀强化；纵隔淋巴结肿大，最大短径约 1.8cm。',
+        impression: '左肺上叶占位，考虑肺癌；纵隔淋巴结转移',
+        reportDoctor: '王建国',
+        reportUrl: '/reports/CT001.pdf',
+        imageUrl: '/images/CT001.dcm'
+      },
+      {
+        id: 'PET001',
+        type: 'PET-CT',
+        examDate: '2024-03-13',
+        examBody: '全身 PET-CT',
+        findings: '左肺上叶高代谢占位，SUVmax 12.5；纵隔淋巴结代谢增高，SUVmax 8.2；全身其他部位未见明显转移征象。',
+        impression: '左肺上叶恶性病变，考虑鳞癌；纵隔淋巴结转移',
+        reportDoctor: '王建国',
+        reportUrl: '/reports/PET001.pdf'
+      },
+      {
+        id: 'MRI001',
+        type: 'MRI',
+        examDate: '2024-03-12',
+        examBody: '头颅 MRI 增强',
+        findings: '脑实质内未见明显异常信号灶，脑室系统大小、形态正常，中线结构居中。',
+        impression: '头颅 MRI 未见明显转移灶',
+        reportDoctor: '李明',
+        reportUrl: '/reports/MRI001.pdf'
+      },
+      {
+        id: 'US001',
+        type: '超声',
+        examDate: '2024-03-11',
+        examBody: '腹部超声',
+        findings: '肝脏、胆囊、胰腺、脾脏、双肾未见明显异常。',
+        impression: '腹部超声未见明显异常',
+        reportDoctor: '赵丽',
+        reportUrl: '/reports/US001.pdf'
+      }
+    ],
+    labTests: [
+      {
+        id: 'LAB001',
+        testName: '血常规',
+        testDate: '2024-03-12',
+        testItem: '白细胞计数',
+        result: '6.8',
+        unit: '×10^9/L',
+        referenceRange: '3.5-9.5',
+        flag: '正常'
+      },
+      {
+        id: 'LAB002',
+        testName: '血常规',
+        testDate: '2024-03-12',
+        testItem: '血红蛋白',
+        result: '128',
+        unit: 'g/L',
+        referenceRange: '130-175',
+        flag: '↓'
+      },
+      {
+        id: 'LAB003',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-11',
+        testItem: 'SCC',
+        result: '3.8',
+        unit: 'ng/mL',
+        referenceRange: '0-2.5',
+        flag: '↑'
+      },
+      {
+        id: 'LAB004',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-11',
+        testItem: 'CYFRA21-1',
+        result: '6.5',
+        unit: 'ng/mL',
+        referenceRange: '0-3.3',
+        flag: '↑'
+      },
+      {
+        id: 'LAB005',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-11',
+        testItem: 'CEA',
+        result: '5.2',
+        unit: 'ng/mL',
+        referenceRange: '0-5.0',
+        flag: '↑'
+      }
+    ],
+    pathologyReports: [
+      {
+        id: 'PATH001',
+        reportDate: '2024-03-14',
+        sampleType: '支气管镜活检',
+        sampleSite: '左肺上叶',
+        microscopicFindings: '镜下见癌细胞呈巢状、片状排列，细胞异型性明显，核分裂象多见，可见角化珠形成。',
+        pathologicalDiagnosis: '（左肺上叶）鳞状细胞癌，中分化',
+        immunohistochemistry: 'CK5/6(+)，P63(+)，TTF-1(-)，NapsinA(-)，Ki-67(30%+)',
+        molecularTest: 'EGFR 野生型，ALK(-)',
+        reportDoctor: '刘晓燕',
+        reportUrl: '/reports/PATH001.pdf'
+      }
+    ],
+    otherExams: [
+      {
+        id: 'ECG001',
+        examType: '心电图',
+        examDate: '2024-03-11',
+        findings: '窦性心律，心率 82 次/分，PR 间期 160ms，QRS 时限 90ms，电轴不偏。',
+        conclusion: '正常心电图',
+        reportUrl: '/reports/ECG001.pdf'
+      },
+      {
+        id: 'PFT001',
+        examType: '肺功能',
+        examDate: '2024-03-12',
+        findings: 'FEV1 2.1L，FEV1% 78%，FVC 2.8L，FEV1/FVC 75%，DLCO 18.5ml/min/mmHg。',
+        conclusion: '轻度限制性通气功能障碍，弥散功能轻度降低',
+        reportUrl: '/reports/PFT001.pdf'
+      }
+    ]
   },
   {
     id: 'P002',
@@ -39,7 +166,85 @@ export const mockPatients: Patient[] = [
     department: '乳腺外科',
     doctor: '陈伟',
     allergies: [],
-    history: ['无明显既往史']
+    history: ['无明显既往史'],
+    imagingExams: [
+      {
+        id: 'US002',
+        type: '超声',
+        examDate: '2024-03-12',
+        examBody: '乳腺彩超',
+        findings: '右乳外上象限实性占位，大小约 2.5cm×2.0cm，边界不清，形态不规则，BI-RADS 4C 类；右腋窝淋巴结肿大，最大约 1.5cm。',
+        impression: '右乳占位，考虑乳腺癌；右腋窝淋巴结转移',
+        reportDoctor: '赵丽',
+        reportUrl: '/reports/US002.pdf'
+      },
+      {
+        id: 'MG001',
+        type: 'X 光',
+        examDate: '2024-03-13',
+        examBody: '乳腺钼靶',
+        findings: '右乳外上象限高密度肿块影，边缘毛刺，可见细小钙化灶，BI-RADS 5 类。',
+        impression: '右乳占位，考虑乳腺癌',
+        reportDoctor: '李明',
+        reportUrl: '/reports/MG001.pdf'
+      },
+      {
+        id: 'CT002',
+        type: 'CT',
+        examDate: '2024-03-14',
+        examBody: '胸部 CT 平扫',
+        findings: '双肺未见明显转移灶，纵隔淋巴结未见肿大。',
+        impression: '胸部 CT 未见明显转移',
+        reportDoctor: '王建国',
+        reportUrl: '/reports/CT002.pdf'
+      }
+    ],
+    labTests: [
+      {
+        id: 'LAB006',
+        testName: '血常规',
+        testDate: '2024-03-14',
+        testItem: '白细胞计数',
+        result: '5.6',
+        unit: '×10^9/L',
+        referenceRange: '3.5-9.5',
+        flag: '正常'
+      },
+      {
+        id: 'LAB007',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-14',
+        testItem: 'CA15-3',
+        result: '35',
+        unit: 'U/mL',
+        referenceRange: '0-25',
+        flag: '↑'
+      }
+    ],
+    pathologyReports: [
+      {
+        id: 'PATH002',
+        reportDate: '2024-03-13',
+        sampleType: '乳腺穿刺活检',
+        sampleSite: '右乳外上象限',
+        microscopicFindings: '镜下见癌细胞呈巢状、索状排列，腺管形成，细胞异型性明显，核分裂象可见。',
+        pathologicalDiagnosis: '（右乳）浸润性导管癌 II 级',
+        immunohistochemistry: 'ER(80%+), PR(60%+), HER2(1+), Ki-67(25%+)',
+        molecularTest: 'FISH: HER2 基因无扩增',
+        reportDoctor: '刘晓燕',
+        reportUrl: '/reports/PATH002.pdf'
+      }
+    ],
+    otherExams: [
+      {
+        id: 'ECG002',
+        examType: '心电图',
+        examDate: '2024-03-14',
+        findings: '窦性心律，心率 78 次/分。',
+        conclusion: '正常心电图',
+        reportUrl: '/reports/ECG002.pdf'
+      }
+    ]
   },
   {
     id: 'P003',
@@ -53,7 +258,95 @@ export const mockPatients: Patient[] = [
     department: '肛肠外科',
     doctor: '李芳',
     allergies: ['磺胺类'],
-    history: ['吸烟史20年']
+    history: ['吸烟史 20 年'],
+    imagingExams: [
+      {
+        id: 'CT003',
+        type: 'CT',
+        examDate: '2024-03-12',
+        examBody: '腹部增强 CT',
+        findings: '直肠乙状结肠交界处肠壁不规则增厚，约 2.0cm，增强扫描不均匀强化；肝脏右叶可见多发低密度灶，较大者约 3.5cm×2.8cm；腹腔淋巴结肿大。',
+        impression: '直肠乙状结肠交界处占位，考虑直肠癌；肝脏多发转移；腹腔淋巴结转移',
+        reportDoctor: '王建国',
+        reportUrl: '/reports/CT003.pdf'
+      },
+      {
+        id: 'MRI002',
+        type: 'MRI',
+        examDate: '2024-03-13',
+        examBody: '盆腔 MRI 增强',
+        findings: '直肠乙状结肠交界处肠壁不规则增厚，T2WI 高信号，增强扫描不均匀强化，浆膜层受侵；直肠系膜内可见多发肿大淋巴结。',
+        impression: '直肠乙状结肠交界处占位，考虑直肠癌，浆膜层受侵；直肠系膜淋巴结转移',
+        reportDoctor: '李明',
+        reportUrl: '/reports/MRI002.pdf'
+      },
+      {
+        id: 'US003',
+        type: '超声',
+        examDate: '2024-03-12',
+        examBody: '肝脏超声造影',
+        findings: '肝脏右叶可见多发低回声结节，较大者约 3.2cm×2.5cm，动脉期周边强化，门脉期及延迟期消退。',
+        impression: '肝脏多发占位，考虑转移瘤',
+        reportDoctor: '赵丽',
+        reportUrl: '/reports/US003.pdf'
+      }
+    ],
+    labTests: [
+      {
+        id: 'LAB008',
+        testName: '血常规',
+        testDate: '2024-03-12',
+        testItem: '血红蛋白',
+        result: '105',
+        unit: 'g/L',
+        referenceRange: '130-175',
+        flag: '↓'
+      },
+      {
+        id: 'LAB009',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-12',
+        testItem: 'CEA',
+        result: '85.5',
+        unit: 'ng/mL',
+        referenceRange: '0-5.0',
+        flag: '↑'
+      },
+      {
+        id: 'LAB010',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-12',
+        testItem: 'CA19-9',
+        result: '245',
+        unit: 'U/mL',
+        referenceRange: '0-37',
+        flag: '↑'
+      }
+    ],
+    pathologyReports: [
+      {
+        id: 'PATH003',
+        reportDate: '2024-03-13',
+        sampleType: '肠镜活检',
+        sampleSite: '直肠乙状结肠交界处',
+        microscopicFindings: '镜下见癌细胞呈腺管状、乳头状排列，细胞异型性明显，核分裂象多见，间质反应明显。',
+        pathologicalDiagnosis: '（直肠乙状结肠交界处）中分化腺癌',
+        immunohistochemistry: 'CK20(+), CDX2(+), CK7(-), MSI-H, PD-L1(CPS=5)',
+        molecularTest: 'KRAS 突变，NRAS 野生型，BRAF 野生型',
+        reportDoctor: '刘晓燕',
+        reportUrl: '/reports/PATH003.pdf'
+      }
+    ],
+    otherExams: [
+      {
+        id: 'COLON001',
+        examType: '肠镜',
+        examDate: '2024-03-11',
+        findings: '距肛门 15-18cm 可见环周肿物，表面溃烂，管腔狭窄，内镜可通过。',
+        conclusion: '直肠乙状结肠交界处占位，考虑直肠癌',
+        reportUrl: '/reports/COLON001.pdf'
+      }
+    ]
   },
   {
     id: 'P004',
@@ -67,7 +360,93 @@ export const mockPatients: Patient[] = [
     department: '消化内科',
     doctor: '王建国',
     allergies: [],
-    history: ['冠心病史3年']
+    history: ['冠心病史 3 年'],
+    imagingExams: [
+      {
+        id: 'CT004',
+        type: 'CT',
+        examDate: '2024-03-10',
+        examBody: '腹部增强 CT',
+        findings: '胃窦部胃壁不规则增厚，约 2.5cm，增强扫描不均匀强化；肝脏左叶可见低密度灶，约 2.0cm×1.8cm；腹腔淋巴结肿大。',
+        impression: '胃窦部占位，考虑胃癌；肝脏左叶转移；腹腔淋巴结转移',
+        reportDoctor: '王建国',
+        reportUrl: '/reports/CT004.pdf'
+      },
+      {
+        id: 'US004',
+        type: '超声',
+        examDate: '2024-03-09',
+        examBody: '腹部超声',
+        findings: '胃窦部胃壁增厚，约 2.3cm，呈低回声；肝脏左叶可见低回声结节，约 1.8cm×1.5cm。',
+        impression: '胃窦部占位；肝脏左叶占位，考虑转移',
+        reportDoctor: '赵丽',
+        reportUrl: '/reports/US004.pdf'
+      }
+    ],
+    labTests: [
+      {
+        id: 'LAB011',
+        testName: '血常规',
+        testDate: '2024-03-09',
+        testItem: '血红蛋白',
+        result: '95',
+        unit: 'g/L',
+        referenceRange: '115-150',
+        flag: '↓'
+      },
+      {
+        id: 'LAB012',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-09',
+        testItem: 'CEA',
+        result: '45.8',
+        unit: 'ng/mL',
+        referenceRange: '0-5.0',
+        flag: '↑'
+      },
+      {
+        id: 'LAB013',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-09',
+        testItem: 'CA72-4',
+        result: '125',
+        unit: 'U/mL',
+        referenceRange: '0-6.9',
+        flag: '↑'
+      }
+    ],
+    pathologyReports: [
+      {
+        id: 'PATH004',
+        reportDate: '2024-03-11',
+        sampleType: '胃镜活检',
+        sampleSite: '胃窦部',
+        microscopicFindings: '镜下见癌细胞呈弥漫性分布，印戒细胞明显，细胞异型性明显，核分裂象多见。',
+        pathologicalDiagnosis: '（胃窦）低分化腺癌，部分为印戒细胞癌',
+        immunohistochemistry: 'HER2(0), PD-L1(CPS=10), MSI-H',
+        molecularTest: 'EBER(-)',
+        reportDoctor: '刘晓燕',
+        reportUrl: '/reports/PATH004.pdf'
+      }
+    ],
+    otherExams: [
+      {
+        id: 'GASTRO001',
+        examType: '胃镜',
+        examDate: '2024-03-09',
+        findings: '胃窦部可见环周肿物，表面溃烂，覆污秽苔，质脆易出血，管腔狭窄。',
+        conclusion: '胃窦部占位，考虑胃癌',
+        reportUrl: '/reports/GASTRO001.pdf'
+      },
+      {
+        id: 'ECG003',
+        examType: '心电图',
+        examDate: '2024-03-09',
+        findings: '窦性心律，心率 76 次/分，ST-T 改变。',
+        conclusion: '心肌缺血',
+        reportUrl: '/reports/ECG003.pdf'
+      }
+    ]
   },
   {
     id: 'P005',
@@ -81,7 +460,95 @@ export const mockPatients: Patient[] = [
     department: '泌尿外科',
     doctor: '赵红梅',
     allergies: ['头孢类'],
-    history: ['慢性阻塞性肺疾病']
+    history: ['慢性阻塞性肺疾病'],
+    imagingExams: [
+      {
+        id: 'MRI003',
+        type: 'MRI',
+        examDate: '2024-03-06',
+        examBody: '前列腺 MRI 增强',
+        findings: '前列腺体积增大，约 5.5cm×4.8cm×4.2cm，外周带可见多发异常信号灶，T2WI 低信号，增强扫描不均匀强化；精囊腺受侵。',
+        impression: '前列腺占位，考虑前列腺癌；精囊腺受侵',
+        reportDoctor: '李明',
+        reportUrl: '/reports/MRI003.pdf'
+      },
+      {
+        id: 'CT005',
+        type: 'CT',
+        examDate: '2024-03-07',
+        examBody: '盆腔 CT 平扫',
+        findings: '前列腺体积增大，密度不均，可见多发低密度灶；盆腔淋巴结肿大。',
+        impression: '前列腺占位；盆腔淋巴结转移',
+        reportDoctor: '王建国',
+        reportUrl: '/reports/CT005.pdf'
+      },
+      {
+        id: 'ECT001',
+        type: '骨扫描',
+        examDate: '2024-03-08',
+        examBody: '全身骨显像',
+        findings: '全身多处骨骼放射性浓聚异常增高，包括胸椎、腰椎、骨盆、肋骨等。',
+        impression: '全身多发骨转移',
+        reportDoctor: '李明',
+        reportUrl: '/reports/ECT001.pdf'
+      }
+    ],
+    labTests: [
+      {
+        id: 'LAB014',
+        testName: '前列腺特异性抗原',
+        testDate: '2024-03-06',
+        testItem: 't-PSA',
+        result: '125.5',
+        unit: 'ng/mL',
+        referenceRange: '0-4.0',
+        flag: '↑'
+      },
+      {
+        id: 'LAB015',
+        testName: '前列腺特异性抗原',
+        testDate: '2024-03-06',
+        testItem: 'f-PSA',
+        result: '12.8',
+        unit: 'ng/mL',
+        referenceRange: '0-1.0',
+        flag: '↑'
+      },
+      {
+        id: 'LAB016',
+        testName: '前列腺特异性抗原',
+        testDate: '2024-03-06',
+        testItem: 'f-PSA/t-PSA',
+        result: '0.10',
+        unit: '',
+        referenceRange: '>0.16',
+        flag: '↓'
+      }
+    ],
+    pathologyReports: [
+      {
+        id: 'PATH005',
+        reportDate: '2024-03-07',
+        sampleType: '前列腺穿刺活检',
+        sampleSite: '前列腺外周带',
+        microscopicFindings: '镜下见前列腺腺泡结构紊乱，腺体融合，细胞异型性明显，核仁明显。',
+        pathologicalDiagnosis: '（前列腺）腺癌，Gleason 评分 4+5=9 分',
+        immunohistochemistry: 'P504S(+), P63(-), 34βE12(-), NKX3.1(+)',
+        molecularTest: 'AR(+)',
+        reportDoctor: '刘晓燕',
+        reportUrl: '/reports/PATH005.pdf'
+      }
+    ],
+    otherExams: [
+      {
+        id: 'US005',
+        examType: '超声',
+        examDate: '2024-03-06',
+        findings: '前列腺体积增大，约 5.2cm×4.5cm×4.0cm，内回声不均，可见多发低回声结节。',
+        conclusion: '前列腺增大，考虑前列腺癌',
+        reportUrl: '/reports/US005.pdf'
+      }
+    ]
   }
 ]
 

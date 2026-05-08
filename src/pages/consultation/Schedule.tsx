@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Calendar, Badge, List, Avatar, Tag, Space, Button, Modal, DatePicker, message, Typography, Tabs, Table } from 'antd'
+import { Card, Calendar, Badge, List, Avatar, Tag, Space, Button, Modal, DatePicker, message, Typography, Tabs, Table, Drawer } from 'antd'
 import { PlusOutlined, TeamOutlined, CalendarOutlined, EditOutlined, ClockCircleOutlined, CheckCircleOutlined, UserOutlined } from '@ant-design/icons'
 import { mockConsultations, mockExperts } from '../../mocks/data'
 import type { Consultation, Expert } from '../../stores/consultationStore'
 import dayjs from 'dayjs'
 import IntelligentScheduler from '../../components/IntelligentScheduler'
+import PatientInfo from '../../components/PatientInfo'
 
 const { Title, Text } = Typography
 
@@ -14,6 +15,10 @@ export default function Schedule() {
   const [scheduledConsultations, setScheduledConsultations] = useState(mockConsultations.filter(c => c.status === '已通过'))
   const [reschedulingConsultation, setReschedulingConsultation] = useState<Consultation | null>(null)
   const [showScheduler, setShowScheduler] = useState(false)
+  const [patientDrawerVisible, setPatientDrawerVisible] = useState(false)
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('')
+  const [selectedPatientName, setSelectedPatientName] = useState<string>('')
+  const [selectedPatientInpatientNo, setSelectedPatientInpatientNo] = useState<string>('')
   const navigate = useNavigate()
 
   const getListData = (value: dayjs.Dayjs) => {
@@ -48,6 +53,13 @@ export default function Schedule() {
     setShowScheduler(false)
     setReschedulingConsultation(null)
     // TODO: 更新会诊状态和专家安排
+  }
+
+  const showPatientInfo = (patientId: string, patientName: string, patientInpatientNo: string) => {
+    setSelectedPatientId(patientId)
+    setSelectedPatientName(patientName)
+    setSelectedPatientInpatientNo(patientInpatientNo)
+    setPatientDrawerVisible(true)
   }
 
   const pendingConsultations = mockConsultations.filter(c => c.status === '待审核')
@@ -201,10 +213,10 @@ export default function Schedule() {
                   <Button
                     size="small"
                     icon={<UserOutlined />}
-                    onClick={() => navigate(`/patient/detail/${record.patientId}`)}
+                    onClick={() => showPatientInfo(record.patientId, record.patientName, record.patientInpatientNo)}
                     block
                   >
-                    患者详情
+                    患者信息
                   </Button>
                   <Button
                     size="small"
@@ -330,6 +342,21 @@ export default function Schedule() {
           />
         )}
       </Modal>
+
+      <Drawer
+        title="患者详细信息"
+        placement="right"
+        width={1200}
+        open={patientDrawerVisible}
+        onClose={() => setPatientDrawerVisible(false)}
+      >
+        <PatientInfo
+          patientId={selectedPatientId}
+          patientName={selectedPatientName}
+          patientInpatientNo={selectedPatientInpatientNo}
+          compact={false}
+        />
+      </Drawer>
     </div>
   )
 }

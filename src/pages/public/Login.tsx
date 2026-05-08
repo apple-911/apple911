@@ -18,6 +18,7 @@ interface LoginForm {
 
 const roleOptions: { value: Role; label: string }[] = [
   { value: '申请医生', label: '申请医生' },
+  { value: '主任医生', label: '主任医生' },
   { value: 'MDT 秘书', label: 'MDT 秘书' },
   { value: '会诊专家', label: '会诊专家' },
   { value: '质控员', label: '质控员' },

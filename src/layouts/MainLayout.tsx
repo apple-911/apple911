@@ -19,6 +19,7 @@ import {
   ThunderboltOutlined,
   RobotOutlined,
   BellOutlined,
+  BookOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAppStore, Role } from '../stores/appStore'
@@ -31,8 +32,23 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
     { key: '/consultation/apply', icon: <PlusCircleOutlined />, label: '申请会诊' },
     { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
+    { key: '/consultation/tracking', icon: <CalendarOutlined />, label: '会诊进度' },
     { key: '/consultation/submit-material', icon: <FileTextOutlined />, label: 'MDT 材料归档' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
+    {
+      key: 'case-library',
+      icon: <BookOutlined />,
+      label: '病案库',
+      children: [
+        { key: '/case-library', label: '病案库首页' },
+        { key: '/case-library/search', label: '病案检索' },
+        { key: '/case-library/typical', label: '典型病例' },
+        { key: '/case-library/statistics', label: '统计分析' },
+        { key: '/case-library/favorites', label: '我的收藏' },
+        { key: '/case-library/learning', label: '学习进度' },
+        { key: '/case-library/comparison', label: '病例对比' },
+      ]
+    },
     { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {
       key: 'followup',
@@ -41,16 +57,54 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
       children: [
         { key: '/followup/list', label: '随访计划' },
         { key: '/followup/execute', label: '随访执行' },
+        { key: '/followup/planner', label: '计划生成器' },
       ]
     },
+  ],
+  '主任医生': [
+    { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
+    { key: '/consultation/director-confirm', icon: <CheckSquareOutlined />, label: '会诊确认' },
+    { key: '/consultation/tracking', icon: <CalendarOutlined />, label: '会诊进度' },
+    { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
+    {
+      key: 'case-library',
+      icon: <BookOutlined />,
+      label: '病案库',
+      children: [
+        { key: '/case-library', label: '病案库首页' },
+        { key: '/case-library/search', label: '病案检索' },
+        { key: '/case-library/typical', label: '典型病例' },
+        { key: '/case-library/statistics', label: '统计分析' },
+        { key: '/case-library/favorites', label: '我的收藏' },
+        { key: '/case-library/learning', label: '学习进度' },
+        { key: '/case-library/comparison', label: '病例对比' },
+      ]
+    },
+    { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
+    { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
   ],
   'MDT 秘书': [
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
     { key: '/consultation/pending-review', icon: <CheckSquareOutlined />, label: '待审核' },
     { key: '/consultation/schedule', icon: <CalendarOutlined />, label: '排期管理' },
+    { key: '/consultation/tracking', icon: <CalendarOutlined />, label: '会诊进度' },
     { key: '/consultation/material-supervise', icon: <BellOutlined />, label: '材料督办' },
     { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
+    {
+      key: 'case-library',
+      icon: <BookOutlined />,
+      label: '病案库',
+      children: [
+        { key: '/case-library', label: '病案库首页' },
+        { key: '/case-library/search', label: '病案检索' },
+        { key: '/case-library/typical', label: '典型病例' },
+        { key: '/case-library/statistics', label: '统计分析' },
+        { key: '/case-library/favorites', label: '我的收藏' },
+        { key: '/case-library/learning', label: '学习进度' },
+        { key: '/case-library/comparison', label: '病例对比' },
+      ]
+    },
     { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
     { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {
@@ -60,14 +114,31 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
       children: [
         { key: '/followup/list', label: '随访计划' },
         { key: '/followup/execute', label: '随访执行' },
+        { key: '/followup/planner', label: '计划生成器' },
       ]
     },
   ],
   '会诊专家': [
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
+    { key: '/consultation/expert-confirm', icon: <CheckSquareOutlined />, label: '会诊确认' },
     { key: '/consultation/my-meetings', icon: <CalendarOutlined />, label: '我的待参会' },
+    { key: '/consultation/tracking', icon: <CalendarOutlined />, label: '会诊进度' },
     { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
+    {
+      key: 'case-library',
+      icon: <BookOutlined />,
+      label: '病案库',
+      children: [
+        { key: '/case-library', label: '病案库首页' },
+        { key: '/case-library/search', label: '病案检索' },
+        { key: '/case-library/typical', label: '典型病例' },
+        { key: '/case-library/statistics', label: '统计分析' },
+        { key: '/case-library/favorites', label: '我的收藏' },
+        { key: '/case-library/learning', label: '学习进度' },
+        { key: '/case-library/comparison', label: '病例对比' },
+      ]
+    },
     { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
     { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {
@@ -77,12 +148,28 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
       children: [
         { key: '/followup/list', label: '随访计划' },
         { key: '/followup/execute', label: '随访执行' },
+        { key: '/followup/planner', label: '计划生成器' },
       ]
     },
   ],
   '质控员': [
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
+    { key: '/quality/dashboard', icon: <BarChartOutlined />, label: '质控仪表盘' },
     { key: '/quality/tasks', icon: <SafetyOutlined />, label: '质控任务' },
+    {
+      key: 'case-library',
+      icon: <BookOutlined />,
+      label: '病案库',
+      children: [
+        { key: '/case-library', label: '病案库首页' },
+        { key: '/case-library/search', label: '病案检索' },
+        { key: '/case-library/typical', label: '典型病例' },
+        { key: '/case-library/statistics', label: '统计分析' },
+        { key: '/case-library/favorites', label: '我的收藏' },
+        { key: '/case-library/learning', label: '学习进度' },
+        { key: '/case-library/comparison', label: '病例对比' },
+      ]
+    },
     { key: '/statistics', icon: <BarChartOutlined />, label: '统计分析' },
     { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
     { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
@@ -91,6 +178,20 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
     { key: '/admin/expert-list', icon: <TeamOutlined />, label: '专家库' },
     { key: '/admin/team-list', icon: <TeamOutlined />, label: '团队管理' },
+    {
+      key: 'case-library',
+      icon: <BookOutlined />,
+      label: '病案库',
+      children: [
+        { key: '/case-library', label: '病案库首页' },
+        { key: '/case-library/search', label: '病案检索' },
+        { key: '/case-library/typical', label: '典型病例' },
+        { key: '/case-library/statistics', label: '统计分析' },
+        { key: '/case-library/favorites', label: '我的收藏' },
+        { key: '/case-library/learning', label: '学习进度' },
+        { key: '/case-library/comparison', label: '病例对比' },
+      ]
+    },
     { key: '/admin/roles', icon: <SettingOutlined />, label: '角色权限' },
     { key: '/admin/logs', icon: <SafetyOutlined />, label: '系统日志' },
     { key: '/admin/audit-logs', icon: <SafetyOutlined />, label: '审计日志' },
@@ -99,6 +200,20 @@ const menuItemsByRole: Record<Role, MenuProps['items']> = {
     { key: '/dashboard', icon: <DashboardOutlined />, label: '工作台' },
     { key: '/consultation/my-meetings', icon: <CalendarOutlined />, label: '我的待参会' },
     { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
+    {
+      key: 'case-library',
+      icon: <BookOutlined />,
+      label: '病案库',
+      children: [
+        { key: '/case-library', label: '病案库首页' },
+        { key: '/case-library/search', label: '病案检索' },
+        { key: '/case-library/typical', label: '典型病例' },
+        { key: '/case-library/statistics', label: '统计分析' },
+        { key: '/case-library/favorites', label: '我的收藏' },
+        { key: '/case-library/learning', label: '学习进度' },
+        { key: '/case-library/comparison', label: '病例对比' },
+      ]
+    },
     { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
     { key: '/ai/screening', icon: <RobotOutlined />, label: '患者筛查' },
     {

@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Button, Tag, Space, Modal, message, List, Avatar, Typography, Empty, Select, DatePicker } from 'antd'
-import { CheckOutlined, CloseOutlined, CalendarOutlined, ExclamationCircleOutlined, UserOutlined, MedicineBoxOutlined } from '@ant-design/icons'
+import { Card, Button, Tag, Space, Modal, message, List, Avatar, Typography, Empty, Select, DatePicker, Drawer, Input, Descriptions, Tabs, Badge } from 'antd'
+import { CheckOutlined, CloseOutlined, CalendarOutlined, ExclamationCircleOutlined, UserOutlined, MedicineBoxOutlined, FileTextOutlined, UploadOutlined, DatabaseOutlined, PictureOutlined, FilePdfOutlined, EyeOutlined } from '@ant-design/icons'
 import { mockConsultations } from '../../mocks/data'
-import type { Consultation } from '../../stores/consultationStore'
+import type { Consultation, UploadedFile } from '../../stores/consultationStore'
+import PatientInfo from '../../components/PatientInfo'
+import MaterialUpload from '../../components/MaterialUpload'
 
 const { Title, Text } = Typography
+const { TextArea } = Input
 
-// 申请来源类型
 type ApplicationSource = 'doctor' | 'patient'
 
 interface ExtendedConsultation extends Consultation {
@@ -21,7 +23,6 @@ interface ExtendedConsultation extends Consultation {
 }
 
 export default function PendingReview() {
-  // 增补多条待审核数据，包含申请来源
   const [data] = useState<ExtendedConsultation[]>([
     {
       id: 'C001',
@@ -47,7 +48,56 @@ export default function PendingReview() {
       otherDiagnoses: ['高血压 2 级', '2 型糖尿病'],
       consultationPurpose: '明确分期及后续治疗方案',
       source: 'doctor',
-      sourceDetail: '肿瘤科张明华医生申请'
+      sourceDetail: '肿瘤科张明华医生申请',
+      medicalRecords: {
+        chiefComplaint: '咳嗽、咳痰 3 个月，加重伴痰中带血 2 周',
+        presentIllness: '患者 3 个月前无明显诱因出现咳嗽、咳痰，为阵发性刺激性干咳，偶有少量白色粘痰。2 周前症状加重，出现痰中带血。',
+        pastHistory: '高血压病史 5 年，规律服药',
+        physicalExamination: 'T 36.5℃ P 82 次/分 R 18 次/分 BP 135/85mmHg',
+        auxiliaryExamination: '胸部 CT 示：左肺上叶占位性病变',
+        initialDiagnosis: '左肺鳞癌 III 期',
+        treatmentPlan: '拟行新辅助化疗后手术'
+      },
+      uploadedFiles: [
+        {
+          id: 'F001',
+          fileName: '入院记录.pdf',
+          fileType: '病历',
+          fileSize: 524288,
+          uploadTime: '2024-03-15 09:00',
+          uploadUrl: '/files/001.pdf',
+          fromHIS: true
+        },
+        {
+          id: 'F002',
+          fileName: '胸部 CT 报告.pdf',
+          fileType: '检查报告',
+          fileSize: 1048576,
+          uploadTime: '2024-03-15 09:05',
+          uploadUrl: '/files/002.pdf',
+          fromHIS: true
+        },
+        {
+          id: 'F003',
+          fileName: '病理活检报告.pdf',
+          fileType: '病理报告',
+          fileSize: 768000,
+          uploadTime: '2024-03-15 09:10',
+          uploadUrl: '/files/003.pdf',
+          fromHIS: false
+        },
+        {
+          id: 'F004',
+          fileName: '肿瘤标志物检查结果.pdf',
+          fileType: '检验报告',
+          fileSize: 512000,
+          uploadTime: '2024-03-15 09:15',
+          uploadUrl: '/files/004.pdf',
+          fromHIS: true
+        }
+      ],
+      hisDataSynced: true,
+      hisSyncTime: '2024-03-15 08:55'
     },
     {
       id: 'C006',
@@ -72,7 +122,38 @@ export default function PendingReview() {
       otherDiagnoses: ['骨质疏松症'],
       consultationPurpose: '制定术后辅助化疗方案',
       source: 'doctor',
-      sourceDetail: '乳腺外科陈伟医生申请'
+      sourceDetail: '乳腺外科陈伟医生申请',
+      medicalRecords: {
+        chiefComplaint: '乳腺癌术后 1 个月，要求辅助治疗',
+        presentIllness: '患者 1 个月前因"右乳癌"行改良根治术，术后恢复良好。',
+        pastHistory: '骨质疏松症病史 3 年',
+        physicalExamination: 'T 36.3℃ P 76 次/分 R 16 次/分 BP 120/75mmHg',
+        auxiliaryExamination: '术后病理：右乳浸润性导管癌，pT2N1M0',
+        initialDiagnosis: '右乳癌术后 pT2N1M0 IIB 期',
+        treatmentPlan: '拟行辅助化疗 + 内分泌治疗'
+      },
+      uploadedFiles: [
+        {
+          id: 'F006',
+          fileName: '手术记录.pdf',
+          fileType: '病历',
+          fileSize: 614400,
+          uploadTime: '2024-03-15 14:00',
+          uploadUrl: '/files/006.pdf',
+          fromHIS: true
+        },
+        {
+          id: 'F007',
+          fileName: '术后病理报告.pdf',
+          fileType: '病理报告',
+          fileSize: 921600,
+          uploadTime: '2024-03-15 14:05',
+          uploadUrl: '/files/007.pdf',
+          fromHIS: true
+        }
+      ],
+      hisDataSynced: true,
+      hisSyncTime: '2024-03-15 13:55'
     },
     {
       id: 'C007',
@@ -167,6 +248,10 @@ export default function PendingReview() {
     }
   ])
   const [schedulingConsultation, setSchedulingConsultation] = useState<ExtendedConsultation | null>(null)
+  const [patientDrawerVisible, setPatientDrawerVisible] = useState(false)
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('')
+  const [selectedPatientName, setSelectedPatientName] = useState<string>('')
+  const [selectedPatientInpatientNo, setSelectedPatientInpatientNo] = useState<string>('')
   const navigate = useNavigate()
 
   const getSourceBadge = (source: ApplicationSource | undefined) => {
@@ -186,17 +271,60 @@ export default function PendingReview() {
 
   const handleApprove = (consultation: ExtendedConsultation) => {
     const newData = data.filter(d => d.id !== consultation.id)
-    // TODO: 实际应用中应该调用 API 更新状态
     message.success(`已通过 ${consultation.patientName} 的会诊申请（${getSourceLabel(consultation.source)}）`)
   }
 
   const handleReject = (consultation: ExtendedConsultation) => {
     Modal.confirm({
-      title: '确认拒绝',
-      content: `确定要拒绝 ${consultation.patientName} 的会诊申请吗？\n\n申请来源：${getSourceLabel(consultation.source)}`,
+      title: '选择处理方式',
+      content: (
+        <div>
+          <p>确定要处理 {consultation.patientName} 的会诊申请吗？</p>
+          <p className="text-gray-500 mt-2">申请来源：{getSourceLabel(consultation.source)}</p>
+        </div>
+      ),
+      icon: <ExclamationCircleOutlined />,
+      okText: '拒绝申请',
+      cancelText: '退回补充材料',
       onOk: () => {
-        // TODO: 实际应用中应该调用 API 更新状态
-        message.success('已拒绝申请')
+        Modal.confirm({
+          title: '确认拒绝',
+          content: `确定要拒绝 ${consultation.patientName} 的会诊申请吗？\n\n申请来源：${getSourceLabel(consultation.source)}`,
+          onOk: () => {
+            message.success('已拒绝申请')
+          }
+        })
+      },
+      onCancel: () => {
+        showRejectWithReasonModal(consultation)
+      }
+    })
+  }
+
+  const showRejectWithReasonModal = (consultation: ExtendedConsultation) => {
+    let rejectReason = ''
+    
+    Modal.confirm({
+      title: '退回补充材料',
+      content: (
+        <div>
+          <p className="mb-2">请说明需要补充的材料：</p>
+          <TextArea
+            rows={4}
+            placeholder="例如：请补充患者近期影像学检查报告（CT/MRI）、病理报告、实验室检查结果等..."
+            onChange={(e) => rejectReason = e.target.value}
+            autoFocus
+          />
+        </div>
+      ),
+      okText: '确认退回',
+      cancelText: '取消',
+      onOk: () => {
+        if (!rejectReason.trim()) {
+          message.warning('请填写退回原因')
+          return false // 阻止关闭
+        }
+        message.success(`已退回申请，已通知医生补充材料：${rejectReason}`)
       }
     })
   }
@@ -212,7 +340,6 @@ export default function PendingReview() {
         </div>
       ),
       onOk: () => {
-        // TODO: 实际应用中应该调用 API 更新状态
         message.success('已排期，将通知专家')
         navigate('/consultation/schedule')
       }
@@ -231,9 +358,15 @@ export default function PendingReview() {
     }
   }
 
+  const showPatientInfo = (patientId: string, patientName: string, patientInpatientNo: string) => {
+    setSelectedPatientId(patientId)
+    setSelectedPatientName(patientName)
+    setSelectedPatientInpatientNo(patientInpatientNo)
+    setPatientDrawerVisible(true)
+  }
+
   return (
     <div className="space-y-4">
-      {/* 统计卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="text-center" style={{ background: 'var(--xiehe-green-bg)' }}>
           <div className="text-2xl font-bold" style={{ color: 'var(--xiehe-green)' }}>{data.length}</div>
@@ -360,9 +493,9 @@ export default function PendingReview() {
                 </Space>
               </div>
                 <div className="flex justify-between items-center mt-4">
-                  <Button onClick={() => navigate(`/patient/detail/${consultation.patientId}`)}>
+                  <Button onClick={() => showPatientInfo(consultation.patientId, consultation.patientName, consultation.patientInpatientNo)}>
                     <UserOutlined className="mr-1" />
-                    查看患者详情
+                    查看患者信息
                   </Button>
                   <Space>
                     <Button danger icon={<CloseOutlined />} onClick={() => handleReject(consultation)}>
@@ -380,6 +513,175 @@ export default function PendingReview() {
           ))}
         </div>
       )}
+
+      <Drawer
+        title="患者详细信息"
+        placement="right"
+        width={1200}
+        open={patientDrawerVisible}
+        onClose={() => setPatientDrawerVisible(false)}
+      >
+        {selectedPatientId && (() => {
+          // 查找当前选中的会诊申请
+          const selectedConsultation = data.find(c => c.patientId === selectedPatientId)
+          
+          return (
+            <div className="space-y-4">
+              {/* 患者基本信息 */}
+              <PatientInfo
+                patientId={selectedPatientId}
+                patientName={selectedPatientName}
+                patientInpatientNo={selectedPatientInpatientNo}
+                compact={false}
+              />
+
+              {/* 病历资料 */}
+              {selectedConsultation?.medicalRecords && (
+                <Card 
+                  size="small" 
+                  title={
+                    <Space>
+                      <FileTextOutlined />
+                      <span>病历资料</span>
+                      {selectedConsultation.hisDataSynced && (
+                        <Tag color="green" icon={<DatabaseOutlined />}>
+                          HIS 已同步
+                        </Tag>
+                      )}
+                    </Space>
+                  }
+                  className="bg-green-50 border-green-200"
+                >
+                  <Descriptions column={2} size="small">
+                    <Descriptions.Item label="主诉" span={2}>
+                      <div className="whitespace-pre-wrap text-sm">{selectedConsultation.medicalRecords.chiefComplaint || '-'}</div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="现病史" span={2}>
+                      <div className="whitespace-pre-wrap text-sm">{selectedConsultation.medicalRecords.presentIllness || '-'}</div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="既往史" span={2}>
+                      <div className="whitespace-pre-wrap text-sm">{selectedConsultation.medicalRecords.pastHistory || '-'}</div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="体格检查" span={2}>
+                      <div className="whitespace-pre-wrap text-sm">{selectedConsultation.medicalRecords.physicalExamination || '-'}</div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="辅助检查" span={2}>
+                      <div className="whitespace-pre-wrap text-sm">{selectedConsultation.medicalRecords.auxiliaryExamination || '-'}</div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="初步诊断" span={2}>
+                      <div className="whitespace-pre-wrap text-sm font-medium text-blue-600">{selectedConsultation.medicalRecords.initialDiagnosis || '-'}</div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="治疗方案" span={2}>
+                      <div className="whitespace-pre-wrap text-sm">{selectedConsultation.medicalRecords.treatmentPlan || '-'}</div>
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Card>
+              )}
+
+              {/* 附件材料 */}
+              {selectedConsultation?.uploadedFiles && selectedConsultation.uploadedFiles.length > 0 && (
+                <Card 
+                  size="small" 
+                  title={
+                    <Space>
+                      <UploadOutlined />
+                      <span>附件材料（共 {selectedConsultation.uploadedFiles.length} 份）</span>
+                    </Space>
+                  }
+                >
+                  <Tabs
+                    size="small"
+                    type="card"
+                    items={(() => {
+                      const filesByType = selectedConsultation.uploadedFiles?.reduce((acc, file) => {
+                        if (!acc[file.fileType]) {
+                          acc[file.fileType] = []
+                        }
+                        acc[file.fileType].push(file)
+                        return acc
+                      }, {} as Record<string, typeof selectedConsultation.uploadedFiles>) || {}
+
+                      return Object.keys(filesByType).map(type => ({
+                        key: type,
+                        label: (
+                          <Space>
+                            <span>{type}</span>
+                            <Badge count={filesByType[type].length} size="small" />
+                          </Space>
+                        ),
+                        children: (
+                          <List
+                            dataSource={filesByType[type]}
+                            renderItem={(file) => (
+                              <List.Item
+                                actions={[
+                                  <Space key="actions">
+                                    <Button 
+                                      type="link" 
+                                      size="small" 
+                                      icon={<EyeOutlined />}
+                                      onClick={() => window.open(file.uploadUrl, '_blank')}
+                                    >
+                                      查看
+                                    </Button>
+                                    <Button 
+                                      type="link" 
+                                      size="small" 
+                                      icon={<UploadOutlined />}
+                                      onClick={() => {
+                                        const link = document.createElement('a')
+                                        link.href = file.uploadUrl
+                                        link.download = file.fileName
+                                        link.click()
+                                      }}
+                                    >
+                                      下载
+                                    </Button>
+                                  </Space>
+                                ]}
+                              >
+                                <List.Item.Meta
+                                  avatar={
+                                    <Avatar 
+                                      icon={
+                                        file.fileType.includes('影像') || file.fileType.includes('图片') ? 
+                                          <PictureOutlined /> : 
+                                          file.fileType.includes('病理') || file.fileName.endsWith('.pdf') ? 
+                                            <FilePdfOutlined /> : 
+                                            <FileTextOutlined />
+                                      }
+                                      size={40}
+                                      style={{ backgroundColor: file.fromHIS ? '#52c41a' : '#1890ff' }}
+                                    />
+                                  }
+                                  title={
+                                    <Space>
+                                      <Text strong>{file.fileName}</Text>
+                                      {file.fromHIS && (
+                                        <Tag color="green" icon={<DatabaseOutlined />}>HIS</Tag>
+                                      )}
+                                      <Tag color="default">{(file.fileSize / 1024).toFixed(1)} KB</Tag>
+                                    </Space>
+                                  }
+                                  description={
+                                    <div className="text-xs text-gray-500">
+                                      上传时间：{new Date(file.uploadTime).toLocaleString()}
+                                    </div>
+                                  }
+                                />
+                              </List.Item>
+                            )}
+                          />
+                        )
+                      }))
+                    })()}
+                  />
+                </Card>
+              )}
+            </div>
+          )
+        })()}
+      </Drawer>
     </div>
   )
 }

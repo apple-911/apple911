@@ -21,8 +21,22 @@ import ReportEdit from './pages/report/Edit'
 import FollowupList from './pages/followup/List'
 import FollowupExecute from './pages/followup/Execute'
 import Assessment from './pages/followup/Assessment'
+import FollowupPlanner from './pages/followup/Planner'
 import Statistics from './pages/quality/Statistics'
 import QualityTasks from './pages/quality/Tasks'
+import QualityDashboard from './pages/quality/Dashboard'
+import CaseLibraryIndex from './pages/caselibrary/Index'
+import CaseSearch from './pages/caselibrary/Search'
+import CaseDetail from './pages/caselibrary/Detail'
+import TypicalCases from './pages/caselibrary/Typical'
+import CaseStatistics from './pages/caselibrary/Statistics'
+import MyFavorites from './pages/caselibrary/MyFavorites'
+import LearningProgress from './pages/caselibrary/LearningProgress'
+import CaseComparison from './pages/caselibrary/CaseComparison'
+import ConsultationTracking from './pages/consultation/Tracking'
+import DirectorConfirm from './pages/consultation/DirectorConfirm'
+import ExpertConfirm from './pages/consultation/ExpertConfirm'
+import SupplementMaterial from './pages/consultation/SupplementMaterial'
 import MHome from './pages/m/Home'
 import MRoom from './pages/m/Room'
 import ExpertList from './pages/admin/ExpertList'
@@ -77,8 +91,22 @@ function App() {
           <Route path="/followup/list" element={<FollowupList />} />
           <Route path="/followup/execute" element={<FollowupExecute />} />
           <Route path="/followup/assessment" element={<Assessment />} />
+          <Route path="/followup/planner" element={<FollowupPlanner />} />
           <Route path="/statistics" element={<Statistics />} />
           <Route path="/quality/tasks" element={<QualityTasks />} />
+          <Route path="/quality/dashboard" element={<QualityDashboard />} />
+          <Route path="/consultation/tracking" element={<ConsultationTracking />} />
+          <Route path="/consultation/director-confirm" element={<DirectorConfirm />} />
+          <Route path="/consultation/expert-confirm" element={<ExpertConfirm />} />
+          <Route path="/consultation/supplement-material/:id" element={<SupplementMaterial />} />
+          <Route path="/case-library" element={<CaseLibraryIndex />} />
+          <Route path="/case-library/search" element={<CaseSearch />} />
+          <Route path="/case-library/detail/:id" element={<CaseDetail />} />
+          <Route path="/case-library/typical" element={<TypicalCases />} />
+          <Route path="/case-library/statistics" element={<CaseStatistics />} />
+          <Route path="/case-library/favorites" element={<MyFavorites />} />
+          <Route path="/case-library/learning" element={<LearningProgress />} />
+          <Route path="/case-library/comparison" element={<CaseComparison />} />
           <Route path="/admin/expert-list" element={<ExpertList />} />
           <Route path="/admin/team-list" element={<TeamList />} />
           <Route path="/admin/roles" element={<Roles />} />
