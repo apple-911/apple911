@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Tabs, Descriptions, Tag, Space, Typography, Button, List, Badge, Modal, Input, message, Divider, Avatar, Timeline, Rate } from 'antd'
-import { ArrowLeftOutlined, PrinterOutlined, DownloadOutlined, StarOutlined, StarFilled, UserOutlined, TeamOutlined, FileTextOutlined, MedicineBoxOutlined, CheckCircleOutlined, ClockCircleOutlined, MessageOutlined, LikeOutlined, EyeOutlined, ShareAltOutlined } from '@ant-design/icons'
+import { Card, Tabs, Descriptions, Tag, Space, Typography, Button, List, Badge, Modal, Input, message, Divider, Avatar, Timeline, Rate, Table } from 'antd'
+import { ArrowLeftOutlined, PrinterOutlined, DownloadOutlined, StarOutlined, StarFilled, UserOutlined, TeamOutlined, FileTextOutlined, MedicineBoxOutlined, CheckCircleOutlined, ClockCircleOutlined, MessageOutlined, LikeOutlined, EyeOutlined, ShareAltOutlined, HeartOutlined, ToolOutlined, PictureOutlined, RiseOutlined, FileProtectOutlined } from '@ant-design/icons'
 import { mockMedicalCases, type MedicalCase } from '../../mocks/caseData'
 import { useCaseLibraryStore } from '../../stores/caseLibraryStore'
 import SmartRecommendation from '../../components/SmartRecommendation'
+import type { ColumnsType } from 'antd/es/table'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -164,52 +165,295 @@ export default function CaseDetail() {
       children: (
         <Card title="病历资料" size="small">
           <Tabs
-            defaultActiveKey="1"
+            defaultActiveKey="diagnosis"
             size="small"
             items={[
               {
-                key: '1',
-                label: '主诉',
+                key: 'diagnosis',
+                label: (
+                  <Space>
+                    <FileTextOutlined /> 初步诊断
+                  </Space>
+                ),
                 children: (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded text-sm whitespace-pre-line min-h-[100px]">
-                    {caseData.medicalRecord.chiefComplaint}
+                  <div className="space-y-2">
+                    <div className="font-medium text-blue-600 text-base">{caseData.diagnosis.primary}</div>
+                    {caseData.medicalRecord.presentIllness && (
+                      <div>
+                        <Text strong>诊断依据：</Text>
+                        <div className="whitespace-pre-wrap text-sm mt-1">
+                          {caseData.medicalRecord.chiefComplaint}\n\n{caseData.medicalRecord.presentIllness}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ),
               },
               {
-                key: '2',
-                label: '现病史',
-                children: (
-                  <div className="p-4 bg-orange-50 border border-orange-200 rounded text-sm whitespace-pre-line min-h-[150px]">
-                    {caseData.medicalRecord.presentIllness}
-                  </div>
+                key: 'chief',
+                label: (
+                  <Space>
+                    <FileTextOutlined /> 主诉
+                  </Space>
+                ),
+                children: <div className="whitespace-pre-wrap text-sm">{caseData.medicalRecord.chiefComplaint}</div>,
+              },
+              {
+                key: 'present',
+                label: (
+                  <Space>
+                    <HeartOutlined /> 现病史
+                  </Space>
+                ),
+                children: <div className="whitespace-pre-wrap text-sm">{caseData.medicalRecord.presentIllness}</div>,
+              },
+              {
+                key: 'past',
+                label: (
+                  <Space>
+                    <MedicineBoxOutlined /> 既往史
+                  </Space>
+                ),
+                children: <div className="whitespace-pre-wrap text-sm">{caseData.medicalRecord.pastHistory}</div>,
+              },
+              {
+                key: 'physical',
+                label: (
+                  <Space>
+                    <ToolOutlined /> 体格检查
+                  </Space>
+                ),
+                children: <div className="whitespace-pre-wrap text-sm">{caseData.medicalRecord.physicalExam}</div>,
+              },
+              {
+                key: 'imaging',
+                label: (
+                  <Space>
+                    <PictureOutlined /> 影像学检查
+                  </Space>
+                ),
+                children: caseData.imagingExams && caseData.imagingExams.length > 0 ? (
+                  <Tabs
+                    size="small"
+                    type="card"
+                    items={caseData.imagingExams.map(exam => ({
+                      key: exam.id,
+                      label: (
+                        <Space>
+                          <Tag color="blue">{exam.type}</Tag>
+                          <span className="text-xs">{exam.examDate}</span>
+                        </Space>
+                      ),
+                      children: (
+                        <div className="space-y-3">
+                          <div>
+                            <Text strong>检查部位：</Text>
+                            <span className="text-sm">{exam.examBody}</span>
+                          </div>
+                          <div>
+                            <Text strong>检查所见：</Text>
+                            <div className="whitespace-pre-wrap text-sm mt-1">{exam.findings}</div>
+                          </div>
+                          <div>
+                            <Text strong>诊断意见：</Text>
+                            <div className="whitespace-pre-wrap text-sm mt-1 text-blue-600 font-medium">{exam.impression}</div>
+                          </div>
+                          {exam.reportDoctor && (
+                            <div>
+                              <Text strong>报告医生：</Text>
+                              <span className="text-sm">{exam.reportDoctor}</span>
+                            </div>
+                          )}
+                          {exam.reportUrl && (
+                            <div>
+                              <Button type="link" size="small" icon={<FileProtectOutlined />}>
+                                查看报告
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ),
+                    }))}
+                  />
+                ) : (
+                  <div className="text-gray-400 text-center py-8">无影像学检查记录</div>
                 ),
               },
               {
-                key: '3',
-                label: '既往史',
-                children: (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded text-sm whitespace-pre-line min-h-[100px]">
-                    {caseData.medicalRecord.pastHistory}
-                  </div>
+                key: 'lab',
+                label: (
+                  <Space>
+                    <RiseOutlined /> 实验室检查
+                  </Space>
+                ),
+                children: caseData.labTests && caseData.labTests.length > 0 ? (
+                  <Table
+                    columns={[
+                      {
+                        title: '检查日期',
+                        dataIndex: 'testDate',
+                        key: 'testDate',
+                        width: 100,
+                        sorter: (a, b) => a.testDate.localeCompare(b.testDate),
+                      },
+                      {
+                        title: '检查项目',
+                        dataIndex: 'testName',
+                        key: 'testName',
+                        width: 150,
+                      },
+                      {
+                        title: '具体指标',
+                        dataIndex: 'testItem',
+                        key: 'testItem',
+                        width: 150,
+                      },
+                      {
+                        title: '结果',
+                        dataIndex: 'result',
+                        key: 'result',
+                        width: 80,
+                        render: (value: string, record: any) => (
+                          <Space>
+                            <span className="font-medium">{value}</span>
+                            {record.flag && record.flag !== '正常' && (
+                              <Tag color={record.flag === '↑' || record.flag === 'H' ? 'red' : 'green'}>
+                                {record.flag}
+                              </Tag>
+                            )}
+                            {record.flag === '正常' && <Tag color="green">正常</Tag>}
+                          </Space>
+                        ),
+                      },
+                      {
+                        title: '单位',
+                        dataIndex: 'unit',
+                        key: 'unit',
+                        width: 100,
+                      },
+                      {
+                        title: '参考范围',
+                        dataIndex: 'referenceRange',
+                        key: 'referenceRange',
+                        width: 120,
+                      },
+                    ] as ColumnsType<any>}
+                    dataSource={caseData.labTests}
+                    rowKey="id"
+                    pagination={false}
+                    size="small"
+                    scroll={{ x: 800 }}
+                  />
+                ) : (
+                  <div className="text-gray-400 text-center py-8">无实验室检查记录</div>
                 ),
               },
               {
-                key: '4',
-                label: '体格检查',
-                children: (
-                  <div className="p-4 bg-cyan-50 border border-cyan-200 rounded text-sm whitespace-pre-line min-h-[100px]">
-                    {caseData.medicalRecord.physicalExam}
+                key: 'pathology',
+                label: (
+                  <Space>
+                    <FileTextOutlined /> 病理报告
+                  </Space>
+                ),
+                children: caseData.pathologyReports && caseData.pathologyReports.length > 0 ? (
+                  <div className="space-y-4">
+                    {caseData.pathologyReports.map(report => (
+                      <Card key={report.id} size="small" className="bg-gray-50">
+                        <div className="space-y-2">
+                          <div>
+                            <Text strong>报告日期：</Text>
+                            <span className="text-sm">{report.reportDate}</span>
+                          </div>
+                          <div>
+                            <Text strong>标本类型：</Text>
+                            <Tag color="blue">{report.sampleType}</Tag>
+                          </div>
+                          <div>
+                            <Text strong>取材部位：</Text>
+                            <span className="text-sm">{report.sampleSite}</span>
+                          </div>
+                          <div>
+                            <Text strong>镜下所见：</Text>
+                            <div className="whitespace-pre-wrap text-sm mt-1">{report.microscopicFindings}</div>
+                          </div>
+                          <div>
+                            <Text strong>病理诊断：</Text>
+                            <div className="whitespace-pre-wrap text-sm mt-1 font-medium text-blue-600">{report.pathologicalDiagnosis}</div>
+                          </div>
+                          {report.immunohistochemistry && (
+                            <div>
+                              <Text strong>免疫组化：</Text>
+                              <div className="whitespace-pre-wrap text-sm mt-1">{report.immunohistochemistry}</div>
+                            </div>
+                          )}
+                          {report.molecularTest && (
+                            <div>
+                              <Text strong>分子检测：</Text>
+                              <div className="whitespace-pre-wrap text-sm mt-1">{report.molecularTest}</div>
+                            </div>
+                          )}
+                          {report.reportDoctor && (
+                            <div>
+                              <Text strong>报告医生：</Text>
+                              <span className="text-sm">{report.reportDoctor}</span>
+                            </div>
+                          )}
+                          {report.reportUrl && (
+                            <div>
+                              <Button type="link" size="small" icon={<FileProtectOutlined />}>
+                                查看报告
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
                   </div>
+                ) : (
+                  <div className="text-gray-400 text-center py-8">无病理报告</div>
                 ),
               },
               {
-                key: '5',
-                label: '辅助检查',
-                children: (
-                  <div className="p-4 bg-purple-50 border border-purple-200 rounded text-sm whitespace-pre-line min-h-[150px]">
-                    {caseData.medicalRecord.auxiliaryExam}
+                key: 'other',
+                label: (
+                  <Space>
+                    <FileTextOutlined /> 其他检查
+                  </Space>
+                ),
+                children: caseData.otherExams && caseData.otherExams.length > 0 ? (
+                  <div className="space-y-4">
+                    {caseData.otherExams.map(exam => (
+                      <Card key={exam.id} size="small" className="bg-gray-50">
+                        <div className="space-y-2">
+                          <div>
+                            <Text strong>检查类型：</Text>
+                            <Tag color="blue">{exam.examType}</Tag>
+                          </div>
+                          <div>
+                            <Text strong>检查日期：</Text>
+                            <span className="text-sm">{exam.examDate}</span>
+                          </div>
+                          <div>
+                            <Text strong>检查所见：</Text>
+                            <div className="whitespace-pre-wrap text-sm mt-1">{exam.findings}</div>
+                          </div>
+                          <div>
+                            <Text strong>检查结论：</Text>
+                            <div className="whitespace-pre-wrap text-sm mt-1 font-medium text-blue-600">{exam.conclusion}</div>
+                          </div>
+                          {exam.reportUrl && (
+                            <div>
+                              <Button type="link" size="small" icon={<FileProtectOutlined />}>
+                                查看报告
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
                   </div>
+                ) : (
+                  <div className="text-gray-400 text-center py-8">无其他检查记录</div>
                 ),
               },
             ]}

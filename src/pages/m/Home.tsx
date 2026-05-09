@@ -18,7 +18,7 @@ export default function MHome() {
   const [activeTab, setActiveTab] = useState('home')
 
   const todayMeetings = mockConsultations.filter(c => c.status === '进行中')
-  const pendingCount = mockConsultations.filter(c => c.status === '待审核').length
+  const pendingCount = mockConsultations.filter(c => c.status === '待科室审核').length
   const todoCount = pendingCount + mockFollowupPlans.filter(f => f.status === '进行中').length
 
   const menuItems: MenuProps['items'] = [
@@ -138,7 +138,7 @@ export default function MHome() {
             <Title level={5} style={{ fontSize: '16px', fontWeight: 600 }}>待办事项 ({todoCount})</Title>
             <List
               dataSource={[
-                ...mockConsultations.filter(c => c.status === '待审核').map(c => ({
+                ...mockConsultations.filter(c => c.status === '待科室审核').map(c => ({
                   id: c.id,
                   title: '会诊待审核',
                   desc: `${c.patientName} - ${c.mainDiagnosis}`,

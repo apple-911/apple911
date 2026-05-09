@@ -62,7 +62,7 @@ export default function Schedule() {
     setPatientDrawerVisible(true)
   }
 
-  const pendingConsultations = mockConsultations.filter(c => c.status === '待审核')
+  const pendingConsultations = mockConsultations.filter(c => c.status === '待科室审核')
 
   // 专家时间数据（Mock）
   const expertAvailability = mockExperts.map(expert => ({
@@ -336,7 +336,7 @@ export default function Schedule() {
             experts={reschedulingConsultation.experts}
             scheduledEvents={scheduledEvents}
             expertAvailability={expertAvailability}
-            mode={reschedulingConsultation.status === '待审核' ? 'schedule' : 'reschedule'}
+            mode={reschedulingConsultation.status === '待科室审核' ? 'schedule' : 'reschedule'}
             existingConsultation={reschedulingConsultation}
             onSchedule={handleConfirmSchedule}
           />

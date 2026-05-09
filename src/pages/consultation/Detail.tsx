@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Tabs, Tag, Space, Button, Descriptions, List, Avatar, Typography, Row, Col, Timeline, message, Modal, Badge, Alert } from 'antd'
+import { Card, Tabs, Tag, Space, Button, Descriptions, List, Avatar, Typography, Row, Col, Timeline, message, Modal, Badge, Alert, Steps } from 'antd'
 import {
   UserOutlined,
   TeamOutlined,
@@ -12,9 +12,14 @@ import {
   EditOutlined,
   DownloadOutlined,
   ThunderboltOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons'
 import { mockConsultations, mockPatients, mockReports } from '../../mocks/data'
 import type { Patient } from '../../stores/consultationStore'
+import type { AuditRecord } from '../../stores/consultationStore'
 
 const { Title, Text } = Typography
 
@@ -164,6 +169,65 @@ export default function ConsultationDetail() {
                       </List.Item>
                     )}
                   />
+
+                  {/* 审核流程 */}
+                  <div className="mt-6">
+                    <Title level={5}>审核流程</Title>
+                    <Timeline
+                      mode="left"
+                      items={consultation.auditHistory?.map((audit: AuditRecord) => {
+                        const colorMap: Record<string, string> = {
+                          '已提交': 'blue',
+                          '通过': 'green',
+                          '拒绝': 'red',
+                          '退回补充': 'orange',
+                          '待审核': 'blue',
+                        }
+                        const iconMap: Record<string, React.ReactNode> = {
+                          '已提交': <FileTextOutlined />,
+                          '通过': <CheckCircleOutlined />,
+                          '拒绝': <CloseCircleOutlined />,
+                          '退回补充': <ExclamationCircleOutlined />,
+                          '待审核': <ClockCircleOutlined />,
+                        }
+                        return {
+                          color: colorMap[audit.result] || 'gray',
+                          dot: iconMap[audit.result] || <ClockCircleOutlined />,
+                          label: (
+                            <div className="flex justify-between items-center">
+                              <Space>
+                                <Tag color={audit.node === '提交申请' ? 'cyan' : audit.node === '科室审核' ? 'blue' : audit.node === '秘书审核' ? 'purple' : 'orange'}>
+                                  {audit.node}
+                                </Tag>
+                                <Text strong>{audit.operator}</Text>
+                                <Text className="text-gray-500">{audit.operatorRole}</Text>
+                              </Space>
+                              <Tag color={colorMap[audit.result] || 'gray'}>
+                                {audit.result}
+                              </Tag>
+                            </div>
+                          ),
+                          children: (
+                            <div className="ml-2">
+                              <div className="text-sm text-gray-500 mb-1">{audit.time}</div>
+                              {audit.opinion && (
+                                <div className="text-sm">
+                                  <Text strong>审核意见：</Text>
+                                  <Text>{audit.opinion}</Text>
+                                </div>
+                              )}
+                              {audit.rejectReason && (
+                                <div className="text-sm mt-1">
+                                  <Text strong type="danger">原因：</Text>
+                                  <Text type="danger">{audit.rejectReason}</Text>
+                                </div>
+                              )}
+                            </div>
+                          ),
+                        }
+                      }) || []}
+                    />
+                  </div>
                 </div>
               )
             },

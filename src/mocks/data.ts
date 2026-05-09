@@ -561,12 +561,12 @@ export const mockConsultations: Consultation[] = [
     type: '院内',
     applyTime: '2024-03-15 09:30',
     expectTime: '2024-03-20 14:00',
-    status: '待审核',
+    status: '待科室审核',
     urgency: '紧急',
     department: '肿瘤科',
     applyDoctor: '张明华',
     experts: [mockExperts[0], mockExperts[1], mockExperts[2]],
-    mainDiagnosis: '左肺鳞癌III期，综合治疗方案讨论'
+    mainDiagnosis: '左肺鳞癌 III 期，综合治疗方案讨论'
   },
   {
     id: 'C002',

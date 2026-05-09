@@ -23,6 +23,46 @@ export interface MedicalCase {
     physicalExam: string
     auxiliaryExam: string
   }
+  imagingExams?: Array<{
+    id: string
+    type: string
+    examDate: string
+    examBody: string
+    findings: string
+    impression: string
+    reportDoctor: string
+    reportUrl?: string
+  }>
+  labTests?: Array<{
+    id: string
+    testName: string
+    testDate: string
+    testItem: string
+    result: string
+    unit: string
+    referenceRange: string
+    flag: string
+  }>
+  pathologyReports?: Array<{
+    id: string
+    reportDate: string
+    sampleType: string
+    sampleSite: string
+    microscopicFindings: string
+    pathologicalDiagnosis: string
+    immunohistochemistry?: string
+    molecularTest?: string
+    reportDoctor: string
+    reportUrl?: string
+  }>
+  otherExams?: Array<{
+    id: string
+    examType: string
+    examDate: string
+    findings: string
+    conclusion: string
+    reportUrl?: string
+  }>
   mdtInfo: {
     meetingDate: string
     location: string
@@ -232,11 +272,211 @@ export const mockMedicalCases: MedicalCase[] = [
     },
     medicalRecord: {
       chiefComplaint: '便血伴排便习惯改变3个月',
-      presentIllness: '患者3个月前出现便血，鲜红色，伴排便习惯改变，大便变细。肠镜示：直肠距肛门8cm处见一菜花样肿物。',
-      pastHistory: '2型糖尿病史8年，目前使用胰岛素治疗。',
-      physicalExam: '直肠指检：距肛门8cm处可触及一质硬肿物，占肠腔1/2周。',
-      auxiliaryExam: '肠镜：直肠距肛门8cm处菜花样肿物。病理：直肠腺癌。腹部CT：肝右叶见2个转移灶，最大约3cm。',
+      presentIllness: `患者 3 个月前无明显诱因出现便血，为鲜红色血液，附于大便表面，伴排便习惯改变，大便变细，每日 2-3 次，无黏液脓血便，无腹痛、腹胀等不适。遂来我院就诊。
+
+门诊肠镜检查示：直肠距肛门 8cm 处见一菜花样肿物，约占肠腔 1/2 周。活检病理示：直肠腺癌。为求进一步诊治，门诊以"直肠癌"收入我科。
+
+患者自发病以来，精神可，睡眠佳，食欲正常，大小便如上述，体重近 3 个月下降约 3kg。`,
+      pastHistory: `2 型糖尿病史 8 年，目前使用胰岛素治疗，血糖控制尚可。
+
+否认高血压、冠心病等慢性病史。否认肝炎、结核等传染病史。否认手术外伤史。否认输血史。否认药物及食物过敏史。
+
+个人史：生于原籍，久居本地，无疫区接触史，无放射性物质、粉尘及毒物接触史。吸烟史 30 年，约 20 支/天，已戒烟 5 年。偶饮酒。
+
+婚育史：28 岁结婚，配偶体健，育有 1 子，体健。
+
+家族史：父亲患结肠癌（65 岁确诊），已故。母亲患糖尿病，健在。`,
+      physicalExam: `T 36.5℃  P 82 次/分  R 18 次/分  BP 130/80mmHg
+
+一般情况：发育正常，营养中等，神志清，精神可，自主体位，查体合作。
+
+皮肤黏膜：全身皮肤黏膜无黄染、皮疹及出血点。
+
+淋巴结：全身浅表淋巴结未触及肿大。
+
+胸部：胸廓对称，双肺呼吸音清，未闻及干湿啰音。心率 82 次/分，律齐，各瓣膜听诊区未闻及病理性杂音。
+
+腹部：腹平软，无压痛、反跳痛及肌紧张，肝脾肋下未触及，肠鸣音正常。
+
+直肠指检：距肛门 8cm 处可触及一质硬肿物，占肠腔 1/2 周，活动度可，指套退出时可见鲜血。
+
+四肢及脊柱：四肢活动自如，无水肿，脊柱无畸形。
+
+神经系统：生理反射存在，病理反射未引出。`,
+      auxiliaryExam: `1. 肠镜（2024-03-08）：直肠距肛门 8cm 处见一菜花样肿物，约占肠腔 1/2 周。活检病理示：直肠腺癌，中分化。
+
+2. 病理报告（2024-03-09）：（直肠）腺癌，中分化。免疫组化：CK20(+)，CDX2(+)，CK7(-)，Ki-67(60%+)，MMR 蛋白表达正常。
+
+3. 腹部增强 CT（2024-03-10）：直肠壁不规则增厚，考虑直肠癌；肝右叶见 2 个低密度灶，较大者约 3cm×2.5cm，考虑转移瘤；腹腔及腹膜后未见明显肿大淋巴结。
+
+4. 胸部 CT（2024-03-10）：双肺未见明显转移灶。
+
+5. 肿瘤标志物（2024-03-09）：CEA 15.8ng/mL↑，CA19-9 45.6U/mL↑。
+
+6. 基因检测（2024-03-11）：KRAS 野生型，NRAS 野生型，BRAF 野生型。
+
+7. 血常规（2024-03-09）：WBC 6.8×10^9/L，Hb 125g/L，PLT 235×10^9/L。
+
+8. 肝肾功能（2024-03-09）：ALT 28U/L，AST 25U/L，Cr 75μmol/L。
+
+9. 心电图（2024-03-09）：窦性心律，正常心电图。
+
+10. 超声心动图（2024-03-09）：LVEF 65%，心脏结构及功能未见异常。`,
     },
+    imagingExams: [
+      {
+        id: 'CT003-1',
+        type: 'CT',
+        examDate: '2024-03-10',
+        examBody: '腹部增强 CT',
+        findings: '直肠壁不规则增厚，考虑直肠癌；肝右叶见 2 个低密度灶，较大者约 3cm×2.5cm，考虑转移瘤；腹腔及腹膜后未见明显肿大淋巴结。',
+        impression: '直肠占位，考虑恶性；肝右叶转移瘤',
+        reportDoctor: '王建国',
+        reportUrl: '/reports/C003_ct.pdf'
+      },
+      {
+        id: 'CT003-2',
+        type: 'CT',
+        examDate: '2024-03-10',
+        examBody: '胸部 CT 平扫',
+        findings: '双肺未见明显转移灶，纵隔淋巴结未见明显肿大。',
+        impression: '胸部 CT 未见明显转移',
+        reportDoctor: '王建国',
+        reportUrl: '/reports/C003_chest_ct.pdf'
+      },
+      {
+        id: 'US003',
+        type: '超声',
+        examDate: '2024-03-09',
+        examBody: '腹部超声',
+        findings: '肝右叶见 2 个低回声灶，较大者约 3cm×2.5cm，边界清，内部回声不均。',
+        impression: '肝右叶占位，考虑转移瘤',
+        reportDoctor: '赵丽',
+        reportUrl: '/reports/C003_us.pdf'
+      }
+    ],
+    labTests: [
+      {
+        id: 'LAB003-1',
+        testName: '血常规',
+        testDate: '2024-03-09',
+        testItem: '白细胞计数',
+        result: '6.8',
+        unit: '×10^9/L',
+        referenceRange: '3.5-9.5',
+        flag: '正常'
+      },
+      {
+        id: 'LAB003-2',
+        testName: '血常规',
+        testDate: '2024-03-09',
+        testItem: '血红蛋白',
+        result: '125',
+        unit: 'g/L',
+        referenceRange: '130-175',
+        flag: '↓'
+      },
+      {
+        id: 'LAB003-3',
+        testName: '血常规',
+        testDate: '2024-03-09',
+        testItem: '血小板计数',
+        result: '235',
+        unit: '×10^9/L',
+        referenceRange: '125-350',
+        flag: '正常'
+      },
+      {
+        id: 'LAB003-4',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-09',
+        testItem: 'CEA',
+        result: '15.8',
+        unit: 'ng/mL',
+        referenceRange: '0-5.0',
+        flag: '↑'
+      },
+      {
+        id: 'LAB003-5',
+        testName: '肿瘤标志物',
+        testDate: '2024-03-09',
+        testItem: 'CA19-9',
+        result: '45.6',
+        unit: 'U/mL',
+        referenceRange: '0-37',
+        flag: '↑'
+      },
+      {
+        id: 'LAB003-6',
+        testName: '肝功能',
+        testDate: '2024-03-09',
+        testItem: 'ALT',
+        result: '28',
+        unit: 'U/L',
+        referenceRange: '0-40',
+        flag: '正常'
+      },
+      {
+        id: 'LAB003-7',
+        testName: '肝功能',
+        testDate: '2024-03-09',
+        testItem: 'AST',
+        result: '25',
+        unit: 'U/L',
+        referenceRange: '0-40',
+        flag: '正常'
+      },
+      {
+        id: 'LAB003-8',
+        testName: '肾功能',
+        testDate: '2024-03-09',
+        testItem: 'Cr',
+        result: '75',
+        unit: 'μmol/L',
+        referenceRange: '57-111',
+        flag: '正常'
+      }
+    ],
+    pathologyReports: [
+      {
+        id: 'PATH003',
+        reportDate: '2024-03-09',
+        sampleType: '肠镜活检',
+        sampleSite: '直肠距肛门 8cm 处',
+        microscopicFindings: '镜下见癌细胞呈腺管状排列，细胞异型性明显，核分裂象多见，间质反应明显。',
+        pathologicalDiagnosis: '（直肠）腺癌，中分化',
+        immunohistochemistry: 'CK20(+)，CDX2(+)，CK7(-)，Ki-67(60%+)，MMR 蛋白表达正常',
+        molecularTest: 'KRAS 野生型，NRAS 野生型，BRAF 野生型',
+        reportDoctor: '刘晓燕',
+        reportUrl: '/reports/C003_pathology.pdf'
+      }
+    ],
+    otherExams: [
+      {
+        id: 'ECG003',
+        examType: '心电图',
+        examDate: '2024-03-09',
+        findings: '窦性心律，心率 82 次/分，PR 间期 160ms，QRS 时限 90ms，电轴不偏。',
+        conclusion: '正常心电图',
+        reportUrl: '/reports/C003_ecg.pdf'
+      },
+      {
+        id: 'ECHO003',
+        examType: '超声心动图',
+        examDate: '2024-03-09',
+        findings: 'LVEF 65%，心脏结构及功能未见异常，各瓣膜未见明显反流。',
+        conclusion: '心脏结构及功能未见异常',
+        reportUrl: '/reports/C003_echo.pdf'
+      },
+      {
+        id: 'GENE003',
+        examType: '基因检测',
+        examDate: '2024-03-11',
+        findings: 'KRAS 基因 2/3/4 密码子野生型，NRAS 基因野生型，BRAF 基因 V600E 野生型。',
+        conclusion: 'KRAS/NRAS/BRAF 均为野生型，提示对 EGFR 靶向治疗敏感',
+        reportUrl: '/reports/C003_gene.pdf'
+      }
+    ],
     mdtInfo: {
       meetingDate: '2024-03-13',
       location: 'MDT会诊中心',

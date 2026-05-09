@@ -774,14 +774,14 @@ export default function Patient360() {
               <Col span={12}>
                 <Card title={<><FileProtectOutlined /> 入院信息</>} size="small" className="h-full">
                   <Descriptions column={2} size="small">
-                    <Descriptions.Item label="入院时间">{patient.admissionTime}</Descriptions.Item>
                     <Descriptions.Item label="病区">胸外科 A 区</Descriptions.Item>
-                    <Descriptions.Item label="护理级别"><Tag color="green">二级护理</Tag></Descriptions.Item>
+                    <Descriptions.Item label="床号">15 床</Descriptions.Item>
                     <Descriptions.Item label="费用类别"><Tag color="blue">医保</Tag></Descriptions.Item>
-                    <Descriptions.Item label="联系人">张建国（子）</Descriptions.Item>
-                    <Descriptions.Item label="联系电话">138****1234</Descriptions.Item>
                     <Descriptions.Item label="入院方式">步行入院</Descriptions.Item>
                     <Descriptions.Item label="婚姻状况">已婚</Descriptions.Item>
+                    <Descriptions.Item label="联系人">张建国（子）</Descriptions.Item>
+                    <Descriptions.Item label="联系人电话">138****1234</Descriptions.Item>
+                    <Descriptions.Item label="关系">父子</Descriptions.Item>
                   </Descriptions>
                 </Card>
               </Col>
@@ -1244,7 +1244,7 @@ export default function Patient360() {
                   <Alert
                     type="info"
                     message="肿瘤标志物变化趋势"
-                    description="显示患者近6个月的肿瘤标志物变化情况，数值下降表示治疗效果良好。"
+                    description="显示患者近 6 个月的肿瘤标志物变化情况，数值下降表示治疗效果良好。"
                     showIcon
                   />
                   

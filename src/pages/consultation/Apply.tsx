@@ -1,17 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
-import { Card, Steps, Form, Input, Select, DatePicker, Button, Table, Tag, Space, message, Modal, Upload, List, Avatar, Typography, Row, Col, Spin, Alert, Badge, Divider, Tooltip, Drawer, Progress, Tabs } from 'antd'
+import { Card, Steps, Form, Input, Select, DatePicker, Button, Table, Tag, Space, message, Modal, Upload, List, Avatar, Typography, Row, Col, Spin, Alert, Badge, Divider, Tooltip, Drawer, Progress, Tabs, Radio } from 'antd'
 import { SearchOutlined, UserAddOutlined, UploadOutlined, PlusOutlined, CheckCircleOutlined, RobotOutlined, ThunderboltOutlined, FileProtectOutlined, WarningOutlined, CheckCircleFilled, StarFilled, UserOutlined, DatabaseOutlined, SyncOutlined, TeamOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons'
 import { mockPatients, mockExperts } from '../../mocks/data'
 import type { ColumnsType } from 'antd/es/table'
 import type { Patient, Expert, UploadedFile } from '../../stores/consultationStore'
+import type { MDTNecessityAssessment } from '../../services/integration/ai/aiPatientScreeningService'
 import dayjs from 'dayjs'
 import intelligentConsultationService, { IntelligentApplication, ExpertMatch } from '../../services/integration/ai/intelligentConsultationService'
+import aiPatientScreeningService from '../../services/integration/ai/aiPatientScreeningService'
 import PatientInfo from '../../components/PatientInfo'
 import MaterialUpload from '../../components/MaterialUpload'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
+
+interface PatientWithAI extends Patient {
+  aiAssessment?: MDTNecessityAssessment
+}
 
 export default function Apply() {
   const [searchParams] = useSearchParams()
@@ -21,6 +27,11 @@ export default function Apply() {
   const [selectedExperts, setSelectedExperts] = useState<Expert[]>([])
   const [form] = Form.useForm()
   const navigate = useNavigate()
+  
+  // 搜索和筛选状态
+  const [searchText, setSearchText] = useState('')
+  const [departmentFilter, setDepartmentFilter] = useState('')
+  const [aiFilter, setAiFilter] = useState('') // AI 预判筛选
   
   // AI 辅助相关状态
   const [aiLoading, setAiLoading] = useState(false)
@@ -40,6 +51,21 @@ export default function Apply() {
   const [medicalRecords, setMedicalRecords] = useState<any>({})
   const [hisDataSynced, setHisDataSynced] = useState(false)
   const [hisSyncLoading, setHisSyncLoading] = useState(false)
+  
+  // 患者数据（带 AI 评估）
+  const [patientsWithAI, setPatientsWithAI] = useState<PatientWithAI[]>([])
+
+  // 初始化患者数据（直接使用已有的 AI 评估结果）
+  useEffect(() => {
+    // 直接使用 mock 数据中的 AI 评估结果
+    // 实际项目中，这些数据应该从后端 API 获取
+    const patientsData: PatientWithAI[] = mockPatients.map(p => ({
+      ...p,
+      // 如果患者数据中已有 AI 评估结果，直接使用
+      // 如果没有，则不显示（实际项目中应该都有）
+    }))
+    setPatientsWithAI(patientsData)
+  }, [])
 
   // 从 URL 参数中获取患者 ID 或随访信息并自动选择患者
   useEffect(() => {
@@ -89,17 +115,202 @@ export default function Apply() {
     }
   }, [searchParams, location.state])
 
-  const patientColumns: ColumnsType<Patient> = [
-    { title: '姓名', dataIndex: 'name', render: (t) => <a onClick={() => {
-      const patient = mockPatients.find(p => p.name === t)
-      if (patient) handlePatientSelect(patient)
-    }}>{t}</a> },
+  const patientColumns: ColumnsType<PatientWithAI> = [
+    { 
+      title: '姓名', 
+      dataIndex: 'name', 
+      render: (t, record) => (
+        <Space>
+          <a onClick={() => handlePatientSelect(record)}>{t}</a>
+          <Tooltip title="查看患者 360 视图">
+            <Button 
+              type="link" 
+              size="small" 
+              icon={<EyeOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/patient/360/${record.id}`)
+              }}
+            />
+          </Tooltip>
+        </Space>
+      )
+    },
     { title: '住院号', dataIndex: 'inpatientNo' },
     { title: '性别', dataIndex: 'gender' },
     { title: '年龄', dataIndex: 'age' },
     { title: '主要诊断', dataIndex: 'mainDiagnosis', ellipsis: true },
+    { title: '科室', dataIndex: 'department' },
     { title: '主治医生', dataIndex: 'doctor' },
+    {
+      title: '最近会诊',
+      dataIndex: 'lastConsultationTime',
+      width: 120,
+      render: (text) => text ? <Text type="secondary">{text}</Text> : <Text type="secondary">无</Text>
+    },
+    {
+      title: 'AI MDT 预判',
+      key: 'aiAssessment',
+      width: 220,
+      render: (_, record) => {
+        if (!record.aiAssessment) {
+          return (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <Tag 
+                style={{ 
+                  margin: 0, 
+                  height: '28px',
+                  lineHeight: '26px',
+                  padding: '0 8px',
+                  fontSize: '12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '100px',
+                  color: '#999',
+                  border: '1px solid #d9d9d9',
+                  background: '#fafafa'
+                }}
+              >
+                未评估
+              </Tag>
+              <Button 
+                type="primary"
+                ghost
+                size="small"
+                style={{ 
+                  height: '28px',
+                  fontSize: '12px',
+                  padding: '0 8px',
+                  width: '100px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  message.loading('AI 评估中...', 0)
+                  try {
+                    const assessment = await aiPatientScreeningService.assessMDTNecessity(record.id)
+                    const updated = patientsWithAI.map(p => 
+                      p.id === record.id ? { ...p, aiAssessment: assessment } : p
+                    )
+                    setPatientsWithAI(updated)
+                    message.success('AI 评估完成')
+                  } catch (error) {
+                    message.error('AI 评估失败')
+                  } finally {
+                    message.destroy()
+                  }
+                }}
+              >
+                AI 评估
+              </Button>
+            </div>
+          )
+        }
+        
+        const score = record.aiAssessment.necessityScore
+        const level = record.aiAssessment.recommendationLevel
+        
+        let color = 'default'
+        let text = level as string
+        
+        if (level === '强烈推荐') {
+          color = 'red'
+          text = `强烈推荐`
+        } else if (level === '推荐') {
+          color = 'orange'
+          text = '推荐'
+        } else if (level === '可考虑') {
+          color = 'blue'
+          text = '可考虑'
+        } else {
+          color = 'green'
+          text = '不推荐'
+        }
+        
+        return (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <Tooltip title={
+              <div style={{ padding: '4px 0' }}>
+                <div><strong>评分：</strong>{score}分</div>
+                <div><strong>置信度：</strong>{record.aiAssessment.confidence}%</div>
+                <div><strong>推荐类型：</strong>{record.aiAssessment.recommendedType}</div>
+                <div><strong>紧急程度：</strong>{record.aiAssessment.urgency}</div>
+              </div>
+            }>
+              <Tag 
+                color={color} 
+                style={{ 
+                  margin: 0, 
+                  cursor: 'pointer',
+                  height: '28px',
+                  lineHeight: '26px',
+                  padding: '0 8px',
+                  fontSize: '12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '100px'
+                }}
+              >
+                {text}
+              </Tag>
+            </Tooltip>
+            <Button 
+              type="primary"
+              ghost
+              size="small"
+              style={{ 
+                height: '28px',
+                fontSize: '12px',
+                padding: '0 8px',
+                width: '100px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onClick={async (e) => {
+                e.stopPropagation()
+                message.loading('重新评估中...', 0)
+                try {
+                  const assessment = await aiPatientScreeningService.assessMDTNecessity(record.id)
+                  const updated = patientsWithAI.map(p => 
+                    p.id === record.id ? { ...p, aiAssessment: assessment } : p
+                  )
+                  setPatientsWithAI(updated)
+                  message.success('重新评估完成')
+                } catch (error) {
+                  message.error('重新评估失败')
+                } finally {
+                  message.destroy()
+                }
+              }}
+            >
+              重新评估
+            </Button>
+          </div>
+        )
+      }
+    },
   ]
+
+  
+  // 筛选患者数据
+  const filteredPatients = patientsWithAI.filter(p => {
+    if (searchText) {
+      const lower = searchText.toLowerCase()
+      if (!p.name.toLowerCase().includes(lower) &&
+          !p.inpatientNo.toLowerCase().includes(lower) &&
+          !p.mainDiagnosis.toLowerCase().includes(lower)) {
+        return false
+      }
+    }
+    if (departmentFilter && p.department !== departmentFilter) return false
+    if (aiFilter && p.aiAssessment?.recommendationLevel !== aiFilter) return false
+    return true
+  })
 
   const handlePatientSelect = (patient: Patient) => {
     setSelectedPatient(patient)
@@ -456,56 +667,82 @@ export default function Apply() {
         />
       )}
 
-      <Card className="mb-4">
-        <Steps
-          current={currentStep}
-          items={[
-            { title: '选择患者', icon: <UserOutlined /> },
-            { title: '填写信息', icon: <FileProtectOutlined /> },
-            { title: '选择专家', icon: <TeamOutlined /> },
-            { title: '确认提交', icon: <CheckCircleOutlined /> },
-          ]}
-        />
-      </Card>
+      <div className="mb-4">
+        <Card className="mb-2" bodyStyle={{ padding: '12px 24px' }}>
+          <Steps
+            current={currentStep}
+            size="small"
+            items={[
+              { title: '选择患者', icon: <UserOutlined /> },
+              { title: '填写信息', icon: <FileProtectOutlined /> },
+              { title: '选择专家', icon: <TeamOutlined /> },
+              { title: '确认提交', icon: <CheckCircleOutlined /> },
+            ]}
+          />
+        </Card>
+        {currentStep === 0 && (
+          <Alert
+            message="温馨提示：点击患者姓名可直接选择，点击 360 按钮可查看详细病历，AI 预判帮助快速识别需 MDT 会诊的患者。"
+            type="info"
+            showIcon
+            style={{ fontSize: '12px' }}
+          />
+        )}
+      </div>
 
       {currentStep === 0 && (
         <Card title="选择患者">
-          <div className="mb-4 flex justify-between items-center">
-            <Input.Search 
-              placeholder="搜索患者姓名/住院号" 
-              allowClear 
-              style={{ width: 300 }}
-              onSearch={(val) => {
-                if (!val) return
-                const patient = mockPatients.find(p =>
-                  p.name.includes(val) || p.inpatientNo.includes(val)
-                )
-                if (patient) {
-                  handlePatientSelect(patient)
-                } else {
-                  message.warning('未找到患者')
-                }
-              }}
-            />
-            <Button 
-              type="primary" 
-              icon={<ThunderboltOutlined />} 
-              onClick={() => {
-                navigate('/followup/list')
-              }}
-            >
-              从随访列表选择
-            </Button>
+          <div className="mb-4 space-y-4">
+            <div className="flex justify-between items-center">
+              <Space wrap size="middle">
+                <Input.Search
+                  placeholder="搜索姓名/住院号/诊断"
+                  allowClear
+                  style={{ width: 250 }}
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+                <Select
+                  placeholder="筛选科室"
+                  allowClear
+                  style={{ width: 150 }}
+                  value={departmentFilter || undefined}
+                  onChange={(v) => setDepartmentFilter(v || '')}
+                  options={Array.from(new Set(mockPatients.map(p => p.department))).map(d => ({ value: d, label: d }))}
+                />
+                <Select
+                  placeholder="AI 预判"
+                  allowClear
+                  style={{ width: 150 }}
+                  value={aiFilter || undefined}
+                  onChange={(v) => setAiFilter(v || '')}
+                  options={[
+                    { value: '强烈推荐', label: '🔴 强烈推荐' },
+                    { value: '推荐', label: '🟠 推荐' },
+                    { value: '可考虑', label: '🔵 可考虑' },
+                  ]}
+                />
+              </Space>
+              <Button 
+                type="primary" 
+                icon={<ThunderboltOutlined />} 
+                onClick={() => {
+                  navigate('/followup/list')
+                }}
+              >
+                从随访列表选择
+              </Button>
+            </div>
           </div>
           
           <Table
             rowKey="id"
             columns={patientColumns}
-            dataSource={mockPatients}
+            dataSource={filteredPatients}
             onRow={(record) => ({
               onClick: () => handlePatientSelect(record)
             })}
-            pagination={{ pageSize: 10 }}
+            pagination={{ pageSize: 10, showSizeChanger: true }}
           />
         </Card>
       )}

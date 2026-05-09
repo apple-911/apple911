@@ -1,6 +1,7 @@
 import { create } from 'zustand'
+import type { MDTNecessityAssessment } from '../services/integration/ai/aiPatientScreeningService'
 
-export type ConsultationStatus = '待审核' | '已通过' | '已拒绝' | '已完成' | '进行中'
+export type ConsultationStatus = '待科室审核' | '待秘书审核' | '待补充材料' | '待会诊' | '已通过' | '已拒绝' | '已完成' | '进行中'
 export type MaterialStatus = '未提交' | '待提交' | '待秘书审核' | '待质控审核' | '审核通过' | '已退回'
 
 export interface Consultation {
@@ -51,6 +52,20 @@ export interface Consultation {
   // HIS 系统对接标识
   hisDataSynced?: boolean  // 是否已从 HIS 同步
   hisSyncTime?: string  // HIS 同步时间
+  
+  // 审核流程记录
+  auditHistory?: AuditRecord[]
+}
+
+export interface AuditRecord {
+  id: string
+  node: '提交申请' | '科室审核' | '秘书审核' | '补充材料' | '质控审核'
+  operator: string  // 审核人
+  operatorRole: '科室主任' | 'MDT 秘书' | '质控员' | '申请医生'
+  time: string  // 审核时间
+  result: '已提交' | '通过' | '拒绝' | '退回补充' | '待审核'
+  opinion?: string  // 审核意见
+  rejectReason?: string  // 拒绝/退回原因
 }
 
 export interface UploadedFile {
@@ -94,6 +109,8 @@ export interface Patient {
   labTests?: LabTest[]
   pathologyReports?: PathologyReport[]
   otherExams?: OtherExam[]
+  // AI MDT 预判结果（后台预先评估）
+  aiAssessment?: MDTNecessityAssessment
 }
 
 export interface ImagingExam {

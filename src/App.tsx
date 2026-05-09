@@ -34,6 +34,7 @@ import MyFavorites from './pages/caselibrary/MyFavorites'
 import LearningProgress from './pages/caselibrary/LearningProgress'
 import CaseComparison from './pages/caselibrary/CaseComparison'
 import ConsultationTracking from './pages/consultation/Tracking'
+import MDTManagement from './pages/consultation/MDTManagement'
 import DirectorConfirm from './pages/consultation/DirectorConfirm'
 import ExpertConfirm from './pages/consultation/ExpertConfirm'
 import SupplementMaterial from './pages/consultation/SupplementMaterial'
@@ -54,6 +55,8 @@ import PatientProgress from './pages/patient/Progress'
 import PatientReport from './pages/patient/Report'
 import PatientFollowup from './pages/patient/Followup'
 import PatientMessage from './pages/patient/Message'
+// 工作台页面
+import Workbench from './pages/workbench/Index'
 import { useAppStore } from './stores/appStore'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -69,7 +72,8 @@ function App() {
           <Route path="/patient/login" element={<PatientLogin />} />
         </Route>
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/workbench" replace />} />
+          <Route path="/workbench" element={<Workbench />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/consultation/apply" element={<Apply />} />
           <Route path="/consultation/my-applies" element={<MyApplies />} />
@@ -96,6 +100,7 @@ function App() {
           <Route path="/quality/tasks" element={<QualityTasks />} />
           <Route path="/quality/dashboard" element={<QualityDashboard />} />
           <Route path="/consultation/tracking" element={<ConsultationTracking />} />
+          <Route path="/consultation/mdt-management" element={<MDTManagement />} />
           <Route path="/consultation/director-confirm" element={<DirectorConfirm />} />
           <Route path="/consultation/expert-confirm" element={<ExpertConfirm />} />
           <Route path="/consultation/supplement-material/:id" element={<SupplementMaterial />} />

@@ -44,13 +44,22 @@ export default function MyApplies() {
       dataIndex: 'status',
       render: (t: Consultation['status']) => {
         const colors: Record<string, string> = {
-          '待审核': 'orange',
+          '待科室审核': 'orange',
+          '待秘书审核': 'purple',
+          '待补充材料': 'red',
+          '待会诊': 'blue',
           '已通过': 'green',
           '已拒绝': 'red',
           '已完成': 'blue',
           '进行中': 'processing',
         }
-        return <Tag color={colors[t]}>{t}</Tag>
+        const texts: Record<string, string> = {
+          '待科室审核': '科室审核',
+          '待秘书审核': '秘书审核',
+          '待补充材料': '待补充',
+          '待会诊': '待会诊',
+        }
+        return <Tag color={colors[t]}>{texts[t] || t}</Tag>
       }
     },
     {
@@ -67,7 +76,7 @@ export default function MyApplies() {
           >
             详情
           </Button>
-          {record.status === '待审核' && (
+          {record.status === '待科室审核' && (
             <Button
               size="small"
               danger
@@ -100,9 +109,13 @@ export default function MyApplies() {
             value={statusFilter || undefined}
             onChange={(v) => setStatusFilter(v || '')}
             options={[
-              { value: '待审核', label: '待审核' },
+              { value: '待科室审核', label: '待科室审核' },
+              { value: '待秘书审核', label: '待秘书审核' },
+              { value: '待补充材料', label: '待补充材料' },
+              { value: '待会诊', label: '待会诊' },
               { value: '已通过', label: '已通过' },
               { value: '已拒绝', label: '已拒绝' },
+              { value: '进行中', label: '进行中' },
               { value: '已完成', label: '已完成' },
             ]}
           />

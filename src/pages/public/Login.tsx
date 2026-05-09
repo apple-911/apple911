@@ -32,6 +32,17 @@ export default function Login() {
   const navigate = useNavigate()
   const { setUser, setRole } = useAppStore()
 
+  // 测试账号配置
+  const testAccounts: Record<Role, { username: string; password: string }> = {
+    '申请医生': { username: 'doctor', password: '123456' },
+    '主任医生': { username: 'director', password: '123456' },
+    'MDT 秘书': { username: 'secretary', password: '123456' },
+    '会诊专家': { username: 'expert', password: '123456' },
+    '质控员': { username: 'qa', password: '123456' },
+    '系统管理员': { username: 'admin', password: '123456' },
+    '超级管理员': { username: 'superadmin', password: '123456' },
+  }
+
   const handleSubmit = async (values: LoginForm) => {
     setLoading(true)
     await new Promise((r) => setTimeout(r, 800))
@@ -44,7 +55,7 @@ export default function Login() {
     setRole(values.role)
     message.success('登录成功')
     setLoading(false)
-    navigate('/dashboard')
+    navigate('/workbench')
   }
 
   return (
@@ -147,7 +158,11 @@ export default function Login() {
                 form={form}
                 layout="horizontal"
                 onFinish={handleSubmit}
-                initialValues={{ role: '申请医生' }}
+                initialValues={{ 
+                  role: '申请医生',
+                  username: 'doctor',
+                  password: '123456',
+                }}
                 size="large"
               >
                 <Form.Item name="role" label={<span className="font-medium text-gray-700 text-sm whitespace-nowrap">选择角色</span>} className="mb-3">
@@ -155,6 +170,15 @@ export default function Login() {
                     options={roleOptions} 
                     size="large"
                     className="rounded-lg"
+                    onChange={(value: Role) => {
+                      const account = testAccounts[value]
+                      if (account) {
+                        form.setFieldsValue({
+                          username: account.username,
+                          password: account.password,
+                        })
+                      }
+                    }}
                   />
                 </Form.Item>
 

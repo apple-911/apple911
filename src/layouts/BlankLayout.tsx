@@ -5,7 +5,7 @@ export default function BlankLayout() {
   const { user } = useAppStore()
 
   if (user) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/workbench" replace />
   }
 
   return (
