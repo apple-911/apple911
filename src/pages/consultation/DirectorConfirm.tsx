@@ -315,7 +315,11 @@ export default function DirectorConfirm() {
         supabase
           .from('consultations')
           .select('*')
-          .in('status', ['医生提交', '待秘书审核', '主任驳回'])
+          .in('status', [
+            CONSULTATION_STATUS.DOCTOR_SUBMIT,
+            CONSULTATION_STATUS.SECRETARY_PENDING,
+            CONSULTATION_STATUS.DIRECTOR_REJECTED
+          ])
           .eq('department', directorDepartment)
           .order('apply_time', { ascending: false }),
         supabase
