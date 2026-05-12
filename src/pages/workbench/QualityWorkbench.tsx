@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Progress, Table, Tag, Space, Typography, Badge, Button, Alert } from 'antd'
+import { Card, Row, Col, Progress, Table, Tag, Space, Typography, Badge, Button, Alert, message } from 'antd'
 import {
   CheckCircleOutlined,
   WarningOutlined,
@@ -10,7 +10,9 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons'
 import { useAppStore } from '../../stores/appStore'
+import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 
@@ -37,56 +39,83 @@ export default function QualityWorkbench() {
   const [tasks, setTasks] = useState<QualityTask[]>([])
 
   useEffect(() => {
-    setTimeout(() => {
-      setStats({
-        totalTasks: 156,
-        pendingTasks: 23,
-        avgQualityScore: 92.5,
-        criticalIssues: 5,
-      })
-
-      setTasks([
-        {
-          id: 'Q001',
-          type: '会诊质控',
-          title: 'MDT20240320001 会诊质量检查',
-          status: '待检查',
-          qualityScore: 0,
-          issues: 0,
-          deadline: '2024-03-21',
-        },
-        {
-          id: 'Q002',
-          type: '病历质控',
-          title: '王建国病历质量检查',
-          status: '检查中',
-          qualityScore: 88,
-          issues: 3,
-          deadline: '2024-03-20',
-        },
-        {
-          id: 'Q003',
-          type: '随访质控',
-          title: '3 月随访计划执行检查',
-          status: '已完成',
-          qualityScore: 95,
-          issues: 1,
-          deadline: '2024-03-19',
-        },
-        {
-          id: 'Q004',
-          type: '会诊质控',
-          title: 'MDT20240319002 会诊质量检查',
-          status: '待检查',
-          qualityScore: 0,
-          issues: 0,
-          deadline: '2024-03-20',
-        },
-      ])
-
-      setLoading(false)
-    }, 500)
+    loadQualityTasks()
   }, [])
+
+  const loadQualityTasks = async () => {
+    try {
+      setLoading(true)
+      
+      // 查询需要质控的会诊记录（状态为待质检审核或已归档的）
+      const { data: consultations, error } = await supabase
+        .from('consultations')
+        .select('*')
+        .in('status', ['待质检审核', '待归档', '已归档'])
+        .order('apply_time', { ascending: false })
+      
+      if (error) throw error
+      
+      // 获取质控记录
+      const { data: qualityRecords, error: qError } = await supabase
+        .from('consultation_quality')
+        .select('*')
+      
+      if (qError) throw qError
+      
+      // 构建质控记录映射
+      const qualityMap = new Map<string, any>();
+      (qualityRecords || []).forEach((q: { consultation_id: string }) => {
+        qualityMap.set(q.consultation_id, q)
+      })
+      
+      // 转换数据格式
+      const allTasks: QualityTask[] = (consultations || []).map(c => {
+        const quality = qualityMap.get(c.id)
+        const statusMap: Record<string, QualityTask['status']> = {
+          '待质检审核': '待检查',
+          '待归档': '检查中',
+          '已归档': '已完成',
+        }
+        
+        return {
+          id: `Q${c.id.substring(0, 8).toUpperCase()}`,
+          type: '会诊质控',
+          title: `${c.consultation_code || c.id} 会诊质量检查`,
+          status: statusMap[c.status] || '待检查',
+          qualityScore: quality?.score || 0,
+          issues: quality?.issues?.length || 0,
+          deadline: dayjs(c.apply_time).add(7, 'day').format('YYYY-MM-DD'),
+        }
+      })
+      
+      // 按时间倒序排序，取前 5 条
+      const sortedTasks = allTasks
+        .sort((a, b) => dayjs(b.deadline).valueOf() - dayjs(a.deadline).valueOf())
+        .slice(0, 5)
+      
+      // 统计数据
+      const pendingTasks = allTasks.filter(t => t.status === '待检查').length
+      const completedTasks = allTasks.filter(t => t.status === '已完成')
+      const avgQualityScore = completedTasks.length > 0
+        ? completedTasks.reduce((sum, t) => sum + t.qualityScore, 0) / completedTasks.length
+        : 0
+      const criticalIssues = allTasks.reduce((sum, t) => sum + t.issues, 0)
+      
+      setStats({
+        totalTasks: allTasks.length,
+        pendingTasks,
+        avgQualityScore: Math.round(avgQualityScore * 10) / 10,
+        criticalIssues,
+      })
+      
+      setTasks(sortedTasks)
+    } catch (err) {
+      console.error('加载质控任务失败:', err)
+      message.error('加载数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const columns: ColumnsType<QualityTask> = [
     {

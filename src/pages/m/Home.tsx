@@ -17,8 +17,8 @@ export default function MHome() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('home')
 
-  const todayMeetings = mockConsultations.filter(c => c.status === '进行中')
-  const pendingCount = mockConsultations.filter(c => c.status === '待科室审核').length
+  const todayMeetings = mockConsultations.filter(c => c.status === 'in_progress')
+  const pendingCount = mockConsultations.filter(c => c.status === 'director_pending').length
   const todoCount = pendingCount + mockFollowupPlans.filter(f => f.status === '进行中').length
 
   const menuItems: MenuProps['items'] = [
@@ -138,7 +138,7 @@ export default function MHome() {
             <Title level={5} style={{ fontSize: '16px', fontWeight: 600 }}>待办事项 ({todoCount})</Title>
             <List
               dataSource={[
-                ...mockConsultations.filter(c => c.status === '待科室审核').map(c => ({
+                ...mockConsultations.filter(c => c.status === 'director_pending').map(c => ({
                   id: c.id,
                   title: '会诊待审核',
                   desc: `${c.patientName} - ${c.mainDiagnosis}`,

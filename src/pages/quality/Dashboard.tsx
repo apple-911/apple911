@@ -1,13 +1,16 @@
 import { useState } from 'react'
-import { Card, Row, Col, Statistic, Table, Tag, Space, Typography, Button, Badge, Select, Modal, Descriptions, message } from 'antd'
+import { useNavigate } from 'react-router-dom'
+import { Card, Row, Col, Statistic, Table, Tag, Space, Typography, Button, Badge, Select, Modal, Descriptions, message, Result } from 'antd'
 import { BarChartOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined, FileTextOutlined, SendOutlined, EyeOutlined } from '@ant-design/icons'
 import { Column, Line, Pie } from '@ant-design/plots'
 import type { ColumnsType } from 'antd/es/table'
 import { mockQualityMetrics, mockQualityAlerts, mockDepartmentQuality, mockQualityTrend, type QualityAlert } from '../../mocks/qualityMetrics'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title, Text } = Typography
 
 export default function QualityDashboard() {
+  const navigate = useNavigate()
   const [filterSeverity, setFilterSeverity] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [taskModalVisible, setTaskModalVisible] = useState(false)
@@ -166,6 +169,18 @@ export default function QualityDashboard() {
     color: ['#ff4d4f', '#faad14', '#1890ff', '#722ed1'],
     height: 250,
     padding: [20, 20, 20, 20],
+  }
+
+  // 权限检查
+  if (!hasPermission('perm-quality-dashboard')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问实时质控仪表盘。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
   }
 
   return (

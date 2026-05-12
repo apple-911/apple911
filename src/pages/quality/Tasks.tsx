@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Input, Select, Rate, message, Tabs, Descriptions, Divider } from 'antd'
 import { CheckOutlined, CloseOutlined, ExclamationCircleOutlined, FileTextOutlined, BookOutlined, UserOutlined, TeamOutlined, PlayCircleOutlined, AudioOutlined, MedicineBoxOutlined, CheckCircleOutlined, SafetyOutlined, ApiOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { supabase } from '../../lib/supabase'
+import { sendSystemNotification } from '../../stores/notificationStore'
 
 const { Title, Text } = Typography
 
@@ -186,6 +188,10 @@ export default function QualityTasks() {
   const handleSubmit = () => {
     const totalScore = Object.values(scores).reduce((sum, s) => sum + s, 0) / 3
     setTasks(tasks.map(t => t.id === selectedTask?.id ? { ...t, status: '已审核' as const, score: totalScore } : t))
+    
+    // 发送通知给秘书和申请医生
+    sendQualityNotification(selectedTask, '通过', `质控审核已通过，综合评分：${totalScore.toFixed(1)}分`)
+    
     setModalVisible(false)
     message.success('质控审核完成')
   }
@@ -201,9 +207,69 @@ export default function QualityTasks() {
       return
     }
     setTasks(tasks.map(t => t.id === selectedTask?.id ? { ...t, status: '已退回' as const, returnReason } : t))
+    
+    // 发送通知给秘书和申请医生
+    sendQualityNotification(selectedTask, '退回', `质控审核未通过，退回原因：${returnReason}`)
+    
     setReturnModalVisible(false)
     setModalVisible(false)
     message.warning('已退回，申请医生将收到整改通知')
+  }
+
+  const sendQualityNotification = async (task: QualityTask | null, result: string, detail: string) => {
+    if (!task) return
+    
+    try {
+      // 获取会诊信息以获取申请医生姓名
+      const { data: consultation } = await supabase
+        .from('consultations')
+        .select('apply_doctor')
+        .eq('id', task.consultationId)
+        .single()
+
+      // 通知 MDT 秘书
+      const { data: secretaries } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'MDT 秘书')
+        .limit(1)
+
+      if (secretaries && secretaries.length > 0) {
+        await sendSystemNotification(
+          secretaries[0].id,
+          result === '通过' ? 'success' : 'error',
+          result === '通过' ? '质控审核通过' : '质控审核退回',
+          `患者 ${task.patientName} 的会诊质控审核${result}，${detail}`,
+          {
+            label: '查看',
+            url: '/quality/tasks',
+          }
+        )
+      }
+
+      // 通知申请医生
+      const doctorName = consultation?.apply_doctor || task.reviewer
+      const { data: doctors } = await supabase
+        .from('users')
+        .select('id')
+        .eq('name', doctorName)
+        .limit(1)
+
+      if (doctors && doctors.length > 0) {
+        await sendSystemNotification(
+          doctors[0].id,
+          result === '通过' ? 'success' : 'error',
+          result === '通过' ? '质控审核通过' : '质控审核退回',
+          `您提交的 ${task.patientName} 会诊申请质控审核${result}，${detail}`,
+          {
+            label: '查看',
+            url: '/consultation/my-applies',
+          }
+        )
+      }
+    } catch (notificationError) {
+      console.error('发送质控通知失败:', notificationError)
+    }
   }
 
   const columns: ColumnsType<QualityTask> = [

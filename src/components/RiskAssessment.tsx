@@ -48,6 +48,8 @@ export default function RiskAssessment({
   performanceStatus = 1,
   showSuggestions = true,
 }: RiskAssessmentProps) {
+  // 确保 comorbidities 是数组
+  const safeComorbidities = Array.isArray(comorbidities) ? comorbidities : []
   // 计算风险评分
   const calculateRiskScore = (): number => {
     let score = 0
@@ -58,7 +60,7 @@ export default function RiskAssessment({
     else if (age > 55) score += 10
 
     // 合并症评分
-    score += comorbidities.length * 15
+    score += safeComorbidities.length * 15
 
     // 体能状态评分 (ECOG PS)
     score += performanceStatus * 10
@@ -115,7 +117,7 @@ export default function RiskAssessment({
       })
     }
 
-    comorbidities.forEach((comorbidity) => {
+    safeComorbidities.forEach((comorbidity) => {
       factors.push({
         name: `合并症：${comorbidity}`,
         score: 15,
@@ -162,7 +164,7 @@ export default function RiskAssessment({
       suggestions.push('评估多学科联合治疗方案')
     }
 
-    if (comorbidities.length > 2) {
+    if (safeComorbidities.length > 2) {
       suggestions.push('邀请相关科室会诊评估合并症')
     }
 

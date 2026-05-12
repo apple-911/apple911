@@ -1,512 +1,492 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Table, Tag, Space, Typography, Badge, Button, Avatar, Progress, Alert, message } from 'antd'
-import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  FileTextOutlined,
-  ClockCircleOutlined,
-  TeamOutlined,
-  WarningOutlined,
-  EyeOutlined,
-  ThunderboltOutlined,
-  CheckOutlined,
-  CloseOutlined,
-} from '@ant-design/icons'
+import { Card, Row, Col, Table, Tag, Space, Typography, Button, message, Modal, Input, Spin, Statistic } from 'antd'
+import { CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, FireOutlined, EyeOutlined, FileTextOutlined, TeamOutlined } from '@ant-design/icons'
 import { useAppStore } from '../../stores/appStore'
+import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
-import aiPatientScreeningService from '../../services/integration/ai/aiPatientScreeningService'
+import dayjs from 'dayjs'
+import { getUrgencyName, getUrgencyColor, getConsultationStatusName } from '../../utils/codeTable'
 
-const { Title, Text } = Typography
+const { Title } = Typography
+const { TextArea } = Input
 
 interface PendingReview {
   id: string
+  consultationCode: string
   patientName: string
-  patientId: string
+  patientInpatientNo: string
   department: string
   diagnosis: string
-  urgency: '常规' | '较急' | '紧急'
+  urgency: string
   applicant: string
   applyTime: string
+}
+
+interface MyApplication {
+  id: string
+  consultationCode: string
+  patientName: string
+  type: string
+  urgency: string
+  createTime: string
+  expectTime: string
+  diagnosis: string
   expertCount: number
+  status: string
 }
 
 export default function DirectorWorkbench() {
   const navigate = useNavigate()
   const { user } = useAppStore()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({
-    totalReviews: 0,
-    pendingReviews: 0,
-    urgentReviews: 0,
-    approvedToday: 0,
-  })
+  const [stats, setStats] = useState({ pending: 0, urgent: 0, approved: 0 })
   const [pendingList, setPendingList] = useState<PendingReview[]>([])
-  const [aiAlerts, setAiAlerts] = useState<any[]>([])
+  const [applications, setApplications] = useState<MyApplication[]>([])
+  const [auditModalVisible, setAuditModalVisible] = useState(false)
+  const [selectedConsultation, setSelectedConsultation] = useState<any>(null)
+  const [auditComment, setAuditComment] = useState('')
+  const [auditLoading, setAuditLoading] = useState(false)
 
   useEffect(() => {
-    // 模拟加载数据
-    setTimeout(() => {
-      setStats({
-        totalReviews: 156,
-        pendingReviews: 8,
-        urgentReviews: 2,
-        approvedToday: 5,
-      })
+    loadData()
+  }, [])
 
-      setPendingList([
-        {
-          id: 'MDT20240320001',
-          patientName: '王建国',
-          patientId: 'H001',
-          department: '胸外科',
-          diagnosis: '左肺鳞癌 III 期',
-          urgency: '紧急',
-          applicant: '张医生',
-          applyTime: '2024-03-20 10:30',
-          expertCount: 0,
-        },
-        {
-          id: 'MDT20240320002',
-          patientName: '李秀英',
-          patientId: 'H002',
-          department: '肿瘤科',
-          diagnosis: '右肺腺癌 IV 期',
-          urgency: '较急',
-          applicant: '李医生',
-          applyTime: '2024-03-20 09:15',
-          expertCount: 0,
-        },
-        {
-          id: 'MDT20240319003',
-          patientName: '张贵芳',
-          patientId: 'H003',
-          department: '放疗科',
-          diagnosis: '食管鳞癌 II 期',
-          urgency: '常规',
-          applicant: '王医生',
-          applyTime: '2024-03-19 16:20',
-          expertCount: 0,
-        },
-        {
-          id: 'MDT20240319004',
-          patientName: '刘志强',
-          patientId: 'H004',
-          department: '胸外科',
-          diagnosis: '纵隔肿瘤',
-          urgency: '紧急',
-          applicant: '张医生',
-          applyTime: '2024-03-19 14:00',
-          expertCount: 0,
-        },
-        {
-          id: 'MDT20240319005',
-          patientName: '陈桂兰',
-          patientId: 'H005',
-          department: '肿瘤科',
-          diagnosis: '乳腺癌 III 期',
-          urgency: '常规',
-          applicant: '赵医生',
-          applyTime: '2024-03-19 11:30',
-          expertCount: 0,
-        },
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      
+      // 获取当前主任所在的科室（通过 org_id 关联 organizations 表）
+      let directorDepartment = ''
+      if (user?.org_id) {
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', user.org_id)
+          .maybeSingle()
+        
+        if (orgError) {
+          console.error('查询科室失败:', orgError)
+        } else if (orgData) {
+          directorDepartment = orgData.name || ''
+          console.log('查询到科室:', directorDepartment)
+        } else {
+          console.warn('未找到科室，org_id:', user.org_id)
+        }
+      } else {
+        console.warn('用户没有 org_id')
+      }
+      
+      console.log('主任所在科室:', directorDepartment)
+      
+      // 并行加载两个列表
+      const [pendingResult, applicationResult] = await Promise.all([
+        supabase
+          .from('consultations')
+          .select('*')
+          .eq('status', '医生提交')
+          .eq('department', directorDepartment)
+          .order('urgency', { ascending: false })
+          .order('apply_time', { ascending: false }),
+        supabase
+          .from('consultations')
+          .select('*')
+          .eq('apply_doctor', user?.name)
+          .order('apply_time', { ascending: false })
       ])
 
+      // 处理待审核列表
+      if (pendingResult.error) throw pendingResult.error
+      const pendingReviews: PendingReview[] = (pendingResult.data || []).map(item => ({
+        id: item.id,
+        consultationCode: item.consultation_code || item.id,
+        patientName: item.patient_name,
+        patientInpatientNo: item.patient_inpatient_no,
+        department: item.department,
+        diagnosis: item.main_diagnosis,
+        urgency: item.urgency || item.urgency_level || 'normal',
+        applicant: item.apply_doctor,
+        applyTime: item.apply_time,
+      }))
+      setPendingList(pendingReviews)
+      setStats({
+        pending: pendingResult.data?.length || 0,
+        urgent: pendingResult.data?.filter((c: any) => c.urgency === 'urgent' || c.urgency === 'critical').length || 0,
+        approved: 0,
+      })
+
+      // 处理我的申请列表
+      if (applicationResult.error) throw applicationResult.error
+      const myApplications: MyApplication[] = (applicationResult.data || []).map((item: any) => ({
+        id: item.id,
+        consultationCode: item.consultation_code || item.id,
+        patientName: item.patient_name,
+        type: item.type === 'internal' ? '院内' : '院外',
+        urgency: getUrgencyName(item.urgency || item.urgency_level || 'normal'),
+        createTime: item.apply_time,
+        expectTime: item.expect_time ? dayjs(item.expect_time).format('YYYY-MM-DD HH:mm') : '-',
+        diagnosis: item.main_diagnosis,
+        expertCount: item.experts ? JSON.parse(item.experts).length : 0,
+        status: getConsultationStatusName(item.status) || item.status,
+      }))
+      setApplications(myApplications)
+
+    } catch (err) {
+      console.error('加载失败:', err)
+      message.error('加载数据失败')
+    } finally {
       setLoading(false)
-    }, 500)
-  }, [])
+    }
+  }
 
-  // 加载 AI 预警
-  useEffect(() => {
-    loadAIAlerts()
-  }, [])
+  const handleApprove = (consultation: any) => {
+    setSelectedConsultation(consultation)
+    setAuditModalVisible(true)
+  }
 
-  const loadAIAlerts = async () => {
+  const submitAudit = async (action: '通过' | '拒绝') => {
+    if (!selectedConsultation) return
+    
     try {
-      const alerts = await aiPatientScreeningService.getAlerts({ level: 'urgent' })
-      setAiAlerts(alerts.slice(0, 3)) // 只显示前 3 条紧急预警
-    } catch (error) {
-      console.error('加载 AI 预警失败:', error)
-      setAiAlerts([])
+      setAuditLoading(true)
+      
+      const newStatus = action === '通过' ? 'secretary_pending' : 'rejected'
+      await supabase
+        .from('consultations')
+        .update({ status: newStatus, reject_reason: action === '拒绝' ? auditComment : null })
+        .eq('id', selectedConsultation.id)
+      
+      await supabase
+        .from('audit_history')
+        .insert({
+          consultation_id: selectedConsultation.id,
+          operator_id: user?.id,
+          operator: user?.name,
+          operator_role: 'director',
+          node: 'department_audit',
+          operator_type: action === '通过' ? 'approved' : 'rejected',
+          result: action === '通过' ? 'approved' : 'rejected',
+          opinion: auditComment,
+          time: new Date().toISOString(),
+          next_node: action === '通过' ? 'secretary_audit' : 'archive',
+        })
+      
+      message.success(`${action === '通过' ? '审核通过' : '已拒绝'}`)
+      setAuditModalVisible(false)
+      setAuditComment('')
+      loadData()
+    } catch (err) {
+      console.error('审核失败:', err)
+      message.error('审核失败')
+    } finally {
+      setAuditLoading(false)
     }
   }
 
   const columns: ColumnsType<PendingReview> = [
-    {
-      title: '申请单号',
-      dataIndex: 'id',
-      key: 'id',
-      width: 150,
-      render: (text) => <Text code>{text}</Text>,
+    { title: '会诊编号', dataIndex: 'consultationCode', width: 130 },
+    { title: '患者姓名', dataIndex: 'patientName', width: 100 },
+    { title: '住院号', dataIndex: 'patientInpatientNo', width: 120 },
+    { title: '科室', dataIndex: 'department', width: 100 },
+    { title: '诊断', dataIndex: 'diagnosis', ellipsis: true },
+    { 
+      title: '紧急程度', 
+      dataIndex: 'urgency',
+      width: 90,
+      render: (urgency) => {
+        const color = getUrgencyColor(urgency)
+        const name = getUrgencyName(urgency)
+        if (urgency === 'critical' || urgency === 'urgent' || urgency === '紧急' || urgency === '特急') {
+          const isUrgent = urgency === 'urgent' || urgency === '紧急'
+          return <Tag color={isUrgent ? 'red' : color} style={isUrgent ? { fontWeight: 'bold' } : {}}><FireOutlined />{name}</Tag>
+        }
+        return <Tag color={color}>{name}</Tag>
+      }
+    },
+    { title: '申请医生', dataIndex: 'applicant', width: 100 },
+    { 
+      title: '申请时间', 
+      dataIndex: 'applyTime',
+      width: 160,
+      render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
     },
     {
-      title: '患者信息',
-      key: 'patient',
-      width: 150,
+      title: '操作',
+      key: 'action',
+      width: 240,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
-          <Avatar size={32} style={{ backgroundColor: '#045126' }}>
-            {record.patientName[0]}
-          </Avatar>
-          <div>
-            <div>{record.patientName}</div>
-            <div className="text-xs text-gray-400">{record.patientId}</div>
-          </div>
-        </Space>
-      ),
+        <div className="flex justify-end gap-2">
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/consultation/detail/${record.id}`)}
+          >
+            详情
+          </Button>
+          <Button
+            size="small"
+            type="primary"
+            icon={<CheckCircleOutlined />}
+            onClick={() => handleApprove(record)}
+          >
+            通过
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={<CloseCircleOutlined />}
+            onClick={() => {
+              setSelectedConsultation(record)
+              setAuditModalVisible(true)
+            }}
+          >
+            拒绝
+          </Button>
+        </div>
+      )
     },
+  ]
+
+  const applicationColumns: ColumnsType<MyApplication> = [
     {
-      title: '诊断',
-      dataIndex: 'diagnosis',
-      key: 'diagnosis',
-      width: 200,
-      ellipsis: true,
+      title: '会诊 ID',
+      dataIndex: 'consultationCode',
+      key: 'consultationCode',
+      width: 120,
+      render: (code) => <Tag color="blue">{code || '-'}</Tag>,
+    },
+    { title: '患者姓名', dataIndex: 'patientName', key: 'patientName', width: 100 },
+    { 
+      title: '会诊类型', 
+      dataIndex: 'type', 
+      key: 'type', 
+      width: 100,
+      render: (t) => <Tag color={t === '院内' ? 'blue' : 'green'}>{t}</Tag> 
     },
     {
       title: '紧急程度',
       dataIndex: 'urgency',
       key: 'urgency',
-      width: 80,
-      render: (urgency) => (
-        <Tag color={urgency === '紧急' ? 'red' : urgency === '较急' ? 'orange' : 'green'}>
-          {urgency}
-        </Tag>
+      width: 100,
+      render: (urgency) => {
+        const color = urgency === '特急' ? 'red' : urgency === '紧急' ? 'orange' : 'green'
+        if (urgency === '特急') {
+          return <Tag color={color}><strong>{urgency}</strong></Tag>
+        }
+        return <Tag color={color}>{urgency}</Tag>
+      },
+    },
+    { 
+      title: '申请时间', 
+      dataIndex: 'createTime', 
+      key: 'createTime', 
+      width: 150,
+      render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-',
+    },
+    { 
+      title: '期望时间', 
+      dataIndex: 'expectTime', 
+      key: 'expectTime', 
+      width: 150,
+      render: (t) => t && t !== '-' ? t : '-',
+    },
+    { title: '主要诊断', dataIndex: 'diagnosis', key: 'diagnosis', ellipsis: true, width: 200 },
+    {
+      title: '邀请专家',
+      dataIndex: 'expertCount',
+      key: 'expertCount',
+      width: 100,
+      render: (count) => (
+        <Space>
+          <TeamOutlined />
+          <span>{count}位</span>
+        </Space>
       ),
     },
     {
-      title: '申请科室',
-      dataIndex: 'department',
-      key: 'department',
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
       width: 100,
-    },
-    {
-      title: '申请医生',
-      dataIndex: 'applicant',
-      key: 'applicant',
-      width: 100,
-      render: (text) => <Text>{text}</Text>,
-    },
-    {
-      title: '申请时间',
-      dataIndex: 'applyTime',
-      key: 'applyTime',
-      width: 150,
-      sorter: (a, b) => new Date(a.applyTime).getTime() - new Date(b.applyTime).getTime(),
+      render: (status) => {
+        const colors: Record<string, string> = {
+          'doctor_submit': 'blue',
+          'director_pending': 'orange',
+          'director_rejected': 'red',
+          'secretary_pending': 'purple',
+          'pending_supplement': 'orange',
+          'material_rejected': 'orange',
+          'scheduled': 'blue',
+          'expert_confirmed': 'cyan',
+          'pending_meeting': 'blue',
+          'in_progress': 'processing',
+          'completed': 'green',
+          'archived': 'green',
+          'rejected': 'red',
+          'cancelled': 'default',
+          '医生提交': 'blue',
+          '待主任审核': 'orange',
+          '主任驳回': 'red',
+          '秘书审核': 'purple',
+          '待补正': 'orange',
+          '退回修改': 'orange',
+          '已排期': 'blue',
+          '专家确认': 'cyan',
+          '待会诊': 'blue',
+          '会诊中': 'processing',
+          '已完成': 'green',
+          '已归档': 'green',
+          '已拒绝': 'red',
+          '已取消': 'default',
+        }
+        return <Tag color={colors[status] || 'default'}>{status}</Tag>
+      },
     },
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 120,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size="small">
           <Button
-            type="link"
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => navigate(`/consultation/pending-review?id=${record.id}`)}
+            onClick={() => navigate(`/consultation/detail/${record.id}`)}
           >
             详情
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<CheckOutlined />}
-            className="text-green-600"
-            onClick={() => {
-              // TODO: 实现确认审核逻辑
-              message.success(`已确认通过申请 ${record.id}`)
-            }}
-          >
-            确认
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<CloseOutlined />}
-            danger
-            onClick={() => {
-              // TODO: 实现拒绝审核逻辑
-              message.warning(`已拒绝申请 ${record.id}`)
-            }}
-          >
-            拒绝
           </Button>
         </Space>
       ),
     },
   ]
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="text-gray-400">加载中...</div></div>
-  }
-
   return (
-    <div className="space-y-4">
-      {/* 顶部欢迎语 */}
-      <Card className="bg-gradient-to-r from-blue-600 to-blue-400">
-        <div className="flex items-center justify-between">
-          <div>
-            <Title level={4} className="!mb-2 text-white">
-              主任您好，{user?.name || '医生'}！👋
-            </Title>
-            <Text className="text-white/90">
-              您有 {stats.pendingReviews} 个会诊申请待审核，其中 {stats.urgentReviews} 个紧急申请
-            </Text>
-          </div>
-          {stats.urgentReviews > 0 && (
-            <Alert
-              message={`${stats.urgentReviews}个紧急申请待处理`}
-              type="warning"
-              showIcon
-              className="!bg-white/20 !text-white !border-white/30"
-            />
-          )}
-        </div>
-      </Card>
+    <Spin spinning={loading}>
+      <div className="space-y-4">
+        <Title level={4}>主任医生工作台</Title>
 
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1890ff 0%, #40a9ff 100%)' }}>
-                <FileTextOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">总审核数</div>
-                <div className="text-3xl font-bold text-blue-500">{stats.totalReviews}</div>
-                <div className="text-xs text-gray-400">累计审核申请数</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #fa8c16 0%, #ffc069 100%)' }}>
-                <ClockCircleOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">待审核</div>
-                <div className="text-3xl font-bold text-orange-500">{stats.pendingReviews}</div>
-                <div className="text-xs text-gray-400">待处理申请</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f5222d 0%, #ff4d4f 100%)' }}>
-                <WarningOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">紧急申请</div>
-                <div className="text-3xl font-bold text-red-500">{stats.urgentReviews}</div>
-                <div className="text-xs text-gray-400">需要优先处理</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)' }}>
-                <CheckCircleOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">今日通过</div>
-                <div className="text-3xl font-bold text-green-500">{stats.approvedToday}</div>
-                <div className="text-xs text-gray-400">今天审核通过</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* AI MDT 预警卡片 */}
-      {aiAlerts.length > 0 && (
-        <Row gutter={[16, 16]}>
-          <Col span={24}>
-            <Card 
-              title={
-                <div className="flex items-center gap-2">
-                  <ThunderboltOutlined className="text-yellow-500" style={{ fontSize: '18px' }} />
-                  <span className="font-semibold">AI MDT 紧急预警</span>
-                  <Badge count={aiAlerts.length} style={{ backgroundColor: '#faad14' }} />
-                </div>
-              }
-              headStyle={{ 
-                borderBottom: '2px solid #f0f0f0', 
-                paddingBottom: '12px',
-                background: 'linear-gradient(to right, #fffbe6, #fff)'
-              }}
-              extra={
-                <Button 
-                  type="primary" 
-                  size="small"
-                  icon={<ThunderboltOutlined />}
-                  onClick={() => navigate('/ai/screening')}
-                >
-                  查看全部
-                </Button>
-              }
-            >
-              <div className="space-y-3">
-                {aiAlerts.map((alert) => (
-                  <Alert
-                    key={alert.id}
-                    type="warning"
-                    showIcon
-                    icon={<WarningOutlined />}
-                    message={
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Text strong>{alert.patientName}</Text>
-                          <Text className="ml-2">({alert.department})</Text>
-                          <Tag color="red" className="ml-2">评分：{alert.score}</Tag>
-                        </div>
-                        <Button
-                          type="link"
-                          size="small"
-                          onClick={() => navigate(`/ai/screening/${alert.id}`)}
-                        >
-                          处理
-                        </Button>
-                      </div>
-                    }
-                    description={
-                      <div className="mt-1">
-                        <Text type="secondary">{alert.message}</Text>
-                        <div className="mt-1">
-                          {(alert.indications || []).slice(0, 2).map((reason: string, index: number) => (
-                            <Tag key={index} color="orange" className="mr-1">{reason}</Tag>
-                          ))}
-                        </div>
-                      </div>
-                    }
-                    style={{ 
-                      border: '1px solid #ffe58f',
-                      background: 'linear-gradient(to right, #fffbe6, #fff)'
-                    }}
-                  />
-                ))}
-              </div>
+        {/* 统计卡片 */}
+        <Row gutter={16}>
+          <Col span={8}>
+            <Card>
+              <Statistic 
+                title="待审核会诊" 
+                value={stats.pending} 
+                prefix={<ClockCircleOutlined />}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic 
+                title="紧急会诊" 
+                value={stats.urgent} 
+                prefix={<FireOutlined />}
+                valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic 
+                title="已通过" 
+                value={stats.approved} 
+                prefix={<CheckCircleOutlined />}
+                valueStyle={{ color: '#52c41a' }}
+              />
             </Card>
           </Col>
         </Row>
-      )}
 
-      {/* 待审核列表 */}
-      <Card
-        title={
-          <Space>
-            <ClockCircleOutlined />
-            <span>待审核申请</span>
-          </Space>
-        }
-        extra={
-          <Button type="link" onClick={() => navigate('/consultation/pending-review')}>
-            查看全部
-          </Button>
-        }
-      >
-        {stats.urgentReviews > 0 && (
-          <Alert
-            message={`当前有 ${stats.urgentReviews} 个紧急申请，请优先处理`}
-            type="warning"
-            showIcon
-            className="mb-4"
+        {/* 待审核列表 */}
+        <Card title="待科室审核会诊">
+          <Table
+            columns={columns}
+            dataSource={pendingList}
+            rowKey="id"
+            pagination={false}
+            scroll={{ x: 1000 }}
           />
-        )}
-        <Table
-          columns={columns}
-          dataSource={pendingList}
-          rowKey="id"
-          pagination={false}
-          scroll={{ x: 1200 }}
-        />
-      </Card>
+        </Card>
 
-      {/* 快捷入口 */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Card title="快捷操作">
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                icon={<FileTextOutlined />}
-                size="large"
-                className="h-16 !border-orange-500 !text-orange-500 hover:!bg-orange-500 hover:!text-white"
-                onClick={() => navigate('/consultation/pending-review')}
-              >
-                待审核
-              </Button>
-              <Button
-                icon={<TeamOutlined />}
-                size="large"
-                className="h-16 !border-blue-500 !text-blue-500 hover:!bg-blue-500 hover:!text-white"
-                onClick={() => navigate('/consultation/schedule')}
-              >
-                会诊排班
-              </Button>
-              <Button
-                icon={<EyeOutlined />}
-                size="large"
-                className="h-16 !border-purple-500 !text-purple-500 hover:!bg-purple-500 hover:!text-white"
-                onClick={() => navigate('/consultation/tracking')}
-              >
-                进度跟踪
-              </Button>
-              <Button
-                icon={<ThunderboltOutlined />}
-                size="large"
-                className="h-16 !border-green-500 !text-green-500 hover:!bg-green-500 hover:!text-white"
-                onClick={() => navigate('/ai/screening')}
-              >
-                AI 筛查
-              </Button>
-            </div>
-          </Card>
-        </Col>
+        {/* 我的申请列表 */}
+        <Card
+          title={
+            <Space>
+              <FileTextOutlined />
+              <span>我的申请</span>
+            </Space>
+          }
+          extra={
+            <Button type="link" onClick={() => navigate('/consultation/my-applies')}>
+              查看全部
+            </Button>
+          }
+        >
+          <Table
+            columns={applicationColumns}
+            dataSource={applications}
+            rowKey="id"
+            pagination={false}
+            scroll={{ x: 1200 }}
+          />
+        </Card>
 
-        <Col xs={24} lg={12}>
-          <Card title="审核流程">
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <FileTextOutlined className="text-blue-500" />
-                </div>
-                <div>
-                  <div className="font-medium">查看申请信息</div>
-                  <div className="text-sm text-gray-500">查看患者基本信息和病情摘要</div>
-                </div>
+        {/* 审核弹窗 */}
+        <Modal
+          title="审核会诊申请"
+          open={auditModalVisible}
+          footer={[
+            <Button
+              key="back"
+              onClick={() => {
+                setAuditModalVisible(false)
+                setAuditComment('')
+              }}
+            >
+              取消
+            </Button>,
+            <Button
+              key="reject"
+              danger
+              loading={auditLoading}
+              onClick={() => submitAudit('拒绝')}
+            >
+              拒绝
+            </Button>,
+            <Button
+              key="approve"
+              type="primary"
+              loading={auditLoading}
+              onClick={() => submitAudit('通过')}
+            >
+              通过
+            </Button>,
+          ]}
+        >
+          <div className="space-y-4">
+            {selectedConsultation && (
+              <div>
+                <p><strong>患者：</strong>{selectedConsultation.patientName}</p>
+                <p><strong>诊断：</strong>{selectedConsultation.diagnosis}</p>
+                <p><strong>申请医生：</strong>{selectedConsultation.applicant}</p>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <CheckCircleOutlined className="text-green-500" />
-                </div>
-                <div>
-                  <div className="font-medium">审核通过</div>
-                  <div className="text-sm text-gray-500">确认申请信息完整，批准会诊</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                  <CloseCircleOutlined className="text-red-500" />
-                </div>
-                <div>
-                  <div className="font-medium">退回补充</div>
-                  <div className="text-sm text-gray-500">信息不完整，退回要求补充材料</div>
-                </div>
-              </div>
+            )}
+            <div>
+              <strong>审核意见：</strong>
+              <TextArea
+                rows={4}
+                value={auditComment}
+                onChange={(e) => setAuditComment(e.target.value)}
+                placeholder="请输入审核意见..."
+              />
             </div>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+          </div>
+        </Modal>
+      </div>
+    </Spin>
   )
 }

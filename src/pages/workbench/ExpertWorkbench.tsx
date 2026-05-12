@@ -1,154 +1,208 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Table, Tag, Space, Typography, Badge, Button, Avatar, Timeline } from 'antd'
-import {
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  FileTextOutlined,
-  TeamOutlined,
-  EyeOutlined,
-  VideoCameraOutlined,
-} from '@ant-design/icons'
+import { Card, Row, Col, Table, Tag, Space, Typography, Button, message, Modal, Input, Spin, Statistic, Radio } from 'antd'
+import { CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, UsergroupAddOutlined, FileTextOutlined, EyeOutlined } from '@ant-design/icons'
 import { useAppStore } from '../../stores/appStore'
+import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 
-const { Title, Text } = Typography
+const { Title } = Typography
+const { TextArea } = Input
 
-interface Meeting {
+interface ExpertInvitation {
   id: string
+  consultation_id: string
   patientName: string
-  patientId: string
+  patientInpatientNo: string
+  department: string
   diagnosis: string
-  time: string
-  room: string
-  type: '现场会诊' | '远程会诊' | '床旁会诊'
-  status: '待参加' | '进行中' | '已完成'
-  organizer: string
+  expectTime: string
+  meetingRoom: string
+  status: '待接受' | '已接受' | '已拒绝'
+  inviteTime: string
 }
 
 export default function ExpertWorkbench() {
   const navigate = useNavigate()
   const { user } = useAppStore()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({
-    totalMeetings: 0,
-    upcomingMeetings: 0,
-    completedMeetings: 0,
-    reportsWritten: 0,
-  })
-  const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [stats, setStats] = useState({ pending: 0, accepted: 0, rejected: 0 })
+  const [invitations, setInvitations] = useState<ExpertInvitation[]>([])
+  const [acceptModalVisible, setAcceptModalVisible] = useState(false)
+  const [selectedInvitation, setSelectedInvitation] = useState<any>(null)
+  const [acceptLoading, setAcceptLoading] = useState(false)
 
   useEffect(() => {
-    setTimeout(() => {
-      setStats({
-        totalMeetings: 89,
-        upcomingMeetings: 4,
-        completedMeetings: 82,
-        reportsWritten: 76,
-      })
-
-      setMeetings([
-        {
-          id: 'MDT20240320001',
-          patientName: '王建国',
-          patientId: 'H001',
-          diagnosis: '左肺鳞癌 III 期',
-          time: '2024-03-20 14:00',
-          room: '302 会议室',
-          type: '现场会诊',
-          status: '待参加',
-          organizer: '张明华',
-        },
-        {
-          id: 'MDT20240320002',
-          patientName: '李秀英',
-          patientId: 'H002',
-          diagnosis: '右肺腺癌 IV 期',
-          time: '2024-03-20 15:30',
-          room: '301 会议室',
-          type: '远程会诊',
-          status: '待参加',
-          organizer: '李建国',
-        },
-        {
-          id: 'MDT20240319003',
-          patientName: '张贵芳',
-          patientId: 'H003',
-          diagnosis: '食管鳞癌 II 期',
-          time: '2024-03-19 14:00',
-          room: '302 会议室',
-          type: '现场会诊',
-          status: '已完成',
-          organizer: '王芳',
-        },
-      ])
-
-      setLoading(false)
-    }, 500)
+    loadInvitations()
   }, [])
 
-  const columns: ColumnsType<Meeting> = [
-    {
-      title: '患者信息',
-      key: 'patient',
-      width: 150,
-      render: (_, record) => (
-        <Space>
-          <Avatar size={32} style={{ backgroundColor: '#045126' }}>
-            {record.patientName[0]}
-          </Avatar>
-          <div>
-            <div>{record.patientName}</div>
-            <div className="text-xs text-gray-400">{record.patientId}</div>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: '诊断',
-      dataIndex: 'diagnosis',
-      key: 'diagnosis',
-      width: 180,
-      ellipsis: true,
-    },
-    {
-      title: '会诊时间',
-      dataIndex: 'time',
-      key: 'time',
-      width: 150,
-      sorter: (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime(),
-    },
-    {
-      title: '会诊地点',
-      dataIndex: 'room',
-      key: 'room',
-      width: 120,
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: 100,
-      render: (type) => (
-        <Tag color={type === '现场会诊' ? 'blue' : type === '远程会诊' ? 'purple' : 'green'}>
-          {type}
-        </Tag>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status) => {
-        const statusMap: Record<string, { color: string; text: string }> = {
-          '待参加': { color: 'processing', text: '待参加' },
-          '进行中': { color: 'processing', text: '进行中' },
-          '已完成': { color: 'success', text: '已完成' },
+  const loadInvitations = async () => {
+    try {
+      setLoading(true)
+      
+      // 查询专家被邀请的会诊
+      const { data: expertData, error: expertError } = await supabase
+        .from('consultation_experts')
+        .select('*')
+        .eq('expert_id', user?.id)
+        .order('invite_time', { ascending: false })
+      
+      if (expertError) {
+        console.error('consultation_experts查询失败:', expertError)
+        // 表可能不存在，设置为空
+        setInvitations([])
+        setStats({ pending: 0, accepted: 0, rejected: 0 })
+        setLoading(false)
+        return
+      }
+      
+      if (!expertData || expertData.length === 0) {
+        setInvitations([])
+        setStats({ pending: 0, accepted: 0, rejected: 0 })
+        setLoading(false)
+        return
+      }
+      
+      // 获取会诊详情
+      const consultationIds = expertData.map(e => e.consultation_id)
+      const { data: consultations, error: consultError } = await supabase
+        .from('consultations')
+        .select('*')
+        .in('id', consultationIds)
+      
+      if (consultError) {
+        console.error('consultations查询失败:', consultError)
+        // 表可能不存在，设置为空
+        setInvitations([])
+        setStats({ pending: 0, accepted: 0, rejected: 0 })
+        setLoading(false)
+        return
+      }
+      
+      const invitationsList: ExpertInvitation[] = expertData.map(expert => {
+        const consultation = consultations?.find(c => c.id === expert.consultation_id)
+        return {
+          id: expert.id,
+          consultation_id: expert.consultation_id,
+          patientName: consultation?.patient_name || '',
+          patientInpatientNo: consultation?.patient_inpatient_no || '',
+          department: consultation?.department || '',
+          diagnosis: consultation?.main_diagnosis || '',
+          expectTime: consultation?.expect_time || '',
+          meetingRoom: consultation?.meeting_room || '',
+          status: expert.status as '待接受' | '已接受' | '已拒绝',
+          inviteTime: expert.invite_time,
         }
-        const config = statusMap[status] || { color: 'default', text: status }
-        return <Badge color={config.color} text={config.text} />
-      },
+      })
+      
+      setInvitations(invitationsList)
+      setStats({
+        pending: invitationsList.filter(i => i.status === '待接受').length,
+        accepted: invitationsList.filter(i => i.status === '已接受').length,
+        rejected: invitationsList.filter(i => i.status === '已拒绝').length,
+      })
+    } catch (err) {
+      console.error('加载失败:', err)
+      message.error('加载数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAccept = (invitation: any) => {
+    setSelectedInvitation(invitation)
+    setAcceptModalVisible(true)
+  }
+
+  const submitResponse = async (action: '接受' | '拒绝') => {
+    if (!selectedInvitation) return
+    
+    try {
+      setAcceptLoading(true)
+      
+      // 更新专家邀请状态
+      await supabase
+        .from('consultation_experts')
+        .update({ 
+          status: action === '接受' ? '已接受' : '已拒绝',
+          response_time: new Date().toISOString(),
+        })
+        .eq('id', selectedInvitation.id)
+      
+      if (action === '接受') {
+        // 如果是接受，更新会诊状态为待会诊（如果还没有专家接受）
+        await supabase
+          .from('consultations')
+          .update({ status: '待会诊' })
+          .eq('id', selectedInvitation.consultation_id)
+      }
+      
+      // 插入审核历史
+      const auditInsert: {
+        consultation_id: string
+        operator?: string
+        operator_id?: string
+        operator_role: string
+        node: string
+        result: string
+        time: string
+      } = {
+        consultation_id: selectedInvitation.consultation_id,
+        operator: user?.name,
+        operator_role: '会诊专家',
+        node: '专家响应',
+        result: action === '接受' ? '已接受' : '已拒绝',
+        time: new Date().toISOString(),
+      }
+      
+      // 如果用户有 ID 且是 UUID 格式，才添加 operator_id
+      if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+        auditInsert.operator_id = user.id
+      }
+      
+      await supabase
+        .from('audit_history')
+        .insert(auditInsert)
+      
+      message.success(`${action === '接受' ? '已接受邀请' : '已拒绝邀请'}`)
+      setAcceptModalVisible(false)
+      loadInvitations()
+    } catch (err) {
+      console.error('响应失败:', err)
+      message.error('操作失败')
+    } finally {
+      setAcceptLoading(false)
+    }
+  }
+
+  const columns: ColumnsType<ExpertInvitation> = [
+    { title: '患者姓名', dataIndex: 'patientName', width: 100 },
+    { title: '住院号', dataIndex: 'patientInpatientNo', width: 120 },
+    { title: '科室', dataIndex: 'department', width: 100 },
+    { title: '诊断', dataIndex: 'diagnosis', ellipsis: true },
+    { 
+      title: '会诊时间', 
+      dataIndex: 'expectTime',
+      width: 160,
+      render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '待安排'
+    },
+    { title: '会诊地点', dataIndex: 'meetingRoom', width: 120 },
+    { 
+      title: '邀请状态', 
+      dataIndex: 'status',
+      width: 90,
+      render: (status) => (
+        <Tag color={status === '已接受' ? 'green' : status === '已拒绝' ? 'red' : 'orange'}>
+          {status}
+        </Tag>
+      )
+    },
+    { 
+      title: '邀请时间', 
+      dataIndex: 'inviteTime',
+      width: 160,
+      render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
     },
     {
       title: '操作',
@@ -158,204 +212,119 @@ export default function ExpertWorkbench() {
       render: (_, record) => (
         <Space size="small">
           <Button
-            type="primary"
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => navigate(`/consultation/detail/${record.id}`)}
+            onClick={() => navigate(`/consultation/detail/${record.consultation_id}`)}
           >
-            查看
+            详情
           </Button>
-          {record.status === '待参加' && (
-            <Button
-              type="primary"
-              size="small"
-              icon={<VideoCameraOutlined />}
-              onClick={() => navigate(`/consultation/room/${record.id}`)}
-            >
-              参会
-            </Button>
+          {record.status === '待接受' && (
+            <>
+              <Button
+                size="small"
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                onClick={() => handleAccept(record)}
+              >
+                接受
+              </Button>
+              <Button
+                size="small"
+                danger
+                icon={<CloseCircleOutlined />}
+                onClick={() => {
+                  setSelectedInvitation(record)
+                  setAcceptModalVisible(true)
+                }}
+              >
+                拒绝
+              </Button>
+            </>
           )}
         </Space>
-      ),
+      )
     },
   ]
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="text-gray-400">加载中...</div></div>
-  }
-
   return (
-    <div className="space-y-4">
-      {/* 顶部欢迎语 */}
-      <Card className="bg-gradient-to-r from-indigo-600 to-indigo-400">
-        <div className="flex items-center justify-between">
-          <div>
-            <Title level={4} className="!mb-2 text-white">
-              专家您好，{user?.name || '专家'}！👋
-            </Title>
-            <Text className="text-white/90">
-              您有 {stats.upcomingMeetings} 场待参加的会诊，已完成 {stats.completedMeetings} 场
-            </Text>
-          </div>
-        </div>
-      </Card>
+    <Spin spinning={loading}>
+      <div className="space-y-4">
+        <Title level={4}>专家会诊工作台</Title>
 
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #722ed1 0%, #9254de 100%)' }}>
-                <TeamOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">总会诊数</div>
-                <div className="text-3xl font-bold text-indigo-500">{stats.totalMeetings}</div>
-                <div className="text-xs text-gray-400">累计参加会诊</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1890ff 0%, #40a9ff 100%)' }}>
-                <ClockCircleOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">待参加</div>
-                <div className="text-3xl font-bold text-blue-500">{stats.upcomingMeetings}</div>
-                <div className="text-xs text-gray-400">待参加会诊</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)' }}>
-                <CheckCircleOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">已完成</div>
-                <div className="text-3xl font-bold text-green-500">{stats.completedMeetings}</div>
-                <div className="text-xs text-gray-400">已完成会诊</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #fa8c16 0%, #ffc069 100%)' }}>
-                <FileTextOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">报告撰写</div>
-                <div className="text-3xl font-bold text-orange-500">{stats.reportsWritten}</div>
-                <div className="text-xs text-gray-400">已撰写报告</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* 会诊列表 */}
-      <Card
-        title={
-          <Space>
-            <ClockCircleOutlined />
-            <span>我的会诊</span>
-          </Space>
-        }
-        extra={
-          <Button type="link" onClick={() => navigate('/consultation/my-meetings')}>
-            查看全部
-          </Button>
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={meetings}
-          rowKey="id"
-          pagination={false}
-          scroll={{ x: 1000 }}
-        />
-      </Card>
-
-      {/* 快捷入口 */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Card title="快捷操作">
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                icon={<VideoCameraOutlined />}
-                size="large"
-                className="h-16 !border-indigo-500 !text-indigo-500 hover:!bg-indigo-500 hover:!text-white"
-                onClick={() => navigate('/consultation/my-meetings')}
-              >
-                我的会诊
-              </Button>
-              <Button
-                icon={<FileTextOutlined />}
-                size="large"
-                className="h-16 !border-blue-500 !text-blue-500 hover:!bg-blue-500 hover:!text-white"
-                onClick={() => navigate('/report/list')}
-              >
-                报告列表
-              </Button>
-              <Button
-                icon={<TeamOutlined />}
-                size="large"
-                className="h-16 !border-green-500 !text-green-500 hover:!bg-green-500 hover:!text-white"
-                onClick={() => navigate('/case-library')}
-              >
-                病案库
-              </Button>
-              <Button
-                icon={<EyeOutlined />}
-                size="large"
-                className="h-16 !border-orange-500 !text-orange-500 hover:!bg-orange-500 hover:!text-white"
-                onClick={() => navigate('/consultation/schedule')}
-              >
-                会诊排班
-              </Button>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={12}>
-          <Card title="会诊流程">
-            <Timeline
-                items={[
-                  {
-                    label: '收到邀请',
-                    color: 'blue',
-                    children: '接收会诊邀请通知',
-                  },
-                  {
-                    label: '查看资料',
-                    color: 'purple',
-                    children: '查看患者病历和检查资料',
-                  },
-                  {
-                    label: '参加会诊',
-                    color: 'green',
-                    children: '参加多学科会诊讨论',
-                  },
-                  {
-                    label: '撰写报告',
-                    color: 'orange',
-                    children: '填写专家会诊意见',
-                  },
-                ]}
+        {/* 统计卡片 */}
+        <Row gutter={16}>
+          <Col span={8}>
+            <Card>
+              <Statistic 
+                title="待接受邀请" 
+                value={stats.pending} 
+                prefix={<ClockCircleOutlined />}
+                valueStyle={{ color: '#faad14' }}
               />
-          </Card>
-        </Col>
-      </Row>
-    </div>
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic 
+                title="已接受" 
+                value={stats.accepted} 
+                prefix={<CheckCircleOutlined />}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic 
+                title="已拒绝" 
+                value={stats.rejected} 
+                prefix={<CloseCircleOutlined />}
+                valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 邀请列表 */}
+        <Card title="我的会诊邀请">
+          <Table
+            columns={columns}
+            dataSource={invitations}
+            rowKey="id"
+            pagination={false}
+            scroll={{ x: 1200 }}
+          />
+        </Card>
+
+        {/* 响应弹窗 */}
+        <Modal
+          title="响应会诊邀请"
+          open={acceptModalVisible}
+          onOk={() => submitResponse('接受')}
+          onCancel={() => setAcceptModalVisible(false)}
+          confirmLoading={acceptLoading}
+        >
+          {selectedInvitation && (
+            <div className="space-y-4">
+              <div>
+                <p><strong>患者：</strong>{selectedInvitation.patientName}</p>
+                <p><strong>诊断：</strong>{selectedInvitation.diagnosis}</p>
+                <p><strong>会诊时间：</strong>{selectedInvitation.expectTime ? dayjs(selectedInvitation.expectTime).format('YYYY-MM-DD HH:mm') : '待安排'}</p>
+                <p><strong>会诊地点：</strong>{selectedInvitation.meetingRoom || '待安排'}</p>
+              </div>
+              <div>
+                <strong>请选择：</strong>
+                <div style={{ marginTop: 8 }}>
+                  <Radio.Group defaultValue="accept">
+                    <Radio value="accept">接受邀请</Radio>
+                    <Radio value="reject">拒绝邀请</Radio>
+                  </Radio.Group>
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
+      </div>
+    </Spin>
   )
 }

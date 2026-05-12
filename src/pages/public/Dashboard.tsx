@@ -9,7 +9,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4">
-      {role === '质控员' ? <QualityDashboard /> : <DashboardScreen />}
+      {role === 'quality_controller' ? <QualityDashboard /> : <DashboardScreen />}
     </div>
   )
 }

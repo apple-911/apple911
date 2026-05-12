@@ -38,7 +38,21 @@ export function throttle<T extends (...args: any[]) => any>(
  */
 export function formatRelativeTime(date: string | Date): string {
   const now = new Date()
-  const target = new Date(date)
+  let target: Date
+  
+  if (typeof date === 'string') {
+    // 处理时区问题：数据库返回的时间字符串没有时区标记，需要手动添加UTC标记
+    const dateStr = date
+    if (dateStr && !dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.includes('-0')) {
+      // 如果没有时区标记，假设是UTC时间，添加Z后缀
+      target = new Date(dateStr + 'Z')
+    } else {
+      target = new Date(dateStr)
+    }
+  } else {
+    target = date
+  }
+  
   const diff = now.getTime() - target.getTime()
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
@@ -191,4 +205,143 @@ export function formatFileSize(bytes: number): string {
  */
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * 权限验证工具函数
+ */
+
+// 当前用户的权限数据（实际应用中应从store或API获取）
+export interface CurrentUser {
+  id: string
+  name: string
+  org_id: string | null
+  roles: string[]
+  permissions: string[]
+}
+
+let currentUser: CurrentUser | null = null
+
+/**
+ * 设置当前用户权限数据
+ */
+export function setCurrentUser(user: CurrentUser | null): void {
+  currentUser = user
+}
+
+/**
+ * 获取当前用户
+ */
+export function getCurrentUser(): CurrentUser | null {
+  return currentUser
+}
+
+/**
+ * 检查用户是否有指定权限
+ * @param permission 权限标识
+ */
+export function hasPermission(permission: string): boolean {
+  if (!currentUser) return false
+  return currentUser.permissions.includes(permission)
+}
+
+/**
+ * 检查用户是否有任意一个指定权限
+ * @param permissions 权限标识列表
+ */
+export function hasAnyPermission(permissions: string[]): boolean {
+  if (!currentUser) return false
+  return permissions.some(p => currentUser!.permissions.includes(p))
+}
+
+/**
+ * 检查用户是否有所有指定权限
+ * @param permissions 权限标识列表
+ */
+export function hasAllPermissions(permissions: string[]): boolean {
+  if (!currentUser) return false
+  return permissions.every(p => currentUser!.permissions.includes(p))
+}
+
+/**
+ * 检查用户是否有指定角色
+ * @param role 角色标识
+ */
+export function hasRole(role: string): boolean {
+  if (!currentUser) return false
+  return currentUser.roles.includes(role)
+}
+
+/**
+ * 检查用户是否有任意一个指定角色
+ * @param roles 角色标识列表
+ */
+export function hasAnyRole(roles: string[]): boolean {
+  if (!currentUser) return false
+  return roles.some(r => currentUser!.roles.includes(r))
+}
+
+/**
+ * 检查用户是否有所有指定角色
+ * @param roles 角色标识列表
+ */
+export function hasAllRoles(roles: string[]): boolean {
+  if (!currentUser) return false
+  return roles.every(r => currentUser!.roles.includes(r))
+}
+
+/**
+ * 检查用户是否属于指定组织
+ * @param orgId 组织ID
+ */
+export function belongsToOrg(orgId: string): boolean {
+  if (!currentUser) return false
+  return currentUser.org_id === orgId
+}
+
+/**
+ * 检查用户是否属于指定组织列表中的任一组织
+ * @param orgIds 组织ID列表
+ */
+export function belongsToAnyOrg(orgIds: string[]): boolean {
+  if (!currentUser) return false
+  return orgIds.includes(currentUser.org_id || '')
+}
+
+/**
+ * 检查用户是否为系统管理员或超级管理员
+ */
+export function isAdmin(): boolean {
+  if (!currentUser) return false
+  const adminRoles = ['ADMIN', 'SUPER_ADMIN']
+  return currentUser.roles.some(r => adminRoles.includes(r))
+}
+
+/**
+ * 检查用户是否为超级管理员
+ */
+export function isSuperAdmin(): boolean {
+  if (!currentUser) return false
+  return currentUser.roles.includes('SUPER_ADMIN')
+}
+
+/**
+ * 获取用户权限列表
+ */
+export function getUserPermissions(): string[] {
+  return currentUser?.permissions || []
+}
+
+/**
+ * 获取用户角色列表
+ */
+export function getUserRoles(): string[] {
+  return currentUser?.roles || []
+}
+
+/**
+ * 获取用户所属组织ID
+ */
+export function getUserOrgId(): string | null {
+  return currentUser?.org_id || null
 }

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, List, Tag, Button, Space, Typography, Tabs, Empty, Table, Descriptions, Modal } from 'antd'
+import { Card, Row, Col, List, Tag, Button, Space, Typography, Tabs, Empty, Table, Descriptions, Modal, Result } from 'antd'
 import { FileTextOutlined, EditOutlined, PrinterOutlined, EyeOutlined } from '@ant-design/icons'
 import { mockReports, mockConsultations, mockPatients } from '../../mocks/data'
 import type { Report } from '../../stores/consultationStore'
 import ReportView from '../../components/ReportView'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title, Text } = Typography
 
@@ -104,6 +105,18 @@ export default function ReportList() {
 
   const viewingConsultation = viewingReport ? mockConsultations.find(c => c.id === viewingReport.consultationId) : null
   const viewingPatient = viewingConsultation ? mockPatients.find(p => p.id === viewingConsultation.patientId) : null
+
+  // 权限检查
+  if (!hasPermission('perm-report-list')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问会诊报告管理。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">

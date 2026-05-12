@@ -17,18 +17,18 @@ export default function Workbench() {
   // 根据角色渲染不同的工作台
   const renderWorkbench = () => {
     switch (role) {
-      case '申请医生':
+      case 'apply_doctor':
         return <DoctorWorkbench />
-      case '主任医生':
+      case 'director':
         return <DirectorWorkbench />
-      case 'MDT 秘书':
+      case 'secretary':
         return <SecretaryWorkbench />
-      case '会诊专家':
+      case 'expert':
         return <ExpertWorkbench />
-      case '质控员':
+      case 'quality_controller':
         return <QualityWorkbench />
-      case '系统管理员':
-      case '超级管理员':
+      case 'admin':
+      case 'super_admin':
         return <AdminWorkbench />
       default:
         return <DoctorWorkbench />

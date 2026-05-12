@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   Card, Row, Col, Statistic, Table, Tag, Space, Typography, Button, Badge, 
   Timeline, Modal, Descriptions, Select, Input, Drawer, message, Popconfirm,
@@ -10,10 +10,46 @@ import {
   TeamOutlined, FileTextOutlined, ExclamationCircleOutlined, CloseCircleOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { mockConsultationProgress, mockProgressStats, type ConsultationProgress } from '../../mocks/progressData'
-import { mockExperts } from '../../mocks/data'
+import { supabase } from '../../lib/supabase'
 import PatientInfo from '../../components/PatientInfo'
 import dayjs from 'dayjs'
+
+interface Stage {
+  title?: string
+  stage: string
+  status: 'completed' | 'processing' | 'pending' | 'timeout'
+  time?: string
+  completedAt?: string
+  operator?: string
+  notes?: string
+}
+
+interface ConsultationProgress {
+  id: string
+  patientId: string
+  patientName: string
+  gender: string
+  age: number
+  department: string
+  applicant: string
+  applyDate: string
+  currentStage: string
+  priority: string
+  stages: Stage[]
+  isTimeout: boolean
+  patientInpatientNo?: string
+  mainDiagnosis?: string
+  consultationType?: string
+  estimatedCompletion?: string
+  timeoutReason?: string
+}
+
+interface ProgressStats {
+  processing: number
+  completed: number
+  timeout: number
+  total: number
+}
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -30,6 +66,7 @@ interface ScheduleModalProps {
   open: boolean
   consultationId: string
   patientName: string
+  experts: any[]
   onConfirm: (experts: string[], time: string) => void
   onCancel: () => void
 }
@@ -93,7 +130,7 @@ const AuditModal: React.FC<AuditModalProps> = ({ open, consultationId, patientNa
   )
 }
 
-const ScheduleModal: React.FC<ScheduleModalProps> = ({ open, consultationId, patientName, onConfirm, onCancel }) => {
+const ScheduleModal: React.FC<ScheduleModalProps> = ({ open, consultationId, patientName, experts, onConfirm, onCancel }) => {
   const [form] = Form.useForm()
   const [selectedExperts, setSelectedExperts] = useState<string[]>([])
 
@@ -151,7 +188,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ open, consultationId, pat
 
         <List
           grid={{ gutter: 16, column: 2 }}
-          dataSource={mockExperts}
+          dataSource={experts}
           renderItem={(expert) => (
             <List.Item>
               <Card
@@ -205,8 +242,125 @@ export default function MDTManagement() {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('')
   const [selectedPatientName, setSelectedPatientName] = useState<string>('')
   const [selectedPatientInpatientNo, setSelectedPatientInpatientNo] = useState<string>('')
+  const [consultationProgress, setConsultationProgress] = useState<ConsultationProgress[]>([])
+  const [stats, setStats] = useState<ProgressStats>({ processing: 0, completed: 0, timeout: 0, total: 0 })
+  const [loading, setLoading] = useState(true)
+  const [expertsList, setExpertsList] = useState<any[]>([])
 
-  const filteredData = mockConsultationProgress.filter((item) => {
+  useEffect(() => {
+    loadConsultationProgress()
+    loadExperts()
+  }, [])
+
+  const loadConsultationProgress = async () => {
+    try {
+      setLoading(true)
+      
+      const { data: consultations, error } = await supabase
+        .from('consultations')
+        .select('*')
+        .order('apply_time', { ascending: false })
+
+      if (error) throw error
+
+      const progressList: ConsultationProgress[] = (consultations || []).map(c => {
+        const stages = buildStages(c.status, c.apply_time, c.created_at)
+        const currentStage = stages.find(s => s.status === 'processing')?.title || 
+                            stages.find(s => s.status === 'pending')?.title ||
+                            stages[stages.length - 1]?.title || '未知'
+        
+        return {
+          id: c.id,
+          patientId: c.patient_id,
+          patientName: c.patient_name,
+          gender: '',
+          age: 0,
+          department: c.department,
+          applicant: c.apply_doctor,
+          applyDate: c.apply_time ? dayjs(c.apply_time).format('YYYY-MM-DD HH:mm') : '',
+          currentStage: currentStage,
+          priority: c.urgency || '普通',
+          stages: stages,
+          isTimeout: false,
+          patientInpatientNo: c.patient_inpatient_no,
+          mainDiagnosis: c.main_diagnosis
+        }
+      })
+
+      setConsultationProgress(progressList)
+      
+      const completedCount = progressList.filter(p => p.stages.every(s => s.status === 'completed')).length
+      const processingCount = progressList.filter(p => p.stages.some(s => s.status === 'processing')).length
+      const timeoutCount = progressList.filter(p => p.isTimeout).length
+
+      setStats({
+        processing: processingCount,
+        completed: completedCount,
+        timeout: timeoutCount,
+        total: progressList.length
+      })
+    } catch (error) {
+      console.error('加载会诊进度失败:', error)
+      message.error('加载会诊进度失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadExperts = async () => {
+    try {
+      const { data, error } = await supabase.from('experts').select('*')
+      if (error) throw error
+      setExpertsList(data || [])
+    } catch (error) {
+      console.error('加载专家失败:', error)
+    }
+  }
+
+  const buildStages = (status: string, applyTime?: string, createdAt?: string): Stage[] => {
+    const baseStages: Stage[] = [
+      { title: '申请提交', stage: '申请提交', status: 'completed' as const, time: createdAt ? dayjs(createdAt).format('YYYY-MM-DD HH:mm') : undefined },
+      { title: '科室审核', stage: '科室审核', status: 'pending' as const },
+      { title: '秘书审核', stage: '秘书审核', status: 'pending' as const },
+      { title: '专家邀请', stage: '专家邀请', status: 'pending' as const },
+      { title: '专家确认', stage: '专家确认', status: 'pending' as const },
+      { title: '安排会诊', stage: '安排会诊', status: 'pending' as const },
+      { title: '会诊进行', stage: '会诊进行', status: 'pending' as const },
+      { title: '完成归档', stage: '完成归档', status: 'pending' as const },
+    ]
+
+    const statusOrder: Record<string, number> = {
+      '医生提交': 0,
+      '主任驳回': 0,
+      '待科室审核': 0,
+      '秘书审核': 2,
+      '待秘书审核': 2,
+      '专家邀请': 3,
+      '专家确认': 4,
+      '待专家确认': 3,
+      '待排期': 4,
+      '待会诊': 5,
+      '会诊中': 6,
+      '待质检审核': 7,
+      '待归档': 7,
+      '已完成': 7,
+      '已取消': 7,
+      '已拒绝': 7,
+    }
+
+    const currentIndex = statusOrder[status] ?? 0
+
+    return baseStages.map((stage, index) => {
+      if (index < currentIndex) {
+        return { ...stage, status: 'completed' as const }
+      } else if (index === currentIndex) {
+        return { ...stage, status: 'processing' as const, time: applyTime ? dayjs(applyTime).format('YYYY-MM-DD HH:mm') : undefined }
+      }
+      return stage
+    })
+  }
+
+  const filteredData = consultationProgress.filter((item) => {
     const matchStatus = filterStatus === 'all' || 
       (filterStatus === 'timeout' && item.isTimeout) ||
       (filterStatus === 'processing' && !item.isTimeout && item.stages.some(s => s.status === 'processing')) ||
@@ -428,7 +582,7 @@ export default function MDTManagement() {
           <Card>
             <Statistic
               title="待审核"
-              value={mockProgressStats.processing}
+              value={stats.processing}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -438,7 +592,7 @@ export default function MDTManagement() {
           <Card>
             <Statistic
               title="已完成"
-              value={mockProgressStats.completed}
+              value={stats.completed}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -448,7 +602,7 @@ export default function MDTManagement() {
           <Card>
             <Statistic
               title="超时"
-              value={mockProgressStats.timeout}
+              value={stats.timeout}
               prefix={<WarningOutlined />}
               valueStyle={{ color: '#ff4d4f' }}
             />
@@ -458,7 +612,7 @@ export default function MDTManagement() {
           <Card>
             <Statistic
               title="完成率"
-              value={mockProgressStats.completionRate}
+              value={stats.total > 0 ? (stats.completed / stats.total * 100).toFixed(1) : 0}
               suffix="%"
               precision={1}
               valueStyle={{ color: '#722ed1' }}
@@ -634,6 +788,7 @@ export default function MDTManagement() {
         open={scheduleModalVisible}
         consultationId={selectedRecord?.id || ''}
         patientName={selectedRecord?.patientName || ''}
+        experts={expertsList}
         onConfirm={handleSchedule}
         onCancel={() => setScheduleModalVisible(false)}
       />

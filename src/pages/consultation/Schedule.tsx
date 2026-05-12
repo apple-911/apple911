@@ -1,25 +1,168 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Calendar, Badge, List, Avatar, Tag, Space, Button, Modal, DatePicker, message, Typography, Tabs, Table, Drawer } from 'antd'
+import { Card, Calendar, Badge, List, Avatar, Tag, Space, Button, Modal, DatePicker, message, Typography, Tabs, Table, Drawer, Result } from 'antd'
 import { PlusOutlined, TeamOutlined, CalendarOutlined, EditOutlined, ClockCircleOutlined, CheckCircleOutlined, UserOutlined } from '@ant-design/icons'
-import { mockConsultations, mockExperts } from '../../mocks/data'
-import type { Consultation, Expert } from '../../stores/consultationStore'
+import { supabase } from '../../lib/supabase'
 import dayjs from 'dayjs'
 import IntelligentScheduler from '../../components/IntelligentScheduler'
 import PatientInfo from '../../components/PatientInfo'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title, Text } = Typography
 
+interface ScheduleConsultation {
+  id: string
+  patientName: string
+  patientInpatientNo: string
+  patientId: string
+  mainDiagnosis: string
+  department: string
+  applyDoctor: string
+  applyTime: string
+  urgency: string
+  expectTime: string
+  consultationPurpose?: string
+  experts: Expert[]
+  status: string
+}
+
+interface Expert {
+  id: string
+  name: string
+  department: string
+  title: string
+  status: '空闲' | '忙碌' | '离线'
+  specialty: string
+}
+
 export default function Schedule() {
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs())
-  const [scheduledConsultations, setScheduledConsultations] = useState(mockConsultations.filter(c => c.status === '已通过'))
-  const [reschedulingConsultation, setReschedulingConsultation] = useState<Consultation | null>(null)
+  const [scheduledConsultations, setScheduledConsultations] = useState<ScheduleConsultation[]>([])
+  const [pendingConsultations, setPendingConsultations] = useState<ScheduleConsultation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [reschedulingConsultation, setReschedulingConsultation] = useState<ScheduleConsultation | null>(null)
   const [showScheduler, setShowScheduler] = useState(false)
   const [patientDrawerVisible, setPatientDrawerVisible] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState<string>('')
   const [selectedPatientName, setSelectedPatientName] = useState<string>('')
   const [selectedPatientInpatientNo, setSelectedPatientInpatientNo] = useState<string>('')
+  const [scheduledEvents, setScheduledEvents] = useState<any[]>([])
+  const [expertAvailability, setExpertAvailability] = useState<any[]>([])
   const navigate = useNavigate()
+
+  useEffect(() => {
+    loadConsultations()
+  }, [])
+
+  const loadConsultations = async () => {
+    try {
+      setLoading(true)
+      
+      // 获取所有专家信息
+      const { data: allExperts, error: expertsError } = await supabase
+        .from('experts')
+        .select('*')
+      
+      if (expertsError) throw expertsError
+      
+      const expertMap = new Map(allExperts.map(e => [e.id, e]))
+
+      // 获取会诊专家关联表
+      const { data: consultationExperts, error: ceError } = await supabase
+        .from('consultation_experts')
+        .select('consultation_id, expert_id')
+
+      if (ceError) throw ceError
+
+      // 构建会诊ID到专家ID列表的映射
+      const consultationExpertMap = new Map<string, string[]>()
+      consultationExperts.forEach(ce => {
+        if (!consultationExpertMap.has(ce.consultation_id)) {
+          consultationExpertMap.set(ce.consultation_id, [])
+        }
+        consultationExpertMap.get(ce.consultation_id)!.push(ce.expert_id)
+      })
+
+      // 获取待排期的会诊（秘书审核通过后，等待排期）
+      const { data: pendingData, error: pendingError } = await supabase
+        .from('consultations')
+        .select('*')
+        .in('status', ['秘书审核', '待排期'])
+        .order('apply_time', { ascending: false })
+
+      if (pendingError) throw pendingError
+
+      const pendingList: ScheduleConsultation[] = (pendingData || []).map(c => ({
+        id: c.id,
+        patientName: c.patient_name,
+        patientInpatientNo: c.patient_inpatient_no,
+        patientId: c.patient_id,
+        mainDiagnosis: c.main_diagnosis,
+        department: c.department,
+        applyDoctor: c.apply_doctor,
+        applyTime: c.apply_time ? dayjs(c.apply_time).format('YYYY-MM-DD HH:mm') : '',
+        urgency: c.urgency || '普通',
+        expectTime: c.expect_time ? dayjs(c.expect_time).format('YYYY-MM-DD HH:mm') : '',
+        consultationPurpose: c.summary,
+        experts: consultationExpertMap.get(c.id)?.map(eid => {
+          const expert = expertMap.get(eid)
+          return { 
+            id: eid, 
+            name: expert?.name || '未知专家', 
+            department: expert?.department || '未知科室',
+            title: expert?.title || '',
+            status: '空闲' as const,
+            specialty: expert?.specialty || ''
+          }
+        }) || [],
+        status: c.status
+      }))
+
+      setPendingConsultations(pendingList)
+
+      // 获取已排期的会诊
+      const { data: scheduledData, error: scheduledError } = await supabase
+        .from('consultations')
+        .select('*')
+        .in('status', ['待专家确认', '专家邀请', '专家确认', '待会诊', '会诊中'])
+        .order('expect_time', { ascending: true })
+
+      if (scheduledError) throw scheduledError
+
+      const scheduledList: ScheduleConsultation[] = (scheduledData || []).map(c => ({
+        id: c.id,
+        patientName: c.patient_name,
+        patientInpatientNo: c.patient_inpatient_no,
+        patientId: c.patient_id,
+        mainDiagnosis: c.main_diagnosis,
+        department: c.department,
+        applyDoctor: c.apply_doctor,
+        applyTime: c.apply_time ? dayjs(c.apply_time).format('YYYY-MM-DD HH:mm') : '',
+        urgency: c.urgency || '普通',
+        expectTime: c.expect_time ? dayjs(c.expect_time).format('YYYY-MM-DD HH:mm') : '',
+        consultationPurpose: c.summary,
+        experts: consultationExpertMap.get(c.id)?.map(eid => {
+          const expert = expertMap.get(eid)
+          return { 
+            id: eid, 
+            name: expert?.name || '未知专家', 
+            department: expert?.department || '未知科室',
+            title: expert?.title || '',
+            status: '空闲' as const,
+            specialty: expert?.specialty || ''
+          }
+        }) || [],
+        status: c.status
+      }))
+
+      setScheduledConsultations(scheduledList)
+    } catch (error) {
+      console.error('加载排期数据失败:', error)
+      message.error('加载排期数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getListData = (value: dayjs.Dayjs) => {
     const dateStr = value.format('YYYY-MM-DD')
@@ -41,7 +184,7 @@ export default function Schedule() {
   )
 
   // 打开智能排期
-  const handleSchedule = (consultation: Consultation) => {
+  const handleSchedule = (consultation: ScheduleConsultation) => {
     setReschedulingConsultation(consultation)
     setShowScheduler(true)
   }
@@ -52,7 +195,6 @@ export default function Schedule() {
     message.success(`排期成功！会诊时间：${datetime}`)
     setShowScheduler(false)
     setReschedulingConsultation(null)
-    // TODO: 更新会诊状态和专家安排
   }
 
   const showPatientInfo = (patientId: string, patientName: string, patientInpatientNo: string) => {
@@ -62,26 +204,17 @@ export default function Schedule() {
     setPatientDrawerVisible(true)
   }
 
-  const pendingConsultations = mockConsultations.filter(c => c.status === '待科室审核')
-
-  // 专家时间数据（Mock）
-  const expertAvailability = mockExperts.map(expert => ({
-    expertId: expert.id,
-    date: dayjs().format('YYYY-MM-DD'),
-    availableSlots: ['09:00', '10:00', '14:00', '15:00', '16:00'],
-    busySlots: ['11:00', '17:00']
-  }))
-
-  // 已安排的会诊（用于冲突检测）
-  const scheduledEvents = scheduledConsultations.map(c => ({
-    id: c.id,
-    title: c.mainDiagnosis,
-    patientName: c.patientName,
-    date: dayjs(c.expectTime),
-    time: c.expectTime.split(' ')[1] || '09:00',
-    experts: c.experts,
-    type: 'consultation' as const
-  }))
+  // 权限检查
+  if (!hasPermission('perm-consultation-schedule')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问排期管理页面。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">

@@ -6,14 +6,27 @@
 
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Typography, Space, Tooltip } from 'antd'
+import { Card, Typography, Space, Tooltip, Result, Button } from 'antd'
 import { ThunderboltOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import PatientScreeningAlerts from '../../components/PatientScreeningAlerts'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title } = Typography
 
 export default function AIScreening() {
   const navigate = useNavigate()
+
+  // 权限检查
+  if (!hasPermission('perm-ai-screening')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问AI患者筛查。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">

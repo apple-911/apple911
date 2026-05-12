@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Input, Upload, message, Steps, Divider, Select, Tabs, Descriptions } from 'antd'
+import { useNavigate } from 'react-router-dom'
+import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Input, Upload, message, Steps, Divider, Select, Tabs, Descriptions, Result } from 'antd'
 import {
   FileTextOutlined,
   UploadOutlined,
@@ -18,6 +19,7 @@ import {
   MedicineBoxOutlined,
   ApiOutlined,
 } from '@ant-design/icons'
+import { hasPermission } from '../../utils/helpers'
 import type { ColumnsType } from 'antd/es/table'
 
 const { Title, Text } = Typography
@@ -583,6 +585,7 @@ ECOG 评分：1 分
 ]
 
 export default function SubmitMaterial() {
+  const navigate = useNavigate()
   const [tasks, setTasks] = useState(mockTasks)
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedTask, setSelectedTask] = useState<MaterialTask | null>(null)
@@ -810,6 +813,18 @@ export default function SubmitMaterial() {
   ]
 
   const isEditMode = selectedTask?.status === '待提交' || selectedTask?.status === '已退回'
+
+  // 权限检查
+  if (!hasPermission('perm-consultation-material')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问材料归档页面。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">

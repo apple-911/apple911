@@ -11,6 +11,7 @@ interface PatientInfoProps {
   patientName?: string
   patientInpatientNo?: string
   compact?: boolean
+  patientData?: any // 完整的患者数据（从数据库加载）
 }
 
 interface PatientMedicalRecord {
@@ -139,15 +140,48 @@ const mockMedicalRecords: Record<string, PatientMedicalRecord> = {
   }
 }
 
-export default function PatientInfo({ patientId, patientName, patientInpatientNo, compact = false }: PatientInfoProps) {
+export default function PatientInfo({ patientId, patientName, patientInpatientNo, compact = false, patientData }: PatientInfoProps) {
   const patient = mockPatients.find((p: Patient) => p.id === patientId)
   const medicalRecord = patientId ? mockMedicalRecords[patientId] : null
 
-  if (!patient && !patientName) {
+  if (!patient && !patientName && !patientData) {
     return null
   }
 
-  const displayPatient = patient || {
+  // 优先使用传入的 patientData，否则使用 mockPatients 的数据
+  const displayPatient = patientData ? {
+    id: patientData.id,
+    name: patientData.name,
+    gender: patientData.gender,
+    age: patientData.age,
+    inpatientNo: patientData.inpatientNo,
+    phone: patientData.phone || '-',
+    admissionTime: patientData.admissionTime || '-',
+    department: patientData.department || '-',
+    doctor: patientData.doctor || '-',
+    allergies: patientData.allergies || [],
+    history: patientData.history || [],
+    mainDiagnosis: patientData.mainDiagnosis || '-',
+    imagingExams: patientData.imagingExams ? [{
+      id: '1',
+      type: '影像学检查',
+      examDate: '',
+      examBody: patientData.imagingExams,
+      description: patientData.imagingExams,
+      conclusion: ''
+    }] : [],
+    labTests: [],
+    pathologyReports: [],
+    otherExams: [],
+    // 病历相关字段（从数据库加载）
+    physicalExamination: patientData.physicalExamination || '',
+    initialDiagnosis: patientData.initialDiagnosis || '',
+    treatmentPlan: patientData.treatmentPlan || '',
+    chiefComplaint: patientData.chiefComplaint || '',
+    presentIllness: patientData.presentIllness || '',
+    pastHistory: patientData.pastHistory || '',
+    auxiliaryExamination: patientData.auxiliaryExamination || '',
+  } : (patient || {
     id: patientId,
     name: patientName,
     inpatientNo: patientInpatientNo,
@@ -159,7 +193,29 @@ export default function PatientInfo({ patientId, patientName, patientInpatientNo
     doctor: '-',
     allergies: [],
     history: [],
-    mainDiagnosis: '-'
+    mainDiagnosis: '-',
+    imagingExams: [],
+    labTests: [],
+    pathologyReports: [],
+    otherExams: [],
+    physicalExamination: '',
+    initialDiagnosis: '',
+    treatmentPlan: '',
+    chiefComplaint: '',
+    presentIllness: '',
+    pastHistory: '',
+    auxiliaryExamination: '',
+  })
+
+  // 合并 mock 数据和数据库数据：优先使用数据库数据
+  const mergedMedicalRecord = {
+    chiefComplaint: displayPatient.chiefComplaint || medicalRecord?.chiefComplaint || '',
+    presentIllness: displayPatient.presentIllness || medicalRecord?.presentIllness || '',
+    pastHistory: displayPatient.pastHistory || medicalRecord?.pastHistory || '',
+    physicalExamination: displayPatient.physicalExamination || medicalRecord?.physicalExamination || '',
+    auxiliaryExamination: displayPatient.auxiliaryExamination || medicalRecord?.auxiliaryExamination || '',
+    initialDiagnosis: displayPatient.initialDiagnosis || displayPatient.mainDiagnosis || '',
+    treatmentPlan: displayPatient.treatmentPlan || '',
   }
 
   if (compact) {
@@ -227,7 +283,7 @@ export default function PatientInfo({ patientId, patientName, patientInpatientNo
         </Card>
       )}
 
-      {medicalRecord || (patient && (patient.imagingExams || patient.labTests || patient.pathologyReports || patient.otherExams)) ? (
+      {(mergedMedicalRecord.chiefComplaint || mergedMedicalRecord.presentIllness || mergedMedicalRecord.pastHistory || mergedMedicalRecord.physicalExamination || mergedMedicalRecord.auxiliaryExamination || mergedMedicalRecord.treatmentPlan || patient && (patient.imagingExams || patient.labTests || patient.pathologyReports || patient.otherExams)) ? (
         <Card size="small" title={<Space><FileTextOutlined />病历资料</Space>}>
           <Tabs
             defaultActiveKey="diagnosis"
@@ -236,14 +292,14 @@ export default function PatientInfo({ patientId, patientName, patientInpatientNo
               {
                 key: 'diagnosis',
                 label: <Space><FileTextOutlined />初步诊断</Space>,
-                children: medicalRecord ? (
+                children: (mergedMedicalRecord.initialDiagnosis || mergedMedicalRecord.presentIllness) ? (
                   <div className="space-y-2">
-                    <div className="font-medium text-blue-600 text-base">{displayPatient.mainDiagnosis}</div>
-                    {medicalRecord.presentIllness && (
+                    <div className="font-medium text-blue-600 text-base">{mergedMedicalRecord.initialDiagnosis || displayPatient.mainDiagnosis}</div>
+                    {mergedMedicalRecord.presentIllness && (
                       <div>
                         <Text strong>诊断依据：</Text>
                         <div className="whitespace-pre-wrap text-sm mt-1">
-                          {medicalRecord.chiefComplaint}\n\n{medicalRecord.presentIllness}
+                          {mergedMedicalRecord.chiefComplaint}\n\n{mergedMedicalRecord.presentIllness}
                         </div>
                       </div>
                     )}
@@ -255,22 +311,27 @@ export default function PatientInfo({ patientId, patientName, patientInpatientNo
               {
                 key: 'chief',
                 label: <Space><FileTextOutlined />主诉</Space>,
-                children: medicalRecord ? <div className="whitespace-pre-wrap text-sm">{medicalRecord.chiefComplaint}</div> : '无记录'
+                children: mergedMedicalRecord.chiefComplaint ? <div className="whitespace-pre-wrap text-sm">{mergedMedicalRecord.chiefComplaint}</div> : '无记录'
               },
               {
                 key: 'present',
                 label: <Space><HeartOutlined />现病史</Space>,
-                children: medicalRecord ? <div className="whitespace-pre-wrap text-sm">{medicalRecord.presentIllness}</div> : '无记录'
+                children: mergedMedicalRecord.presentIllness ? <div className="whitespace-pre-wrap text-sm">{mergedMedicalRecord.presentIllness}</div> : '无记录'
               },
               {
                 key: 'past',
                 label: <Space><MedicineBoxOutlined />既往史</Space>,
-                children: medicalRecord ? <div className="whitespace-pre-wrap text-sm">{medicalRecord.pastHistory}</div> : '无记录'
+                children: mergedMedicalRecord.pastHistory ? <div className="whitespace-pre-wrap text-sm">{mergedMedicalRecord.pastHistory}</div> : '无记录'
               },
               {
                 key: 'physical',
                 label: <Space><ToolOutlined />体格检查</Space>,
-                children: medicalRecord ? <div className="whitespace-pre-wrap text-sm">{medicalRecord.physicalExamination}</div> : '无记录'
+                children: mergedMedicalRecord.physicalExamination ? <div className="whitespace-pre-wrap text-sm">{mergedMedicalRecord.physicalExamination}</div> : '无记录'
+              },
+              {
+                key: 'treatment',
+                label: <Space><ToolOutlined />治疗方案</Space>,
+                children: mergedMedicalRecord.treatmentPlan ? <div className="whitespace-pre-wrap text-sm">{mergedMedicalRecord.treatmentPlan}</div> : '无记录'
               },
               {
                 key: 'imaging',

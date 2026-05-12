@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type Role = '申请医生' | '主任医生' | 'MDT 秘书' | '会诊专家' | '质控员' | '系统管理员' | '超级管理员'
+export type Role = 'apply_doctor' | 'director' | 'secretary' | 'expert' | 'quality_controller' | 'admin' | 'super_admin'
 
 export interface User {
   id: string
@@ -19,9 +19,12 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  role: '申请医生',
+  role: 'apply_doctor',
   user: null,
   setRole: (role) => set({ role }),
   setUser: (user) => set({ user }),
-  logout: () => set({ user: null, role: '申请医生' }),
+  logout: () => {
+    localStorage.removeItem('mdt_user')
+    set({ user: null, role: 'apply_doctor' })
+  },
 }))

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Badge, Dropdown, List, Avatar, Button, Space, Typography, Empty, Tag, Tooltip } from 'antd'
+import { useState, useEffect } from 'react'
+import { Badge, Dropdown, List, Avatar, Button, Space, Typography, Empty, Tag, Tooltip, Spin } from 'antd'
 import {
   BellOutlined,
   CheckOutlined,
@@ -10,7 +10,8 @@ import {
   ExclamationCircleOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons'
-import { useNotificationPanel, useSimulatedWebSocket } from '../stores/notificationStore'
+import { useNotificationPanel } from '../stores/notificationStore'
+import { useAppStore } from '../stores/appStore'
 import { formatRelativeTime } from '../utils/helpers'
 
 const { Text, Title } = Typography
@@ -31,32 +32,45 @@ const colorMap = {
 
 export default function NotificationPanel() {
   const [open, setOpen] = useState(false)
+  const { user } = useAppStore()
   const {
     notifications,
     unreadCount,
+    isLoading,
     markAsRead,
     markAllAsRead,
     removeNotification,
     clearAll,
     handleAction,
+    fetchNotifications,
   } = useNotificationPanel()
 
-  useSimulatedWebSocket()
+  useEffect(() => {
+    if (user?.id) {
+      fetchNotifications(user.id)
+    }
+  }, [user?.id])
 
   const menuItems = [
     {
       key: 'read-all',
       icon: <CheckOutlined />,
       label: '全部已读',
-      onClick: markAllAsRead,
+      onClick: () => user?.id && markAllAsRead(user.id),
       disabled: unreadCount === 0,
     },
     {
       key: 'clear-all',
       icon: <ClearOutlined />,
       label: '清空全部',
-      onClick: clearAll,
+      onClick: () => user?.id && clearAll(user.id),
       disabled: notifications.length === 0,
+    },
+    {
+      key: 'refresh',
+      icon: <RefreshIcon />,
+      label: '刷新',
+      onClick: () => user?.id && fetchNotifications(user.id),
     },
   ]
 
@@ -80,7 +94,11 @@ export default function NotificationPanel() {
         </Dropdown>
       </div>
 
-      {notifications.length === 0 ? (
+      {isLoading ? (
+        <div className="py-12 text-center">
+          <Spin size="default" />
+        </div>
+      ) : notifications.length === 0 ? (
         <div className="py-12 text-center">
           <Empty description="暂无通知" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </div>
@@ -163,5 +181,24 @@ export default function NotificationPanel() {
         />
       </Badge>
     </Dropdown>
+  )
+}
+
+// 刷新图标组件
+function RefreshIcon(props: any) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <polyline points="23 4 23 10 17 10"></polyline>
+      <polyline points="1 20 1 14 7 14"></polyline>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+    </svg>
   )
 }

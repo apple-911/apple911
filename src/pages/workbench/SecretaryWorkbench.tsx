@@ -1,338 +1,301 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Table, Tag, Space, Typography, Badge, Button, Avatar, Alert, Calendar, List } from 'antd'
-import {
-  ClockCircleOutlined,
-  TeamOutlined,
-  FileTextOutlined,
-  BellOutlined,
-  CheckCircleOutlined,
-  EyeOutlined,
-} from '@ant-design/icons'
+import { Card, Row, Col, Table, Tag, Space, Typography, Button, message, Modal, Input, DatePicker, TimePicker, Select, Spin, Statistic } from 'antd'
+import { CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, CalendarOutlined, BellOutlined, EyeOutlined } from '@ant-design/icons'
 import { useAppStore } from '../../stores/appStore'
+import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 
-const { Title, Text } = Typography
+const { Title } = Typography
+const { TextArea } = Input
+const { Option } = Select
 
-interface Task {
+interface PendingReview {
   id: string
-  type: '协调会诊' | '安排场地' | '通知专家' | '准备材料' | '跟进进度'
-  title: string
-  status: '待处理' | '进行中' | '已完成'
-  priority: '高' | '中' | '低'
-  dueTime: string
-  consultationId?: string
+  patientName: string
+  patientInpatientNo: string
+  department: string
+  diagnosis: string
+  urgency: '普通' | '紧急' | '特急'
+  applicant: string
+  applyTime: string
 }
 
 export default function SecretaryWorkbench() {
   const navigate = useNavigate()
   const { user } = useAppStore()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({
-    totalTasks: 0,
-    pendingTasks: 0,
-    todayMeetings: 0,
-    urgentTasks: 0,
+  const [stats, setStats] = useState({ pending: 0, scheduled: 0, completed: 0 })
+  const [pendingList, setPendingList] = useState<PendingReview[]>([])
+  const [scheduleModalVisible, setScheduleModalVisible] = useState(false)
+  const [selectedConsultation, setSelectedConsultation] = useState<any>(null)
+  const [scheduleData, setScheduleData] = useState({
+    expect_time: '',
+    meeting_room: '',
+    notes: '',
   })
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [scheduleLoading, setScheduleLoading] = useState(false)
 
   useEffect(() => {
-    setTimeout(() => {
-      setStats({
-        totalTasks: 48,
-        pendingTasks: 12,
-        todayMeetings: 5,
-        urgentTasks: 3,
-      })
-
-      setTasks([
-        {
-          id: 'T001',
-          type: '协调会诊',
-          title: '王建国 MDT 会诊 - 确认专家时间',
-          status: '待处理',
-          priority: '高',
-          dueTime: '今天 14:00',
-          consultationId: 'MDT20240320001',
-        },
-        {
-          id: 'T002',
-          type: '安排场地',
-          title: '302 会议室 - 下午会诊准备',
-          status: '进行中',
-          priority: '高',
-          dueTime: '今天 13:30',
-        },
-        {
-          id: 'T003',
-          type: '通知专家',
-          title: '通知李红梅教授参加会诊',
-          status: '待处理',
-          priority: '中',
-          dueTime: '今天 12:00',
-        },
-        {
-          id: 'T004',
-          type: '准备材料',
-          title: '打印王建国病历资料',
-          status: '已完成',
-          priority: '中',
-          dueTime: '今天 10:00',
-        },
-        {
-          id: 'T005',
-          type: '跟进进度',
-          title: '跟进李秀英会诊报告生成',
-          status: '进行中',
-          priority: '低',
-          dueTime: '明天',
-        },
-      ])
-
-      setLoading(false)
-    }, 500)
+    loadPendingReviews()
   }, [])
 
-  const columns: ColumnsType<Task> = [
-    {
-      title: '任务类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: 120,
-      render: (type) => <Tag color="blue">{type}</Tag>,
-    },
-    {
-      title: '任务内容',
-      dataIndex: 'title',
-      key: 'title',
-      ellipsis: true,
-    },
-    {
-      title: '优先级',
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 80,
-      render: (priority) => (
-        <Tag color={priority === '高' ? 'red' : priority === '中' ? 'orange' : 'green'}>
-          {priority}
+  const loadPendingReviews = async () => {
+    try {
+      setLoading(true)
+      
+      const { data: consultations, error } = await supabase
+        .from('consultations')
+        .select('*')
+        .eq('status', '待秘书审核')
+        .order('urgency', { ascending: false })
+        .order('apply_time', { ascending: false })
+      
+      if (error) throw error
+      
+      const pendingReviews: PendingReview[] = (consultations || []).map(item => ({
+        id: item.id,
+        patientName: item.patient_name,
+        patientInpatientNo: item.patient_inpatient_no,
+        department: item.department,
+        diagnosis: item.main_diagnosis,
+        urgency: item.urgency as '普通' | '紧急' | '特急',
+        applicant: item.apply_doctor,
+        applyTime: item.apply_time,
+      }))
+      
+      setPendingList(pendingReviews)
+      setStats({
+        pending: consultations?.length || 0,
+        scheduled: 0,
+        completed: 0,
+      })
+    } catch (err) {
+      console.error('加载失败:', err)
+      message.error('加载数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSchedule = (consultation: any) => {
+    setSelectedConsultation(consultation)
+    setScheduleModalVisible(true)
+  }
+
+  const submitSchedule = async () => {
+    if (!selectedConsultation) return
+    
+    try {
+      setScheduleLoading(true)
+      
+      // 更新会诊状态和时间
+      await supabase
+        .from('consultations')
+        .update({ 
+          status: '待会诊',
+          expect_time: scheduleData.expect_time,
+          meeting_room: scheduleData.meeting_room,
+        })
+        .eq('id', selectedConsultation.id)
+      
+      // 插入审核历史
+      const auditInsert: {
+        consultation_id: string
+        operator?: string
+        operator_id?: string
+        operator_role: string
+        node: string
+        operator_type: string
+        result: string
+        opinion?: string
+        time: string
+        next_node: string
+      } = {
+        consultation_id: selectedConsultation.id,
+        operator: user?.name,
+        operator_role: 'MDT 秘书',
+        node: '秘书审核',
+        operator_type: '通过',
+        result: '通过',
+        opinion: scheduleData.notes,
+        time: new Date().toISOString(),
+        next_node: '会诊中',
+      }
+      
+      // 如果用户有 ID 且是 UUID 格式，才添加 operator_id
+      if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+        auditInsert.operator_id = user.id
+      }
+      
+      await supabase
+        .from('audit_history')
+        .insert(auditInsert)
+      
+      message.success('会诊已安排')
+      setScheduleModalVisible(false)
+      setScheduleData({ expect_time: '', meeting_room: '', notes: '' })
+      loadPendingReviews()
+    } catch (err) {
+      console.error('安排失败:', err)
+      message.error('安排会诊失败')
+    } finally {
+      setScheduleLoading(false)
+    }
+  }
+
+  const columns: ColumnsType<PendingReview> = [
+    { title: '患者姓名', dataIndex: 'patientName', width: 100 },
+    { title: '住院号', dataIndex: 'patientInpatientNo', width: 120 },
+    { title: '科室', dataIndex: 'department', width: 100 },
+    { title: '诊断', dataIndex: 'diagnosis', ellipsis: true },
+    { 
+      title: '紧急程度', 
+      dataIndex: 'urgency',
+      width: 90,
+      render: (urgency) => (
+        <Tag color={urgency === '特急' ? 'red' : urgency === '紧急' ? 'orange' : 'default'}>
+          {urgency}
         </Tag>
-      ),
+      )
     },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status) => {
-        const statusMap: Record<string, { color: string; text: string }> = {
-          '待处理': { color: 'orange', text: '待处理' },
-          '进行中': { color: 'processing', text: '进行中' },
-          '已完成': { color: 'success', text: '已完成' },
-        }
-        const config = statusMap[status] || { color: 'default', text: status }
-        return <Badge color={config.color} text={config.text} />
-      },
-    },
-    {
-      title: '截止时间',
-      dataIndex: 'dueTime',
-      key: 'dueTime',
-      width: 120,
+    { title: '申请医生', dataIndex: 'applicant', width: 100 },
+    { 
+      title: '申请时间', 
+      dataIndex: 'applyTime',
+      width: 160,
+      render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
     },
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 150,
+      fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          {record.consultationId && (
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => navigate(`/consultation/detail/${record.consultationId}`)}
-            >
-              查看
-            </Button>
-          )}
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/consultation/detail/${record.id}`)}
+          >
+            详情
+          </Button>
+          <Button
+            size="small"
+            type="primary"
+            icon={<CalendarOutlined />}
+            onClick={() => handleSchedule(record)}
+          >
+            安排会诊
+          </Button>
         </Space>
-      ),
+      )
     },
   ]
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="text-gray-400">加载中...</div></div>
-  }
-
   return (
-    <div className="space-y-4">
-      {/* 顶部欢迎语 */}
-      <Card className="bg-gradient-to-r from-purple-600 to-purple-400">
-        <div className="flex items-center justify-between">
-          <div>
-            <Title level={4} className="!mb-2 text-white">
-              秘书您好，{user?.name || '秘书'}！👋
-            </Title>
-            <Text className="text-white/90">
-              您有 {stats.pendingTasks} 个待处理任务，今天有 {stats.todayMeetings} 场会诊
-            </Text>
+    <Spin spinning={loading}>
+      <div className="space-y-4">
+        <Title level={4}>MDT 秘书工作台</Title>
+
+        {/* 统计卡片 */}
+        <Row gutter={16}>
+          <Col span={8}>
+            <Card>
+              <Statistic 
+                title="待安排会诊" 
+                value={stats.pending} 
+                prefix={<ClockCircleOutlined />}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic 
+                title="已安排会诊" 
+                value={stats.scheduled} 
+                prefix={<CalendarOutlined />}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic 
+                title="已完成" 
+                value={stats.completed} 
+                prefix={<CheckCircleOutlined />}
+                valueStyle={{ color: '#722ed1' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 待安排列表 */}
+        <Card title="待秘书审核会诊">
+          <Table
+            columns={columns}
+            dataSource={pendingList}
+            rowKey="id"
+            pagination={false}
+            scroll={{ x: 1000 }}
+          />
+        </Card>
+
+        {/* 安排会诊弹窗 */}
+        <Modal
+          title="安排会诊"
+          open={scheduleModalVisible}
+          onOk={submitSchedule}
+          onCancel={() => {
+            setScheduleModalVisible(false)
+            setScheduleData({ expect_time: '', meeting_room: '', notes: '' })
+          }}
+          confirmLoading={scheduleLoading}
+          width={600}
+        >
+          <div className="space-y-4">
+            {selectedConsultation && (
+              <div>
+                <p><strong>患者：</strong>{selectedConsultation.patientName}</p>
+                <p><strong>诊断：</strong>{selectedConsultation.diagnosis}</p>
+                <p><strong>申请科室：</strong>{selectedConsultation.department}</p>
+              </div>
+            )}
+            <div>
+              <strong>会诊时间：</strong>
+              <DatePicker
+                showTime
+                style={{ width: '100%', marginTop: 8 }}
+                value={scheduleData.expect_time ? dayjs(scheduleData.expect_time) : null}
+                onChange={(date) => setScheduleData({ ...scheduleData, expect_time: date?.toISOString() || '' })}
+                disabledDate={(current) => current && current < dayjs().startOf('day')}
+              />
+            </div>
+            <div>
+              <strong>会诊地点：</strong>
+              <Input
+                placeholder="请输入会诊地点"
+                value={scheduleData.meeting_room}
+                onChange={(e) => setScheduleData({ ...scheduleData, meeting_room: e.target.value })}
+                style={{ marginTop: 8 }}
+              />
+            </div>
+            <div>
+              <strong>备注：</strong>
+              <TextArea
+                rows={3}
+                value={scheduleData.notes}
+                onChange={(e) => setScheduleData({ ...scheduleData, notes: e.target.value })}
+                placeholder="请输入备注信息..."
+                style={{ marginTop: 8 }}
+              />
+            </div>
           </div>
-          {stats.urgentTasks > 0 && (
-            <Alert
-              message={`${stats.urgentTasks}个紧急任务`}
-              type="warning"
-              showIcon
-              className="!bg-white/20 !text-white !border-white/30"
-            />
-          )}
-        </div>
-      </Card>
-
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #722ed1 0%, #9254de 100%)' }}>
-                <FileTextOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">总任务数</div>
-                <div className="text-3xl font-bold text-purple-500">{stats.totalTasks}</div>
-                <div className="text-xs text-gray-400">累计任务数</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #fa8c16 0%, #ffc069 100%)' }}>
-                <ClockCircleOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">待处理</div>
-                <div className="text-3xl font-bold text-orange-500">{stats.pendingTasks}</div>
-                <div className="text-xs text-gray-400">待处理任务</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1890ff 0%, #40a9ff 100%)' }}>
-                <TeamOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">今日会诊</div>
-                <div className="text-3xl font-bold text-blue-500">{stats.todayMeetings}</div>
-                <div className="text-xs text-gray-400">今天的会诊安排</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f5222d 0%, #ff4d4f 100%)' }}>
-                <BellOutlined className="text-2xl text-white" />
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">紧急任务</div>
-                <div className="text-3xl font-bold text-red-500">{stats.urgentTasks}</div>
-                <div className="text-xs text-gray-400">需要优先处理</div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* 任务列表 */}
-      <Card
-        title={
-          <Space>
-            <ClockCircleOutlined />
-            <span>我的任务</span>
-          </Space>
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={tasks}
-          rowKey="id"
-          pagination={false}
-          scroll={{ x: 1000 }}
-        />
-      </Card>
-
-      {/* 快捷入口 */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={8}>
-          <Card title="快捷操作">
-            <div className="space-y-3">
-              <Button
-                icon={<TeamOutlined />}
-                size="large"
-                className="w-full !border-blue-500 !text-blue-500 hover:!bg-blue-500 hover:!text-white"
-                onClick={() => navigate('/consultation/schedule')}
-              >
-                会诊排班
-              </Button>
-              <Button
-                icon={<FileTextOutlined />}
-                size="large"
-                className="w-full !border-orange-500 !text-orange-500 hover:!bg-orange-500 hover:!text-white"
-                onClick={() => navigate('/consultation/pending-review')}
-              >
-                待审核
-              </Button>
-              <Button
-                icon={<EyeOutlined />}
-                size="large"
-                className="w-full !border-purple-500 !text-purple-500 hover:!bg-purple-500 hover:!text-white"
-                onClick={() => navigate('/consultation/tracking')}
-              >
-                进度跟踪
-              </Button>
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={16}>
-          <Card title="今日会诊安排">
-            <List
-              itemLayout="horizontal"
-              dataSource={[
-                { time: '14:00', patient: '王建国', room: '302 会议室', experts: 5 },
-                { time: '15:30', patient: '李秀英', room: '301 会议室', experts: 4 },
-                { time: '16:30', patient: '张贵芳', room: '302 会议室', experts: 6 },
-              ]}
-              renderItem={(item) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={
-                      <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <ClockCircleOutlined className="text-xl text-blue-500" />
-                      </div>
-                    }
-                    title={<Text strong>{item.time}</Text>}
-                    description={
-                      <Space direction="vertical" size={0}>
-                        <Text>{item.patient} - {item.room}</Text>
-                        <Text type="secondary"><TeamOutlined /> {item.experts}位专家</Text>
-                      </Space>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          </Card>
-        </Col>
-      </Row>
-    </div>
+        </Modal>
+      </div>
+    </Spin>
   )
 }

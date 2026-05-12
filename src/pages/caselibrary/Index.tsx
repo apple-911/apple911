@@ -1,14 +1,27 @@
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Typography, Input, Button, Space, Tag, Statistic, Divider } from 'antd'
+import { Card, Row, Col, Typography, Input, Button, Space, Tag, Statistic, Divider, Result } from 'antd'
 import { SearchOutlined, BookOutlined, BarChartOutlined, StarOutlined, MedicineBoxOutlined, HeartOutlined, ClockCircleOutlined, SwapOutlined } from '@ant-design/icons'
 import { mockCaseStatistics, mockMedicalCases } from '../../mocks/caseData'
 import { useCaseLibraryStore } from '../../stores/caseLibraryStore'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title, Text } = Typography
 
 export default function CaseLibraryIndex() {
   const navigate = useNavigate()
   const { favorites, recentViews } = useCaseLibraryStore()
+
+  // 权限检查
+  if (!hasPermission('perm-caselibrary-index')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问MDT病案库。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
 
   const recentCases = mockMedicalCases.slice(0, 5)
 

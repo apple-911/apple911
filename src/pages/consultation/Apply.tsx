@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
-import { Card, Steps, Form, Input, Select, DatePicker, Button, Table, Tag, Space, message, Modal, Upload, List, Avatar, Typography, Row, Col, Spin, Alert, Badge, Divider, Tooltip, Drawer, Progress, Tabs, Radio } from 'antd'
+import { Card, Steps, Form, Input, Select, DatePicker, Button, Table, Tag, Space, message, Modal, Upload, List, Avatar, Typography, Row, Col, Spin, Alert, Badge, Divider, Tooltip, Drawer, Progress, Tabs, Radio, Result } from 'antd'
 import { SearchOutlined, UserAddOutlined, UploadOutlined, PlusOutlined, CheckCircleOutlined, RobotOutlined, ThunderboltOutlined, FileProtectOutlined, WarningOutlined, CheckCircleFilled, StarFilled, UserOutlined, DatabaseOutlined, SyncOutlined, TeamOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons'
-import { mockPatients, mockExperts } from '../../mocks/data'
+import { mockPatients } from '../../mocks/data'
 import type { ColumnsType } from 'antd/es/table'
 import type { Patient, Expert, UploadedFile } from '../../stores/consultationStore'
 import type { MDTNecessityAssessment } from '../../services/integration/ai/aiPatientScreeningService'
@@ -11,6 +11,11 @@ import intelligentConsultationService, { IntelligentApplication, ExpertMatch } f
 import aiPatientScreeningService from '../../services/integration/ai/aiPatientScreeningService'
 import PatientInfo from '../../components/PatientInfo'
 import MaterialUpload from '../../components/MaterialUpload'
+import { supabase } from '../../lib/supabase'
+import { useAppStore } from '../../stores/appStore'
+import { generateConsultationCode } from '../../utils/consultationCode'
+import { sendSystemNotification } from '../../stores/notificationStore'
+import { hasPermission } from '../../utils/helpers'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -22,7 +27,10 @@ interface PatientWithAI extends Patient {
 export default function Apply() {
   const [searchParams] = useSearchParams()
   const location = useLocation()
-  const [currentStep, setCurrentStep] = useState(0)
+  const { user } = useAppStore()
+  // 如果是编辑模式（有 id 参数），直接从步骤 1 开始（填写会诊信息）
+  const consultationId = searchParams.get('id')
+  const [currentStep, setCurrentStep] = useState(consultationId ? 1 : 0)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [selectedExperts, setSelectedExperts] = useState<Expert[]>([])
   const [form] = Form.useForm()
@@ -48,23 +56,107 @@ export default function Apply() {
   
   // 材料上传相关状态
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
-  const [medicalRecords, setMedicalRecords] = useState<any>({})
+  const [medicalRecords, setMedicalRecords] = useState<any>([])
   const [hisDataSynced, setHisDataSynced] = useState(false)
   const [hisSyncLoading, setHisSyncLoading] = useState(false)
   
   // 患者数据（带 AI 评估）
   const [patientsWithAI, setPatientsWithAI] = useState<PatientWithAI[]>([])
+  
+  // 专家数据（从数据库加载）
+  const [expertsData, setExpertsData] = useState<Expert[]>([])
+  const [submitting, setSubmitting] = useState(false)
 
-  // 初始化患者数据（直接使用已有的 AI 评估结果）
+  // 从数据库加载患者数据
   useEffect(() => {
-    // 直接使用 mock 数据中的 AI 评估结果
-    // 实际项目中，这些数据应该从后端 API 获取
-    const patientsData: PatientWithAI[] = mockPatients.map(p => ({
-      ...p,
-      // 如果患者数据中已有 AI 评估结果，直接使用
-      // 如果没有，则不显示（实际项目中应该都有）
-    }))
-    setPatientsWithAI(patientsData)
+    const loadPatients = async () => {
+      try {
+        // 1. 先加载所有患者
+        const { data: patientsData, error: patientsError } = await supabase
+          .from('patients')
+          .select('*')
+          .order('created_at', { ascending: false })
+        
+        if (patientsError) throw patientsError
+        
+        // 2. 加载所有会诊申请
+        const { data: allConsultations } = await supabase
+          .from('consultations')
+          .select('patient_inpatient_no, status')
+        
+        // 3. 找出有活跃会诊的患者（状态不是已完成、已取消、已拒绝、待质检审核、待归档的）
+        const activePatientNos = new Set(
+          (allConsultations || [])
+            .filter(c => !['已完成', '已取消', '已拒绝', '待质检审核', '待归档'].includes(c.status))
+            .map(c => c.patient_inpatient_no)
+        )
+        
+        // 4. 过滤掉有活跃会诊的患者，只显示可以申请的患者
+        const availablePatients = (patientsData || []).filter(p => !activePatientNos.has(p.inpatient_no))
+        
+        // 4. 将数据库数据转换为 PatientWithAI 格式
+        const patientsDataWithAI: PatientWithAI[] = availablePatients.map(p => ({
+          id: p.id,
+          name: p.name,
+          gender: p.gender,
+          age: p.age,
+          inpatientNo: p.inpatient_no,
+          phone: p.phone,
+          mainDiagnosis: p.main_diagnosis,
+          lastConsultationTime: p.last_consultation_time,
+          admissionTime: p.admission_time,
+          department: p.department,
+          doctor: p.doctor,
+          allergies: p.allergies,
+          history: p.history,
+          imagingExams: p.imaging_exams,
+          // 添加病历相关字段
+          physicalExamination: p.physical_exam,
+          initialDiagnosis: p.initial_diagnosis,
+          treatmentPlan: p.treatment_plan,
+          chiefComplaint: p.chief_complaint,
+          presentIllness: p.present_illness,
+          pastHistory: p.past_history,
+          auxiliaryExamination: p.auxiliary_examination,
+        }))
+        
+        setPatientsWithAI(patientsDataWithAI)
+      } catch (err) {
+        console.error('加载患者数据失败:', err)
+      }
+    }
+    
+    loadPatients()
+  }, [])
+
+  // 从数据库加载专家数据
+  useEffect(() => {
+    const loadExperts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('experts')
+          .select('*')
+          .order('name')
+        
+        if (error) throw error
+        
+        // 将数据库数据转换为 Expert 格式
+        const expertsList: Expert[] = (data || []).map(e => ({
+          id: e.id,
+          name: e.name,
+          department: e.department,
+          title: e.title,
+          specialty: e.specialty,
+          status: e.status as '空闲' | '忙碌' | '离线',
+        }))
+        
+        setExpertsData(expertsList)
+      } catch (err) {
+        console.error('加载专家数据失败:', err)
+      }
+    }
+    
+    loadExperts()
   }, [])
 
   // 从 URL 参数中获取患者 ID 或随访信息并自动选择患者
@@ -72,6 +164,13 @@ export default function Apply() {
     const patientId = searchParams.get('patientId')
     const followupId = searchParams.get('followupId')
     const mdtType = searchParams.get('mdtType')
+    const consultationId = searchParams.get('id') // 编辑已拒绝的申请
+    
+    // 如果是编辑已拒绝的申请
+    if (consultationId) {
+      loadRejectedConsultation(consultationId)
+      return
+    }
     
     // 如果是筛查推荐的 MDT，从 location.state 获取筛查数据
     if (mdtType === 'screening' && location.state?.screeningData) {
@@ -114,6 +213,111 @@ export default function Apply() {
       }
     }
   }, [searchParams, location.state])
+
+  // 加载已拒绝的会诊申请用于编辑
+  const loadRejectedConsultation = async (id: string) => {
+    try {
+      const { data: consultation, error } = await supabase
+        .from('consultations')
+        .select('*')
+        .eq('id', id)
+        .single()
+      
+      if (error) throw error
+      
+      if (consultation.status !== '主任驳回' && consultation.status !== '退回修改' && consultation.status !== '待补正') {
+        message.error('该申请不是已拒绝状态，无法编辑')
+        navigate('/consultation/my-applies')
+        return
+      }
+      
+      // 确保患者数据已加载
+      if (patientsWithAI.length === 0) {
+        // 等待患者数据加载
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+      
+      // 查找对应的患者（通过住院号匹配）
+      const patient = patientsWithAI.find(p => p.inpatientNo === consultation.patient_inpatient_no)
+      if (patient) {
+        setSelectedPatient(patient)
+        // 直接跳转到 Step 1（填写申请信息），而不是 Step 0（选择患者）
+        setCurrentStep(1)
+        
+        // 自动填充表单
+        form.setFieldsValue({
+          summary: `患者${patient.name}，${patient.gender}，${patient.age}岁。主要诊断：${patient.mainDiagnosis}。`,
+          type: consultation.type,
+          urgency: consultation.urgency,
+          expectTime: consultation.expect_time ? dayjs(consultation.expect_time) : null,  // 字段名改为 expectTime
+        })
+        
+        // 自动同步 HIS 数据
+        setTimeout(() => {
+          handleHISDataSync(patient)
+        }, 300)
+        
+        message.info('正在编辑已拒绝的申请，请修改后重新提交')
+      } else {
+        // 如果找不到患者，尝试直接从数据库加载
+        const { data: patientData } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('inpatient_no', consultation.patient_inpatient_no)
+          .single()
+        
+        if (patientData) {
+          // 转换为 Patient 格式
+          const patient: Patient = {
+            id: patientData.id,
+            name: patientData.name,
+            gender: patientData.gender,
+            age: patientData.age,
+            inpatientNo: patientData.inpatient_no,
+            phone: patientData.phone,
+            mainDiagnosis: patientData.main_diagnosis,
+            lastConsultationTime: patientData.last_consultation_time,
+            admissionTime: patientData.admission_time,
+            department: patientData.department,
+            doctor: patientData.doctor,
+            allergies: patientData.allergies || [],
+            history: patientData.history || [],
+            // 添加病历相关字段
+            physicalExamination: patientData.physical_exam,
+            initialDiagnosis: patientData.initial_diagnosis,
+            treatmentPlan: patientData.treatment_plan,
+            chiefComplaint: patientData.chief_complaint,
+            presentIllness: patientData.present_illness,
+            pastHistory: patientData.past_history,
+            auxiliaryExamination: patientData.auxiliary_examination,
+          }
+          
+          setSelectedPatient(patient)
+          setCurrentStep(1)
+          
+          form.setFieldsValue({
+            summary: `患者${patient.name}，${patient.gender}，${patient.age}岁。主要诊断：${patient.mainDiagnosis}。`,
+            type: consultation.type,
+            urgency: consultation.urgency,
+            expectTime: consultation.expect_time ? dayjs(consultation.expect_time) : null,  // 字段名改为 expectTime
+          })
+          
+          setTimeout(() => {
+            handleHISDataSync(patient)
+          }, 300)
+          
+          message.info('正在编辑已拒绝的申请，请修改后重新提交')
+        } else {
+          message.error('未找到患者信息')
+          navigate('/consultation/my-applies')
+        }
+      }
+    } catch (err) {
+      console.error('加载失败:', err)
+      message.error('加载申请信息失败')
+      navigate('/consultation/my-applies')
+    }
+  }
 
   const patientColumns: ColumnsType<PatientWithAI> = [
     { 
@@ -378,7 +582,7 @@ export default function Apply() {
     if (!aiSuggestion) return
     
     const recommendedExpertIds = aiSuggestion.recommendedExperts.map(e => e.id)
-    const expertsToAdd = mockExperts.filter(e => recommendedExpertIds.includes(e.id))
+    const expertsToAdd = expertsData.filter(e => recommendedExpertIds.includes(e.id))
     
     setSelectedExperts([...selectedExperts, ...expertsToAdd])
     message.success(`已添加 ${expertsToAdd.length} 位推荐专家`)
@@ -423,57 +627,6 @@ export default function Apply() {
     return Math.min(95, Math.max(30, score))
   }
 
-  // 获取专家从业年限
-  const getExpertExperience = (expert: Expert): number => {
-    // 根据职称估算从业年限
-    if (expert.title === '主任医师') return 15 + Math.floor(Math.random() * 10)
-    if (expert.title === '副主任医师') return 8 + Math.floor(Math.random() * 7)
-    return 3 + Math.floor(Math.random() * 5)
-  }
-
-  // 获取专家会诊次数
-  const getConsultationCount = (expert: Expert): number => {
-    // 根据职称和状态估算会诊次数
-    const base = expert.title === '主任医师' ? 100 : expert.title === '副主任医师' ? 50 : 20
-    return base + Math.floor(Math.random() * 50)
-  }
-
-  // 获取专家评分
-  const getExpertRating = (expert: Expert): string => {
-    // 根据职称生成评分
-    if (expert.title === '主任医师') return (4.8 + Math.random() * 0.2).toFixed(1)
-    if (expert.title === '副主任医师') return (4.5 + Math.random() * 0.3).toFixed(1)
-    return (4.2 + Math.random() * 0.3).toFixed(1)
-  }
-
-  // 生成匹配原因
-  const generateMatchReasons = (expert: Expert, matchScore: number): string[] => {
-    const reasons: string[] = []
-    
-    // 根据匹配分数生成原因
-    if (matchScore >= 80) {
-      reasons.push('擅长领域与患者病情高度匹配')
-      reasons.push('近期有大量相关成功案例')
-    } else if (matchScore >= 60) {
-      reasons.push('擅长领域与患者病情相关')
-      reasons.push('有类似病例诊治经验')
-    } else {
-      reasons.push('科室方向基本符合')
-    }
-    
-    // 根据职称添加原因
-    if (expert.title === '主任医师') {
-      reasons.push('资深专家，经验丰富')
-    }
-    
-    // 根据状态添加原因
-    if (expert.status === '空闲') {
-      reasons.push('当前可接诊，响应及时')
-    }
-    
-    return reasons
-  }
-
   // 智能匹配专家
   const handleSmartMatchExperts = async () => {
     if (!selectedPatient) {
@@ -503,7 +656,7 @@ export default function Apply() {
 
   // 从匹配结果中选择专家
   const handleSelectMatchedExpert = (expert: ExpertMatch) => {
-    const fullExpert = mockExperts.find(e => e.id === expert.expertId)
+    const fullExpert = expertsData.find(e => e.id === expert.expertId)
     if (fullExpert && !selectedExperts.find(e => e.id === fullExpert.id)) {
       setSelectedExperts([...selectedExperts, fullExpert])
       message.success(`已添加专家：${expert.name}`)
@@ -525,12 +678,15 @@ export default function Apply() {
       // 模拟 HIS 系统数据同步
       await new Promise(resolve => setTimeout(resolve, 1500))
       
-      // 从患者数据中提取病历资料
+      // 从患者数据中提取病历资料（优先使用数据库中的真实数据）
       const syncedRecords = {
-        chiefComplaint: targetPatient.mainDiagnosis,
-        presentIllness: `患者因"${targetPatient.mainDiagnosis}"入院，详细病史...`,
-        pastHistory: targetPatient.history?.join('；') || '无特殊既往史',
-        auxiliaryExamination: `影像学检查：${targetPatient.imagingExams?.length || 0}项；实验室检查：${targetPatient.labTests?.length || 0}项`,
+        chiefComplaint: targetPatient.chiefComplaint || targetPatient.mainDiagnosis,
+        presentIllness: targetPatient.presentIllness || `患者因"${targetPatient.mainDiagnosis}"入院，详细病史...`,
+        pastHistory: targetPatient.pastHistory || targetPatient.history?.join('；') || '无特殊既往史',
+        physicalExamination: targetPatient.physicalExamination || '',
+        auxiliaryExamination: targetPatient.auxiliaryExamination || `影像学检查：${targetPatient.imagingExams?.length || 0}项；实验室检查：${targetPatient.labTests?.length || 0}项`,
+        initialDiagnosis: targetPatient.initialDiagnosis || targetPatient.mainDiagnosis,
+        treatmentPlan: targetPatient.treatmentPlan || '',
         hisSyncTime: new Date().toISOString()
       }
       
@@ -570,13 +726,20 @@ export default function Apply() {
   }
 
   const handleSubmit = async () => {
+    if (submitting) return
+    setSubmitting(true)
     const values = form.getFieldsValue()
+    console.log('表单 values:', values)
+    console.log('直接获取 urgency:', form.getFieldValue('urgency'))
+    console.log('直接获取 type:', form.getFieldValue('type'))
     if (!selectedPatient) {
       message.error('请选择患者')
+      setSubmitting(false)
       return
     }
     if (selectedExperts.length === 0) {
       message.error('请至少选择一位会诊专家')
+      setSubmitting(false)
       return
     }
     if (uploadedFiles.length === 0 && !hisDataSynced) {
@@ -585,20 +748,367 @@ export default function Apply() {
         content: '您还没有上传任何病历资料，确定要提交申请吗？',
         onOk: () => submitApplication(values)
       })
+      setSubmitting(false)
       return
     }
     await submitApplication(values)
   }
 
   const submitApplication = async (values: any) => {
-    await new Promise(r => setTimeout(r, 1000))
-    message.success('会诊申请提交成功！')
-    Modal.confirm({
-      title: '申请已提交',
-      content: '是否前往查看我的申请列表？',
-      onOk: () => navigate('/consultation/my-applies'),
-      onCancel: () => navigate('/consultation/my-applies'),
-    })
+    try {
+      console.log('submitApplication 接收到的 values:', values)
+      
+      // 直接从 form 获取值，不依赖 values 参数
+      const urgency = form.getFieldValue('urgency') || '普通'
+      const type = form.getFieldValue('type') || '院内'
+      const expectTime = form.getFieldValue('expectTime')
+      console.log('直接获取 - urgency:', urgency, 'type:', type)
+      
+      const consultationId = searchParams.get('id') // 检查是否是编辑已拒绝的申请
+      
+      if (consultationId) {
+        // 更新已拒绝的申请
+        const updateData = {
+          status: '医生提交',
+          urgency: urgency,
+          type: type,
+          expect_time: expectTime ? expectTime.toISOString() : null,
+          reject_reason: null,
+          updated_at: new Date().toISOString(),
+        }
+        console.log('更新数据:', updateData)
+        
+        const { error } = await supabase
+          .from('consultations')
+          .update(updateData)
+          .eq('id', consultationId)
+        
+        if (error) throw error
+        
+        // 插入审核历史记录（重新提交）
+        const auditInsert: {
+          consultation_id: string
+          operator?: string
+          operator_id?: string
+          operator_role: string
+          node: string
+          result: string
+          time: string
+        } = {
+          consultation_id: consultationId,
+          operator: user?.name,
+          operator_role: user?.role || '申请医生',
+          node: '重新提交',
+          result: '已提交',
+          time: new Date().toISOString(),
+        }
+        
+        // 如果用户有 ID 且是 UUID 格式，才添加 operator_id
+        if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+          auditInsert.operator_id = user.id
+        }
+        
+        await supabase
+          .from('audit_history')
+          .insert(auditInsert)
+        
+        message.success('会诊申请已重新提交！')
+        Modal.confirm({
+          title: '申请已重新提交',
+          content: '是否前往查看我的申请列表？',
+          onOk: () => navigate('/consultation/my-applies'),
+          onCancel: () => navigate('/consultation/my-applies'),
+        })
+      } else {
+        // 生成会诊编码
+        const consultationCode = generateConsultationCode()
+        
+        // 从表单获取病情摘要
+        const summary = form.getFieldValue('summary') || ''
+        
+        // 获取申请医生的科室名称
+        let doctorDepartment = user?.department || ''
+        if (user?.org_id && !doctorDepartment) {
+          const { data: orgData } = await supabase
+            .from('organizations')
+            .select('name')
+            .eq('id', user.org_id)
+            .single()
+          if (orgData) {
+            doctorDepartment = orgData.name || ''
+          }
+        }
+        
+        const insertData = {
+          patient_id: selectedPatient?.id,
+          patient_name: selectedPatient?.name,
+          patient_inpatient_no: selectedPatient?.inpatientNo,
+          type: type, // 使用直接从 form 获取的值
+          status: '医生提交',
+          urgency: urgency, // 使用直接从 form 获取的值
+          department: doctorDepartment, // 使用申请医生的科室
+          apply_doctor: user?.name,
+          apply_doctor_id: user?.id,  // 添加申请医生 ID
+          main_diagnosis: selectedPatient?.mainDiagnosis,
+          apply_time: new Date().toISOString(),
+          expect_time: expectTime ? expectTime.toISOString() : null, // 使用直接从 form 获取的值
+          source: 'doctor',
+          consultation_code: consultationCode,
+          summary: summary, // 病情摘要
+          medical_records: medicalRecords, // 病历资料
+          uploaded_files: uploadedFiles, // 上传的文件列表
+          director_id: null,  // 先设为 null，后面会根据医生关联的主任自动填充
+        }
+        console.log('插入数据:', insertData)
+        
+        // 查询申请医生的上级主任（支持多个）
+        let directorId = null
+        const directorIds: string[] = []
+        
+        if (user?.id) {
+          // 1. 先从 user_managers 表查询所有上级主任
+          const { data: managersData } = await supabase
+            .from('user_managers')
+            .select('manager_id, is_primary')
+            .eq('user_id', user.id)
+          
+          if (managersData && managersData.length > 0) {
+            // 找到主要责任人
+            const primaryManager = managersData.find(m => m.is_primary)
+            if (primaryManager) {
+              directorId = primaryManager.manager_id
+              directorIds.push(directorId)
+              console.log('找到主要责任主任:', directorId)
+            }
+            
+            // 添加其他主任
+            managersData.forEach(m => {
+              if (m.manager_id !== directorId) {
+                directorIds.push(m.manager_id)
+              }
+            })
+          }
+          
+          // 2. 如果没有找到上级，尝试使用 manager_id 字段
+          if (!directorId) {
+            const { data: doctorData } = await supabase
+              .from('users')
+              .select('manager_id')
+              .eq('id', user.id)
+              .single()
+            
+            if (doctorData?.manager_id) {
+              directorId = doctorData.manager_id
+              directorIds.push(directorId)
+              console.log('找到直属主任:', directorId)
+            }
+          }
+          
+          // 3. 如果还是没有，尝试根据科室查找所有主任
+          if (directorIds.length === 0) {
+            const { data: directorsData } = await supabase
+              .from('users')
+              .select('id')
+              .eq('org_id', selectedPatient?.department ? `org-${selectedPatient.department.toLowerCase()}` : null)
+              .in('position', ['主任医师', '副主任医师'])
+            
+            if (directorsData && directorsData.length > 0) {
+              directorIds.push(...directorsData.map(d => d.id))
+              directorId = directorsData[0].id  // 默认使用第一个主任
+              console.log('根据科室找到主任:', directorIds)
+            }
+          }
+        }
+        
+        // 设置主审核主任 ID
+        if (directorId) {
+          insertData.director_id = directorId
+        }
+        
+        // 查询 MDT 秘书，设置秘书负责人
+        const { data: secretariesData } = await supabase
+          .from('users')
+          .select('id, manager_id')
+          .eq('position', 'MDT 秘书')
+          .eq('status', 'active')
+        
+        if (secretariesData && secretariesData.length > 0) {
+          // 找到秘书组长（主要责任人）
+          const chiefSecretary = secretariesData.find(s => s.id === secretariesData[0].manager_id) || secretariesData[0]
+          insertData.secretary_id = chiefSecretary.id
+          console.log('设置秘书负责人:', chiefSecretary.id)
+        }
+        
+        // 插入会诊申请到数据库（不指定 id，让数据库自动生成 UUID）
+        const { data, error } = await supabase
+          .from('consultations')
+          .insert(insertData)
+          .select() // 返回插入的数据以获取生成的 ID
+        
+        if (error) throw error
+        
+        const consultationId = data[0].id
+        
+        // 插入第一条审核历史记录（申请医生提交）
+        const auditInsert: {
+          consultation_id: string
+          operator?: string
+          operator_id?: string
+          operator_role: string
+          node: string
+          result: string
+          time: string
+        } = {
+          consultation_id: consultationId,
+          operator: user?.name,
+          operator_role: user?.role || '申请医生',
+          node: '申请提交',
+          result: '已提交',
+          time: new Date().toISOString(),
+        }
+        
+        // 如果用户有 ID 且是 UUID 格式，才添加 operator_id
+        if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+          auditInsert.operator_id = user.id
+        }
+        
+        await supabase
+          .from('audit_history')
+          .insert(auditInsert)
+        
+        // 如果有选择专家，尝试插入会诊专家记录
+        if (selectedExperts && selectedExperts.length > 0) {
+          const expertInserts = selectedExperts.map(expert => ({
+            consultation_id: consultationId,
+            expert_id: expert.id,
+            status: '待会诊',
+          }))
+          
+          const { error: expertError } = await supabase
+            .from('consultation_experts')
+            .insert(expertInserts)
+          
+          if (expertError) {
+            console.error('插入专家邀请失败:', expertError)
+            console.log('专家邀请表可能缺少字段，需要完善表结构')
+            // 专家插入失败不影响主流程，会诊申请已成功
+          }
+        }
+        
+        // 发送通知给相关人
+        try {
+          // 1. 发送通知给 MDT 秘书（支持多个秘书）
+          const { data: secretaries } = await supabase
+            .from('users')
+            .select('id, position, manager_id')  // manager_id 指向秘书组长
+            .eq('position', 'MDT 秘书')
+            .eq('status', 'active')
+          
+          if (secretaries && secretaries.length > 0) {
+            // 找到秘书组长（主要责任人）
+            const chiefSecretary = secretaries.find(s => s.id === secretaries[0].manager_id) || secretaries[0]
+            
+            for (const secretary of secretaries) {
+              const isChief = secretary.id === chiefSecretary.id
+              await sendSystemNotification(
+                secretary.id,
+                'info',
+                isChief ? '待审核会诊申请' : '会诊申请（抄送）',
+                `${user?.name || '医生'}提交了会诊申请，患者：${selectedPatient?.name}，${isChief ? '请您及时安排审核' : '请知悉'}`,
+                {
+                  label: '审核',
+                  url: `/consultation/pending-review`,
+                }
+              )
+            }
+          }
+          
+          // 2. 发送通知给所有相关主任（主要责任人 + 其他主任）
+          if (directorIds.length > 0) {
+            for (const dirId of directorIds) {
+              const isPrimary = dirId === directorId
+              await sendSystemNotification(
+                dirId,
+                'info',
+                isPrimary ? '待审核会诊申请' : '会诊申请（抄送）',
+                `${user?.name || '医生'}提交了会诊申请，患者：${selectedPatient?.name}，${isPrimary ? '请您及时审核' : '请知悉'}`,
+                {
+                  label: '审核',
+                  url: `/consultation/director-confirm`,
+                }
+              )
+            }
+          }
+
+          // 查询主任医生角色的用户
+          const { data: directors } = await supabase
+            .from('users')
+            .select('id')
+            .eq('role', '主任医生')
+            .limit(1)
+
+          if (directors && directors.length > 0) {
+            await sendSystemNotification(
+              directors[0].id,
+              'info',
+              '新会诊申请',
+              `${user?.name || '医生'}提交了新的会诊申请，患者：${selectedPatient?.name}`,
+              {
+                label: '确认',
+                url: `/consultation/director-confirm`,
+              }
+            )
+          }
+        } catch (notificationError) {
+          console.error('发送通知失败:', notificationError)
+        }
+        
+        message.success('会诊申请提交成功！')
+        setSubmitting(false)
+        Modal.confirm({
+          title: '申请已提交',
+          content: '是否前往查看我的申请列表？',
+          onOk: () => navigate('/consultation/my-applies'),
+          onCancel: () => navigate('/consultation/my-applies'),
+        })
+      }
+    } catch (err) {
+      console.error('提交失败:', err)
+      console.error('错误详情:', err)
+      
+      // 提取更详细的错误信息
+      let errorMessage = '提交失败，请重试'
+      if (err instanceof Error) {
+        errorMessage = err.message
+      } else if (typeof err === 'object' && err !== null) {
+        const error = err as any
+        if (error.message) {
+          errorMessage = error.message
+        }
+        if (error.details) {
+          console.error('错误详情:', error.details)
+          errorMessage += ' - ' + error.details
+        }
+        if (error.hint) {
+          console.error('错误提示:', error.hint)
+        }
+      }
+      
+      message.error(errorMessage)
+      setSubmitting(false)
+    }
+  }
+
+  // 权限检查
+  if (!hasPermission('perm-consultation-apply')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问会诊申请页面。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
   }
 
   return (
@@ -755,6 +1265,7 @@ export default function Apply() {
               patientName={selectedPatient.name}
               patientInpatientNo={selectedPatient.inpatientNo}
               compact={true}
+              patientData={selectedPatient}
             />
           </Card>
 
@@ -771,7 +1282,7 @@ export default function Apply() {
                       <Select options={[
                         { value: '普通', label: '普通' },
                         { value: '紧急', label: '紧急' },
-                        { value: '特急', label: '特大' },
+                        { value: '特急', label: '特急' },
                       ]} />
                     </Form.Item>
                   </Col>
@@ -846,7 +1357,7 @@ export default function Apply() {
             <div className="flex gap-4">
               <Input.Search placeholder="按科室/职称筛选专家" allowClear style={{ width: 250 }} />
               <Select placeholder="按科室" allowClear style={{ width: 150 }}>
-                {Array.from(new Set(mockExperts.map(e => e.department))).map(d => (
+                {Array.from(new Set(expertsData.map(e => e.department))).map(d => (
                   <Select.Option key={d} value={d}>{d}</Select.Option>
                 ))}
               </Select>
@@ -866,120 +1377,127 @@ export default function Apply() {
             <Col span={16}>
               <div className="flex items-center justify-between mb-2">
                 <Title level={5} className="mb-0">可选专家</Title>
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<ThunderboltOutlined />}
-                  onClick={() => {
-                    message.success('已重新计算匹配度')
-                    // 强制刷新匹配度
-                    window.dispatchEvent(new Event('storage'))
-                  }}
-                >
-                  重新匹配
-                </Button>
+                <div className="flex gap-2">
+                  <Text type="secondary" className="text-sm">共 {expertsData.length} 位专家</Text>
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<ThunderboltOutlined />}
+                    onClick={() => {
+                      message.success('已重新计算匹配度')
+                      // 强制刷新匹配度
+                      window.dispatchEvent(new Event('storage'))
+                    }}
+                  >
+                    重新匹配
+                  </Button>
+                </div>
               </div>
-              <List
-                dataSource={mockExperts}
-                renderItem={(expert) => {
-                  // 计算匹配度（基于患者诊断和专家擅长）
-                  const matchScore = selectedPatient ? calculateMatchScore(selectedPatient, expert) : 0
-                  const matchReasons = generateMatchReasons(expert, matchScore)
-                  const recentCases = getConsultationCount(expert) > 100 ? Math.floor(getConsultationCount(expert) / 10) : Math.floor(getConsultationCount(expert) / 20)
-                  const successRate = expert.title === '主任医师' ? 95 + Math.random() * 4 : expert.title === '副主任医师' ? 90 + Math.random() * 5 : 85 + Math.random() * 5
-                  
-                  return (
-                    <List.Item
-                      className="p-4 hover:bg-gray-50"
-                      actions={[
-                        <Button 
-                          key="add" 
-                          type="primary" 
-                          size="small"
-                          icon={<PlusOutlined />}
-                          onClick={() => handleExpertSelect(expert)}
-                          disabled={expert.status === '离线' || !!selectedExperts.find(e => e.id === expert.id)}
-                        >
-                          {expert.status === '离线' ? '暂不可用' : selectedExperts.find(e => e.id === expert.id) ? '已添加' : '邀请'}
-                        </Button>
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <div className="relative">
-                            <Avatar className="!bg-medical-blue" size={48}>{expert.name[0]}</Avatar>
-                            {matchScore >= 80 && (
-                              <div className="absolute -top-1 -right-1">
-                                <StarFilled className="text-yellow-400 text-sm" />
-                              </div>
+              <Table
+                rowKey="id"
+                dataSource={expertsData}
+                pagination={{
+                  pageSize: 10,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total) => `共 ${total} 位专家`,
+                }}
+                scroll={{ y: 600 }}
+                columns={[
+                  {
+                    title: '专家',
+                    key: 'expert',
+                    width: 300,
+                    render: (_, expert) => (
+                      <Space>
+                        <Avatar className="!bg-medical-blue" size={48}>{expert.name[0]}</Avatar>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Text strong className="text-base">{expert.name}</Text>
+                            {expert.rating && expert.rating >= 4.8 && (
+                              <StarFilled className="text-yellow-400 text-sm" />
                             )}
                           </div>
-                        }
-                        title={
-                          <Space>
-                            <Text strong>{expert.name}</Text>
-                            <Tag>{expert.department}</Tag>
-                            <Tag color={expert.title === '主任医师' ? 'gold' : 'blue'}>{expert.title}</Tag>
-                            {matchScore >= 80 && <Tag color="red">高匹配</Tag>}
-                          </Space>
-                        }
-                        description={
-                          <div className="space-y-2">
-                            <Text type="secondary">{expert.specialty}</Text>
-                            
-                            <div className="flex items-center gap-4 mt-2">
-                              <div className="flex items-center gap-1">
-                                <Text type="secondary" className="text-xs">匹配度：</Text>
-                                <Progress 
-                                  percent={matchScore} 
-                                  size="small" 
-                                  style={{ width: 100 }}
-                                  strokeColor={
-                                    matchScore >= 80 ? '#52c41a' :
-                                    matchScore >= 60 ? '#1890ff' :
-                                    matchScore >= 40 ? '#faad14' : '#ff4d4f'
-                                  }
-                                />
-                              </div>
-                              <Tag color={expert.status === '空闲' ? 'green' : expert.status === '忙碌' ? 'orange' : 'default'}>
-                                {expert.status}
-                              </Tag>
-                            </div>
-                            
-                            <div className="mt-2">
-                              <Text type="secondary" className="text-xs">匹配原因：</Text>
-                              <ul className="mt-1 space-y-1">
-                                {matchReasons.map((reason, idx) => (
-                                  <li key={idx} className="text-xs text-gray-600">• {reason}</li>
-                                ))}
-                              </ul>
-                            </div>
-                            
-                            <div className="flex gap-4 mt-2 text-xs">
-                              <Space>
-                                <Text type="secondary">从业：</Text>
-                                <Text strong>{getExpertExperience(expert)}年</Text>
-                              </Space>
-                              <Space>
-                                <Text type="secondary">近期案例：</Text>
-                                <Text strong>{recentCases}例</Text>
-                              </Space>
-                              <Space>
-                                <Text type="secondary">成功率：</Text>
-                                <Text strong className="text-green-600">{successRate.toFixed(1)}%</Text>
-                              </Space>
-                              <Space>
-                                <Text type="secondary">评分：</Text>
-                                <span className="text-yellow-500">★</span>
-                                <Text strong>{getExpertRating(expert)}</Text>
-                              </Space>
-                            </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {expert.department} · {expert.title}
                           </div>
-                        }
-                      />
-                    </List.Item>
-                  )
-                }}
+                        </div>
+                      </Space>
+                    ),
+                  },
+                  {
+                    title: '专长',
+                    dataIndex: 'specialty',
+                    key: 'specialty',
+                    ellipsis: true,
+                    width: 250,
+                  },
+                  {
+                    title: '匹配度',
+                    key: 'match',
+                    width: 150,
+                    render: (_, expert) => {
+                      const matchScore = selectedPatient ? calculateMatchScore(selectedPatient, expert) : 0
+                      return (
+                        <div>
+                          <Progress 
+                            percent={matchScore} 
+                            size="small" 
+                            strokeColor={
+                              matchScore >= 80 ? '#52c41a' :
+                              matchScore >= 60 ? '#1890ff' :
+                              matchScore >= 40 ? '#faad14' : '#ff4d4f'
+                            }
+                          />
+                          {matchScore >= 80 && <Tag color="red">高匹配</Tag>}
+                        </div>
+                      )
+                    },
+                  },
+                  {
+                    title: '状态',
+                    dataIndex: 'status',
+                    key: 'status',
+                    width: 100,
+                    render: (status) => (
+                      <Tag color={status === '空闲' ? 'green' : status === '忙碌' ? 'orange' : 'default'}>
+                        {status}
+                      </Tag>
+                    ),
+                  },
+                  {
+                    title: '会诊经验',
+                    key: 'experience',
+                    width: 120,
+                    render: (_, expert) => (
+                      <Space direction="vertical" size={0}>
+                        <Text className="text-xs">
+                          <span className="text-gray-500">会诊:</span> <strong>{expert.consultation_count || 0}次</strong>
+                        </Text>
+                        <Text className="text-xs">
+                          <span className="text-gray-500">评分:</span> <strong className="text-yellow-500">★{expert.rating?.toFixed(1) || 'N/A'}</strong>
+                        </Text>
+                      </Space>
+                    ),
+                  },
+                  {
+                    title: '操作',
+                    key: 'action',
+                    width: 120,
+                    fixed: 'right',
+                    render: (_, expert) => (
+                      <Button 
+                        type="primary" 
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={() => handleExpertSelect(expert)}
+                        disabled={expert.status === '离线' || !!selectedExperts.find(e => e.id === expert.id)}
+                      >
+                        {expert.status === '离线' ? '暂不可用' : selectedExperts.find(e => e.id === expert.id) ? '已添加' : '邀请'}
+                      </Button>
+                    ),
+                  },
+                ]}
               />
             </Col>
             <Col span={8}>
@@ -1263,6 +1781,7 @@ export default function Apply() {
                 onClick={handleSubmit} 
                 className="!bg-medical-blue"
                 icon={<CheckCircleOutlined />}
+                loading={submitting}
               >
                 确认提交申请
               </Button>
@@ -1408,6 +1927,7 @@ export default function Apply() {
             patientName={selectedPatient.name}
             patientInpatientNo={selectedPatient.inpatientNo}
             compact={false}
+            patientData={selectedPatient}
           />
         )}
       </Drawer>

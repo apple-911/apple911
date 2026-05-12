@@ -1,14 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Form, Input, Button, Checkbox, message, Select, Divider, Card } from 'antd'
-import { 
-  UserOutlined, 
-  LockOutlined, 
-  SafetyOutlined, 
-  QqOutlined, 
+import {
+  UserOutlined,
+  LockOutlined,
+  SafetyOutlined,
+  QqOutlined,
   WechatOutlined
 } from '@ant-design/icons'
 import { useAppStore, Role } from '../../stores/appStore'
+import { supabase } from '../../lib/supabase'
+import { setCurrentUser, CurrentUser } from '../../utils/helpers'
+import { loadCodeTables } from '../../utils/codeTable'
 
 interface LoginForm {
   username: string
@@ -17,13 +20,13 @@ interface LoginForm {
 }
 
 const roleOptions: { value: Role; label: string }[] = [
-  { value: '申请医生', label: '申请医生' },
-  { value: '主任医生', label: '主任医生' },
-  { value: 'MDT 秘书', label: 'MDT 秘书' },
-  { value: '会诊专家', label: '会诊专家' },
-  { value: '质控员', label: '质控员' },
-  { value: '系统管理员', label: '系统管理员' },
-  { value: '超级管理员', label: '超级管理员' },
+  { value: 'apply_doctor', label: '申请医生' },
+  { value: 'director', label: '主任医生' },
+  { value: 'secretary', label: 'MDT 秘书' },
+  { value: 'expert', label: '会诊专家' },
+  { value: 'quality_controller', label: '质控员' },
+  { value: 'admin', label: '系统管理员' },
+  { value: 'super_admin', label: '超级管理员' },
 ]
 
 export default function Login() {
@@ -32,30 +35,180 @@ export default function Login() {
   const navigate = useNavigate()
   const { setUser, setRole } = useAppStore()
 
+  // 检查是否已登录（从 localStorage 恢复）
+  useEffect(() => {
+    const savedUser = localStorage.getItem('mdt_user')
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser)
+        // 同步到权限验证模块
+        if (userData.id && userData.permissions) {
+          setCurrentUser({
+            id: userData.id,
+            name: userData.name,
+            org_id: userData.org_id,
+            roles: [userData.role],
+            permissions: userData.permissions || [],
+          })
+        }
+        setUser(userData)
+        setRole(userData.role)
+        navigate('/workbench')
+      } catch (e) {
+        localStorage.removeItem('mdt_user')
+      }
+    }
+  }, [navigate, setUser, setRole])
+
   // 测试账号配置
   const testAccounts: Record<Role, { username: string; password: string }> = {
-    '申请医生': { username: 'doctor', password: '123456' },
-    '主任医生': { username: 'director', password: '123456' },
-    'MDT 秘书': { username: 'secretary', password: '123456' },
-    '会诊专家': { username: 'expert', password: '123456' },
-    '质控员': { username: 'qa', password: '123456' },
-    '系统管理员': { username: 'admin', password: '123456' },
-    '超级管理员': { username: 'superadmin', password: '123456' },
+    'apply_doctor': { username: 'doctor', password: '123456' },
+    'director': { username: 'director', password: '123456' },
+    'secretary': { username: 'secretary', password: '123456' },
+    'expert': { username: 'expert', password: '123456' },
+    'quality_controller': { username: 'qa', password: '123456' },
+    'admin': { username: 'admin', password: '123456' },
+    'super_admin': { username: 'superadmin', password: '123456' },
   }
 
   const handleSubmit = async (values: LoginForm) => {
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 800))
-    setUser({
-      id: '1',
-      name: values.username || '张明华',
-      role: values.role,
-      department: '肿瘤科',
-    })
-    setRole(values.role)
-    message.success('登录成功')
-    setLoading(false)
-    navigate('/workbench')
+    
+    try {
+      // 1. 先从 users 表查询用户基本信息
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id, username, name, org_id, position, avatar, status')
+        .eq('username', values.username)
+        .eq('password', values.password)
+        .single()
+      
+      if (userError || !user) {
+        message.error('用户名或密码错误')
+        setLoading(false)
+        return
+      }
+      
+      // 检查用户状态
+      if (user.status !== 'active') {
+        message.error('用户已被禁用')
+        setLoading(false)
+        return
+      }
+      
+      // 2. 获取用户的角色信息（从 user_roles 表）
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('role_id')
+        .eq('user_id', user.id)
+      
+      if (rolesError || !userRoles || userRoles.length === 0) {
+        message.error('用户未分配角色')
+        setLoading(false)
+        return
+      }
+      
+      // 3. 获取角色信息（从 roles 表）
+      const roleIds = userRoles.map(ur => ur.role_id)
+      const { data: roles, error: roleInfoError } = await supabase
+        .from('roles')
+        .select('id, name, code')
+        .in('id', roleIds)
+      
+      if (roleInfoError || !roles || roles.length === 0) {
+        message.error('角色信息获取失败')
+        setLoading(false)
+        return
+      }
+      
+      // 4. 获取组织名称（从 organizations 表）
+      let orgName = ''
+      if (user.org_id) {
+        const { data: org, error: orgError } = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', user.org_id)
+          .single()
+        
+        if (!orgError && org) {
+          orgName = org.name
+        }
+      }
+      
+      // 检查用户选择的角色是否匹配
+      // 支持中文名称和英文代码两种方式匹配
+      const roleCodes = roles.map(r => (r.code || '').toUpperCase())
+      const roleNames = roles.map(r => r.name)
+      const selectedRoleCode = (values.role || '').toUpperCase()
+      
+      console.log('=== 角色匹配调试信息 ===')
+      console.log('用户选择的角色:', values.role)
+      console.log('转换为大写:', selectedRoleCode)
+      console.log('用户拥有的角色:', roles.map(r => ({ id: r.id, name: r.name, code: r.code })))
+      console.log('角色代码列表(大写):', roleCodes)
+      
+      // 尝试找到匹配的角色（同时匹配 code 和 name）
+      const matchedRole = roles.find(r => 
+        (r.code || '').toUpperCase() === selectedRoleCode || 
+        r.name === values.role ||
+        r.name.toUpperCase() === selectedRoleCode
+      )
+      
+      if (!matchedRole) {
+        console.error('角色不匹配:', { selectedRoleCode, roleCodes, roleNames, valuesRole: values.role })
+        message.error('选择的角色与用户实际角色不匹配')
+        setLoading(false)
+        return
+      }
+
+      // 5. 获取角色的权限信息（从 role_permissions 表）
+      const roleId = matchedRole?.id || ''
+      const { data: rolePermissions, error: permsError } = await supabase
+        .from('role_permissions')
+        .select('permission_id')
+        .eq('role_id', roleId)
+
+      const permissions = (rolePermissions || []).map(rp => rp.permission_id)
+
+      // 6. 构建 CurrentUser 对象并同步到权限验证模块
+      const currentUserData: CurrentUser = {
+        id: user.id,
+        name: user.name,
+        org_id: user.org_id,
+        roles: roleCodes,
+        permissions: permissions,
+      }
+      setCurrentUser(currentUserData)
+
+      // 登录成功，保存用户信息
+      const userData = {
+        id: user.id,
+        name: user.name,
+        org_id: user.org_id,  // 添加 org_id
+        role: ((matchedRole.code || '').toLowerCase() as Role) || 'apply_doctor',
+        department: orgName,
+        avatar: user.avatar,
+        permissions: permissions,
+      }
+
+      setUser(userData)
+      setRole(userData.role)
+
+      // 保存到 localStorage
+      localStorage.setItem('mdt_user', JSON.stringify(userData))
+
+      // 加载系统码表
+      await loadCodeTables()
+
+      message.success('登录成功')
+      setLoading(false)
+      navigate('/workbench')
+      
+    } catch (err) {
+      console.error('登录失败:', err)
+      message.error('登录失败，请稍后重试')
+      setLoading(false)
+    }
   }
 
   return (

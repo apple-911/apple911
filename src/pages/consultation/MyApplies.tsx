@@ -1,19 +1,88 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Button, Tag, Space, Input, Select, DatePicker, Modal, message, Typography } from 'antd'
-import { EyeOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
-import { mockConsultations } from '../../mocks/data'
+import { Card, Table, Button, Tag, Space, Select, Modal, message, Typography, Spin, Result } from 'antd'
+import { EyeOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'
+import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
 import type { Consultation } from '../../stores/consultationStore'
 import dayjs from 'dayjs'
+import { useAppStore } from '../../stores/appStore'
+import { hasPermission } from '../../utils/helpers'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 export default function MyApplies() {
-  const [data, setData] = useState(mockConsultations)
+  const [data, setData] = useState<Consultation[]>([])
+  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [typeFilter, setTypeFilter] = useState<string>('')
   const navigate = useNavigate()
+  const { user } = useAppStore()
+
+  // 从数据库加载会诊数据
+  useEffect(() => {
+    loadConsultations()
+  }, [])
+
+  const loadConsultations = async () => {
+    try {
+      setLoading(true)
+      
+      // 查询会诊数据
+      const { data: consultations, error } = await supabase
+        .from('consultations')
+        .select('*')
+        .eq('apply_doctor', user?.name || '')
+        .order('apply_time', { ascending: false })
+      
+      if (error) {
+        console.error('加载会诊数据失败:', error)
+        message.error('加载数据失败')
+        return
+      }
+      
+      // 获取会诊专家关联
+      const { data: consultationExperts, error: ceError } = await supabase
+        .from('consultation_experts')
+        .select('consultation_id, expert_id')
+      
+      if (ceError) {
+        console.error('加载专家数据失败:', ceError)
+      }
+      
+      // 构建会诊ID到专家数量的映射
+      const expertCountMap = new Map<string, number>();
+      (consultationExperts || []).forEach((ce: { consultation_id: string }) => {
+        expertCountMap.set(ce.consultation_id, (expertCountMap.get(ce.consultation_id) || 0) + 1)
+      })
+      
+      // 转换数据格式
+      const formattedData: Consultation[] = (consultations || []).map(item => ({
+        id: item.id,
+        consultationCode: item.consultation_code,  // 添加会诊编码
+        patientId: item.patient_id,
+        patientName: item.patient_name,
+        patientInpatientNo: item.patient_inpatient_no,
+        type: item.type as '院内' | '远程',
+        applyTime: item.apply_time,
+        expectTime: item.expect_time,
+        status: item.status as Consultation['status'],
+        urgency: item.urgency as '普通' | '紧急' | '特急',
+        department: item.department,
+        applyDoctor: item.apply_doctor,
+        experts: Array.from({ length: expertCountMap.get(item.id) || 0 }, (_, i) => ({ id: `expert-${i}`, name: `专家${i + 1}`, department: '', dept: '', title: '', specialty: '', status: '空闲' as const })),
+        mainDiagnosis: item.main_diagnosis || '',
+        reject_reason: item.reject_reason,
+      }))
+      
+      setData(formattedData)
+    } catch (err) {
+      console.error('加载失败:', err)
+      message.error('加载数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredData = data.filter(d => {
     if (statusFilter && d.status !== statusFilter) return false
@@ -25,47 +94,140 @@ export default function MyApplies() {
     Modal.confirm({
       title: '确认撤销',
       content: '确定要撤销这条会诊申请吗？',
-      onOk: () => {
-        setData(data.map(d => d.id === id ? { ...d, status: '已拒绝' as const } : d))
-        message.success('已撤销申请')
+      onOk: async () => {
+        try {
+          const { error } = await supabase
+            .from('consultations')
+            .update({ status: '已取消' })
+            .eq('id', id)
+          
+          if (error) throw error
+          
+          // 插入审核历史
+          const auditInsert = {
+            consultation_id: id,
+            operator: user?.name,
+            operator_role: '申请医生',
+            node: '申请撤销',
+            result: '已撤销',
+            time: new Date().toISOString(),
+          }
+          
+          await supabase
+            .from('audit_history')
+            .insert(auditInsert)
+          
+          message.success('已撤销申请')
+          loadConsultations()
+        } catch (err) {
+          console.error('撤销失败:', err)
+          message.error('撤销失败')
+        }
       }
     })
   }
 
+  const handleEdit = (record: Consultation) => {
+    // 跳转到申请页面，带上会诊 ID 进行编辑
+    navigate(`/consultation/apply?id=${record.id}`)
+  }
+
   const columns: ColumnsType<Consultation> = [
-    { title: '申请单号', dataIndex: 'id', render: (t) => <Tag>#{t}</Tag> },
-    { title: '患者姓名', dataIndex: 'patientName' },
-    { title: '会诊类型', dataIndex: 'type', render: (t) => <Tag color={t === '院内' ? 'blue' : 'green'}>{t}</Tag> },
-    { title: '申请时间', dataIndex: 'applyTime' },
-    { title: '期望时间', dataIndex: 'expectTime' },
-    { title: '主要诊断', dataIndex: 'mainDiagnosis', ellipsis: true },
+    { 
+      title: '会诊 ID', 
+      dataIndex: 'consultationCode', 
+      width: 120,
+      render: (code) => <Tag color="blue">{code || '-'}</Tag> 
+    },
+    { title: '患者姓名', dataIndex: 'patientName', width: 100 },
+    { title: '会诊类型', dataIndex: 'type', width: 100, render: (t) => <Tag color={t === '院内' ? 'blue' : 'green'}>{t}</Tag> },
+    {
+      title: '紧急程度',
+      dataIndex: 'urgency',
+      width: 100,
+      render: (urgency) => {
+        const color = urgency === '特急' ? 'red' : urgency === '紧急' ? 'orange' : 'green'
+        if (urgency === '特急') {
+          return <Tag color={color}><strong>{urgency}</strong></Tag>
+        }
+        return <Tag color={color}>{urgency}</Tag>
+      },
+    },
+    { title: '申请时间', dataIndex: 'applyTime', width: 150, render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-' },
+    { title: '期望时间', dataIndex: 'expectTime', width: 150, render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-' },
+    { title: '主要诊断', dataIndex: 'mainDiagnosis', ellipsis: true, width: 200 },
+    {
+      title: '邀请专家',
+      dataIndex: 'experts',
+      width: 100,
+      render: (experts) => {
+        if (!experts || experts.length === 0) return '-';
+        return (
+          <Space>
+            <TeamOutlined />
+            <Text>{experts.length}位</Text>
+          </Space>
+        );
+      },
+    },
     {
       title: '状态',
       dataIndex: 'status',
       render: (t: Consultation['status']) => {
         const colors: Record<string, string> = {
-          '待科室审核': 'orange',
-          '待秘书审核': 'purple',
-          '待补充材料': 'red',
-          '待会诊': 'blue',
-          '已通过': 'green',
-          '已拒绝': 'red',
-          '已完成': 'blue',
-          '进行中': 'processing',
+          'doctor_submit': 'blue',
+          'director_pending': 'orange',
+          'director_rejected': 'red',
+          'secretary_pending': 'purple',
+          'pending_supplement': 'orange',
+          'material_rejected': 'orange',
+          'scheduled': 'blue',
+          'expert_confirmed': 'cyan',
+          'pending_meeting': 'blue',
+          'in_progress': 'processing',
+          'completed': 'green',
+          'archived': 'green',
+          'rejected': 'red',
+          'cancelled': 'default',
         }
         const texts: Record<string, string> = {
-          '待科室审核': '科室审核',
-          '待秘书审核': '秘书审核',
-          '待补充材料': '待补充',
-          '待会诊': '待会诊',
+          'doctor_submit': '已提交',
+          'director_pending': '主任审核',
+          'director_rejected': '主任驳回',
+          'secretary_pending': '秘书审核',
+          'pending_supplement': '待补正',
+          'material_rejected': '退回修改',
+          'scheduled': '已排期',
+          'expert_confirmed': '专家确认',
+          'pending_meeting': '待会诊',
+          'in_progress': '会诊中',
+          'completed': '已完成',
+          'archived': '已归档',
         }
-        return <Tag color={colors[t]}>{texts[t] || t}</Tag>
+        return <Tag color={colors[t] || 'default'}>{texts[t] || t}</Tag>
+      }
+    },
+    {
+      title: '拒绝原因',
+      dataIndex: 'reject_reason',
+      ellipsis: true,
+      width: 200,
+      render: (text: string, record: any) => {
+        // 只有在拒绝/驳回状态下才显示拒绝原因
+        const rejectStatuses = ['director_rejected', 'pending_supplement', 'material_rejected', '主任驳回', '待补正', '退回修改'];
+        // 过滤掉状态值被错误写入的情况
+        const statusValues = ['医生提交', '待主任审核', '主任驳回', '秘书审核', '待补正', '退回修改', '已排期', '专家确认', '待会诊', '会诊中', '已完成', '已归档', '已拒绝', '已取消', 'doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected', 'scheduled', 'expert_confirmed', 'pending_meeting', 'in_progress', 'completed', 'archived', 'rejected', 'cancelled'];
+        
+        if (rejectStatuses.includes(record.status) && text && !statusValues.includes(text)) {
+          return <Text type="warning" ellipsis>{text}</Text>
+        }
+        return '-'
       }
     },
     {
       title: '操作',
       key: 'action',
-      width: 180,
+      width: 250,
       fixed: 'right',
       render: (_, record) => (
         <Space wrap size="small">
@@ -76,7 +238,8 @@ export default function MyApplies() {
           >
             详情
           </Button>
-          {record.status === '待科室审核' && (
+          {/* 在专家确认前都可以撤销 */}
+          {(['doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected', '医生提交', '待主任审核', '主任驳回', '秘书审核', '待补正', '退回修改'].includes(record.status)) && (
             <Button
               size="small"
               danger
@@ -86,60 +249,109 @@ export default function MyApplies() {
               撤销
             </Button>
           )}
+          {/* 主任驳回后可以修改重提 */}
+          {(['director_rejected', '主任驳回'].includes(record.status)) && (
+            <Button
+              size="small"
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            >
+              修改重提
+            </Button>
+          )}
+          {/* 秘书退回待补正 */}
+          {(['pending_supplement', 'material_rejected', '待补正', '退回修改'].includes(record.status)) && (
+            <Button
+              size="small"
+              type="primary"
+              icon={<ReloadOutlined />}
+              onClick={() => handleEdit(record)}
+            >
+              补正
+            </Button>
+          )}
         </Space>
       )
     },
   ]
 
+  // 权限检查
+  if (!hasPermission('perm-consultation-my-applies')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问我的申请页面。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <Title level={4} className="!mb-0">我的申请列表</Title>
-        <Button type="primary" icon={<ReloadOutlined />} onClick={() => setData([...mockConsultations])}>
+        <Button type="primary" icon={<ReloadOutlined />} onClick={loadConsultations}>
           刷新
         </Button>
       </div>
 
-      <Card>
-        <Space className="mb-4" wrap>
-          <Select
-            placeholder="状态筛选"
-            allowClear
-            style={{ width: 150 }}
-            value={statusFilter || undefined}
-            onChange={(v) => setStatusFilter(v || '')}
-            options={[
-              { value: '待科室审核', label: '待科室审核' },
-              { value: '待秘书审核', label: '待秘书审核' },
-              { value: '待补充材料', label: '待补充材料' },
-              { value: '待会诊', label: '待会诊' },
-              { value: '已通过', label: '已通过' },
-              { value: '已拒绝', label: '已拒绝' },
-              { value: '进行中', label: '进行中' },
-              { value: '已完成', label: '已完成' },
-            ]}
-          />
-          <Select
-            placeholder="类型筛选"
-            allowClear
-            style={{ width: 120 }}
-            value={typeFilter || undefined}
-            onChange={(v) => setTypeFilter(v || '')}
-            options={[
-              { value: '院内', label: '院内' },
-              { value: '远程', label: '远程' },
-            ]}
-          />
-          <DatePicker.RangePicker />
-        </Space>
-
-        <Table
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id"
-          pagination={{ pageSize: 10, showSizeChanger: true }}
+      {/* 筛选器 */}
+      <div className="flex gap-4">
+        <Select
+          placeholder="按状态筛选"
+          allowClear
+          className="w-40"
+          value={statusFilter || undefined}
+          onChange={setStatusFilter}
+          options={[
+            { value: '医生提交', label: '医生提交' },
+            { value: '待主任审核', label: '待主任审核' },
+            { value: '主任驳回', label: '主任驳回' },
+            { value: '秘书审核', label: '秘书审核' },
+            { value: '待补正', label: '待补正' },
+            { value: '待排期', label: '待排期' },
+            { value: '待专家确认', label: '待专家确认' },
+            { value: '待会诊', label: '待会诊' },
+            { value: '会诊中', label: '会诊中' },
+            { value: '会诊结束', label: '会诊结束' },
+            { value: '待质检审核', label: '待质检审核' },
+            { value: '待归档', label: '待归档' },
+            { value: '已归档', label: '已归档' },
+            { value: '已拒绝', label: '已拒绝' },
+            { value: '已取消', label: '已取消' },
+          ]}
         />
-      </Card>
+        <Select
+          placeholder="按类型筛选"
+          allowClear
+          className="w-40"
+          value={typeFilter || undefined}
+          onChange={setTypeFilter}
+          options={[
+            { value: '院内', label: '院内会诊' },
+            { value: '远程', label: '远程会诊' },
+          ]}
+        />
+      </div>
+
+      {/* 数据表格 */}
+      <Spin spinning={loading}>
+        <Card>
+          <Table
+            columns={columns}
+            dataSource={filteredData}
+            rowKey="id"
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `共 ${total} 条`,
+            }}
+            scroll={{ x: 1200 }}
+          />
+        </Card>
+      </Spin>
     </div>
   )
 }

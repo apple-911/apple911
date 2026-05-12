@@ -31,13 +31,13 @@ export default function SupplementMaterial() {
         type: '院内',
         applyTime: '2024-03-15 09:30',
         expectTime: '2024-03-20 14:00',
-        status: '已拒绝',
+        status: 'rejected',
         urgency: '紧急',
         department: '肿瘤科',
         applyDoctor: '张明华',
         experts: [],
         mainDiagnosis: '左肺鳞癌 III 期',
-        materialStatus: '已退回',
+        materialStatus: 'rejected',
         rejectReason: '材料不完整，请补充以下资料：\n1. 患者近期胸部 CT 增强扫描报告\n2. 病理免疫组化结果\n3. 肿瘤标志物检查结果\n4. 既往治疗记录（手术记录、化疗方案等）',
         uploadedFiles: [
           {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, Table, Button, Tag, Space, Typography, Modal, message, Select, DatePicker, Descriptions, Divider, Tabs, Input, Drawer } from 'antd'
+import { Card, Table, Button, Tag, Space, Typography, Modal, message, Select, DatePicker, Descriptions, Divider, Tabs, Input, Drawer, Result } from 'antd'
 import {
   BellOutlined,
   FileTextOutlined,
@@ -17,6 +17,8 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import PatientInfo from '../../components/PatientInfo'
+import { useNavigate } from 'react-router-dom'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title, Text } = Typography
 
@@ -571,6 +573,7 @@ MSI-H 型
 ]
 
 export default function MaterialSupervise() {
+  const navigate = useNavigate()
   const [tasks, setTasks] = useState(mockTasks)
   const [selectedTask, setSelectedTask] = useState<MaterialTask | null>(null)
   const [reminderVisible, setReminderVisible] = useState(false)
@@ -776,6 +779,18 @@ export default function MaterialSupervise() {
 
   const pendingCount = tasks.filter(t => t.status === '待提交').length
   const auditingCount = tasks.filter(t => t.status === '待秘书审核').length
+
+  // 权限检查
+  if (!hasPermission('perm-consultation-material')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问材料督办页面。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">

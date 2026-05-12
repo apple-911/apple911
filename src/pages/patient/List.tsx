@@ -1,40 +1,103 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Button, Input, Select, Space, Tag, Typography, Modal, message, Badge, Tooltip } from 'antd'
+import { Card, Table, Button, Input, Select, Space, Tag, Typography, Modal, message, Badge, Tooltip, Result } from 'antd'
 import { SearchOutlined, EyeOutlined, MedicineBoxOutlined, UserOutlined, ThunderboltOutlined, RobotOutlined } from '@ant-design/icons'
-import { mockPatients, mockConsultations } from '../../mocks/data'
-import type { Patient } from '../../stores/consultationStore'
+import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
 import aiPatientScreeningService, { MDTNecessityAssessment } from '../../services/integration/ai/aiPatientScreeningService'
+import dayjs from 'dayjs'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title, Text } = Typography
 
-interface PatientWithAI extends Patient {
+interface PatientWithAI {
+  id: string
+  name: string
+  gender: string
+  age: number
+  inpatientNo: string
+  mainDiagnosis: string
+  department: string
+  doctor: string
+  lastConsultationTime?: string
   aiAssessment?: MDTNecessityAssessment
   aiLoading?: boolean
 }
 
 export default function PatientList() {
-  const [data, setData] = useState<PatientWithAI[]>(mockPatients)
+  const [data, setData] = useState<PatientWithAI[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [applyModalVisible, setApplyModalVisible] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<PatientWithAI | null>(null)
   const navigate = useNavigate()
 
-  // 加载 AI 评估
   useEffect(() => {
-    loadAIAssessments()
+    loadPatients()
   }, [])
 
+  useEffect(() => {
+    if (data.length > 0) {
+      loadAIAssessments()
+    }
+  }, [data])
+
+  const loadPatients = async () => {
+    try {
+      setLoading(true)
+
+      const { data: patients, error } = await supabase
+        .from('patients')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const { data: consultations, error: cError } = await supabase
+        .from('consultations')
+        .select('patient_id, apply_time')
+        .order('apply_time', { ascending: false })
+
+      if (cError) throw cError
+
+      const lastConsultationMap = new Map<string, string>()
+      consultations?.forEach(c => {
+        if (!lastConsultationMap.has(c.patient_id)) {
+          lastConsultationMap.set(c.patient_id, c.apply_time)
+        }
+      })
+
+      const patientsWithConsultation: PatientWithAI[] = (patients || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        gender: p.gender || '未知',
+        age: p.age || 0,
+        inpatientNo: p.inpatient_no || '',
+        mainDiagnosis: p.main_diagnosis || '',
+        department: p.department || '',
+        doctor: p.doctor || '',
+        lastConsultationTime: lastConsultationMap.get(p.id)
+          ? dayjs(lastConsultationMap.get(p.id)).format('YYYY-MM-DD')
+          : undefined,
+      }))
+
+      setData(patientsWithConsultation)
+    } catch (err) {
+      console.error('加载患者数据失败:', err)
+      message.error('加载患者数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const loadAIAssessments = async () => {
-    // 为所有患者加载 AI MDT 评估
     const updatedData = [...data]
     for (let i = 0; i < updatedData.length; i++) {
       try {
         updatedData[i].aiLoading = true
         setData([...updatedData])
-        
+
         const assessment = await aiPatientScreeningService.assessMDTNecessity(updatedData[i].id)
         updatedData[i].aiAssessment = assessment
         updatedData[i].aiLoading = false
@@ -183,7 +246,19 @@ export default function PatientList() {
     },
   ]
 
-  const departments = Array.from(new Set(mockPatients.map(p => p.department)))
+  const departments = Array.from(new Set(data.map(p => p.department).filter(Boolean)))
+
+  // 权限检查
+  if (!hasPermission('perm-patient-list')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问患者档案库。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -214,6 +289,7 @@ export default function PatientList() {
           columns={columns}
           dataSource={filteredData}
           rowKey="id"
+          loading={loading}
           pagination={{ pageSize: 10, showSizeChanger: true }}
         />
       </Card>

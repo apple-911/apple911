@@ -1,12 +1,36 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Tabs, Table, Tag, Button, Space, Typography, Empty, List, Avatar, message, Drawer, Descriptions, Tabs as AntdTabs, Badge } from 'antd'
+import { Card, Tabs, Table, Tag, Button, Space, Typography, Empty, List, Avatar, message, Drawer, Descriptions, Tabs as AntdTabs, Badge, Result, Spin } from 'antd'
 import { CalendarOutlined, VideoCameraOutlined, TeamOutlined, ClockCircleOutlined, UserOutlined, FileTextOutlined, UploadOutlined, DatabaseOutlined, PictureOutlined, FilePdfOutlined, EyeOutlined } from '@ant-design/icons'
-import { mockConsultations } from '../../mocks/data'
+import { supabase } from '../../lib/supabase'
+import { useAppStore } from '../../stores/appStore'
 import type { Consultation, UploadedFile } from '../../stores/consultationStore'
 import PatientInfo from '../../components/PatientInfo'
+import { hasPermission } from '../../utils/helpers'
+import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
+
+// 数据库中存储的中文状态到英文状态的映射
+const statusMapping: Record<string, string> = {
+  '医生提交': 'doctor_submit',
+  '待科室审核': 'director_pending',
+  '待主任审核': 'director_pending',
+  '主任已驳回': 'director_rejected',
+  '待秘书审核': 'secretary_pending',
+  '待补充材料': 'pending_supplement',
+  '退回修改': 'material_rejected',
+  '已排期': 'scheduled',
+  '已邀请专家': 'expert_invited',
+  '待专家确认': 'expert_confirmed',
+  '专家已确认': 'expert_confirmed',
+  '待会诊': 'pending_meeting',
+  '会诊中': 'in_progress',
+  '已完成': 'completed',
+  '已归档': 'archived',
+  '已拒绝': 'rejected',
+  '已取消': 'cancelled',
+}
 
 export default function MyMeetings() {
   const [activeTab, setActiveTab] = useState('today')
@@ -14,26 +38,114 @@ export default function MyMeetings() {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('')
   const [selectedPatientName, setSelectedPatientName] = useState<string>('')
   const [selectedPatientInpatientNo, setSelectedPatientInpatientNo] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  const [meetings, setMeetings] = useState<Consultation[]>([])
+  const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null)
   const navigate = useNavigate()
+  const { user } = useAppStore()
 
   const todayStr = new Date().toISOString().split('T')[0]
 
-  const todayMeetings = mockConsultations.filter(c => c.status === '进行中')
-  const weekMeetings = mockConsultations.filter(c => ['已通过', '进行中'].includes(c.status))
-  const futureMeetings = mockConsultations.filter(c => c.status === '已通过')
+  useEffect(() => {
+    loadMeetings()
+  }, [])
+
+  const loadMeetings = async () => {
+    try {
+      setLoading(true)
+      
+      // 根据用户角色查询不同状态的会诊
+      let statuses: string[] = []
+      
+      if (user?.role === 'secretary') {
+        // 秘书：待秘书审核、已安排、会诊中
+        statuses = ['待秘书审核', '待会诊', '会诊中']
+      } else if (user?.role === 'expert') {
+        // 专家：待专家确认、待会诊、会诊中
+        statuses = ['待专家确认', '待会诊', '会诊中']
+      } else if (user?.role === 'director') {
+        // 主任：待科室审核、待秘书审核、待会诊、会诊中
+        statuses = ['待科室审核', '待秘书审核', '待会诊', '会诊中']
+      } else {
+        // 默认：所有状态
+        statuses = ['待科室审核', '待秘书审核', '待专家确认', '待会诊', '会诊中']
+      }
+      
+      const { data: consultations, error } = await supabase
+        .from('consultations')
+        .select('*')
+        .in('status', statuses)
+        .order('expect_time', { ascending: true })
+      
+      if (error) throw error
+      
+      // 转换数据格式
+      const formattedMeetings: Consultation[] = (consultations || []).map(item => ({
+        id: item.id,
+        consultationCode: item.consultation_code,
+        patientId: item.patient_id || '',
+        patientName: item.patient_name || '',
+        patientInpatientNo: item.patient_inpatient_no || '',
+        mainDiagnosis: item.main_diagnosis || '',
+        department: item.department || '',
+        applyDoctor: item.apply_doctor || '',
+        applyTime: item.apply_time || '',
+        expectTime: item.expect_time ? dayjs(item.expect_time).format('YYYY-MM-DD HH:mm') : '',
+        status: (statusMapping[item.status] || item.status) as Consultation['status'],
+        type: (item.type as Consultation['type']) || '院内',
+        urgency: (item.urgency as Consultation['urgency']) || '普通',
+        meetingRoom: item.meeting_room || '',
+        experts: item.experts ? JSON.parse(item.experts) : [],
+        medicalRecords: item.medical_records ? JSON.parse(item.medical_records) : null,
+        uploadedFiles: item.uploaded_files ? JSON.parse(item.uploaded_files) : [],
+      }))
+      
+      setMeetings(formattedMeetings)
+    } catch (err) {
+      console.error('加载会议失败:', err)
+      message.error('加载会议数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const todayMeetings = meetings.filter(c => {
+    if (!c.expectTime) return false
+    return c.expectTime.startsWith(todayStr)
+  })
+
+  const weekMeetings = meetings.filter(c => {
+    if (!c.expectTime) return false
+    const meetingDate = dayjs(c.expectTime)
+    const today = dayjs()
+    const startOfWeek = today.day() === 0 ? today.clone() : today.clone().day(1)
+    const endOfWeek = today.day() === 0 ? today.clone() : today.clone().day(7)
+    return meetingDate.isAfter(startOfWeek.startOf('day')) && meetingDate.isBefore(endOfWeek.endOf('day'))
+  })
+
+  const futureMeetings = meetings.filter(c => {
+    if (!c.expectTime) return false
+    return dayjs(c.expectTime).isAfter(dayjs(), 'day')
+  })
 
   const handlePreOpinion = (item: Consultation) => {
     message.info('预审功能开发中')
   }
 
-  const showPatientInfo = (patientId: string, patientName: string, patientInpatientNo: string) => {
+  const showPatientInfo = (patientId: string, patientName: string, patientInpatientNo: string, consultation: Consultation) => {
     setSelectedPatientId(patientId)
     setSelectedPatientName(patientName)
     setSelectedPatientInpatientNo(patientInpatientNo)
+    setSelectedConsultation(consultation)
     setPatientDrawerVisible(true)
   }
 
   const columns = [
+    { 
+      title: '会诊 ID', 
+      dataIndex: 'consultationCode', 
+      render: (code: string, record: Consultation) => <Tag color="blue">{code || record.id}</Tag>
+    },
     { title: '会诊主题', dataIndex: 'mainDiagnosis', ellipsis: true },
     { 
       title: '患者', 
@@ -46,7 +158,7 @@ export default function MyMeetings() {
             size="small"
             className="!p-0"
             icon={<UserOutlined />}
-            onClick={() => showPatientInfo(record.patientId, record.patientName, record.patientInpatientNo)}
+            onClick={() => showPatientInfo(record.patientId, record.patientName, record.patientInpatientNo, record)}
           >
             查看
           </Button>
@@ -55,12 +167,12 @@ export default function MyMeetings() {
     },
     { title: '时间', dataIndex: 'expectTime' },
     { title: '类型', dataIndex: 'type', render: (t: string) => <Tag color={t === '院内' ? 'blue' : 'green'}>{t}</Tag> },
-    { title: '状态', dataIndex: 'status', render: (t: string) => <Tag color={t === '进行中' ? 'processing' : 'default'}>{t}</Tag> },
+    { title: '状态', dataIndex: 'status', render: (t: string) => <Tag color={t === 'in_progress' ? 'processing' : 'default'}>{t}</Tag> },
     {
       title: '操作',
       render: (_: any, record: Consultation) => (
         <Space>
-          {record.status === '进行中' && (
+          {record.status === 'in_progress' && (
             <Button
               type="primary"
               icon={<VideoCameraOutlined />}
@@ -74,19 +186,19 @@ export default function MyMeetings() {
     },
   ]
 
-  const renderMeetingList = (meetings: Consultation[]) => {
-    if (meetings.length === 0) {
+  const renderMeetingList = (meetingList: Consultation[]) => {
+    if (meetingList.length === 0) {
       return <Empty description="暂无会诊" />
     }
     return (
       <List
-        dataSource={meetings}
+        dataSource={meetingList}
         renderItem={(item) => (
           <List.Item
             className="hover:bg-gray-50 cursor-pointer"
             onClick={() => navigate(`/consultation/detail/${item.id}`)}
             actions={[
-              item.status === '进行中' ? (
+              item.status === 'in_progress' ? (
                 <Button key="enter" type="primary" size="small" onClick={(e) => { e.stopPropagation(); navigate(`/consultation/room/${item.id}`) }}>
                   进入
                 </Button>
@@ -99,12 +211,12 @@ export default function MyMeetings() {
           >
             <List.Item.Meta
               avatar={<Avatar icon={<TeamOutlined />} style={{ background: 'var(--xiehe-green)' }} />}
-              title={<Space>{item.mainDiagnosis}<Tag color={item.status === '进行中' ? 'processing' : 'default'}>{item.status}</Tag></Space>}
+              title={<Space>{item.mainDiagnosis}<Tag color={item.status === 'in_progress' ? 'processing' : 'default'}>{item.status}</Tag></Space>}
               description={
                 <Space direction="vertical" size={0}>
                   <Text type="secondary">{item.patientName} | {item.expectTime}</Text>
                   <Space>
-                    {item.experts.slice(0, 3).map(e => <Tag key={e.id} className="!m-0">{e.name}</Tag>)}
+                    {item.experts.slice(0, 3).map((e: any) => <Tag key={e.id || e.name} className="!m-0">{e.name}</Tag>)}
                   </Space>
                 </Space>
               }
@@ -115,50 +227,59 @@ export default function MyMeetings() {
     )
   }
 
+  // 权限检查
+  if (!hasPermission('perm-consultation-my-meetings')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问我的待参会页面。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
+
   return (
-    <div className="space-y-4">
-      <Title level={4}>我的待参会</Title>
+    <Spin spinning={loading}>
+      <div className="space-y-4">
+        <Title level={4}>我的待参会</Title>
 
-      <Card>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'today',
-              label: <span><ClockCircleOutlined /> 今日</span>,
-              children: renderMeetingList(todayMeetings),
-            },
-            {
-              key: 'week',
-              label: <span><CalendarOutlined /> 本周</span>,
-              children: renderMeetingList(weekMeetings),
-            },
-            {
-              key: 'future',
-              label: <span><CalendarOutlined /> 未来</span>,
-              children: renderMeetingList(futureMeetings),
-            },
-          ]}
-        />
-      </Card>
+        <Card>
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              {
+                key: 'today',
+                label: <span><ClockCircleOutlined /> 今日</span>,
+                children: renderMeetingList(todayMeetings),
+              },
+              {
+                key: 'week',
+                label: <span><CalendarOutlined /> 本周</span>,
+                children: renderMeetingList(weekMeetings),
+              },
+              {
+                key: 'future',
+                label: <span><CalendarOutlined /> 未来</span>,
+                children: renderMeetingList(futureMeetings),
+              },
+            ]}
+          />
+        </Card>
 
-      <Card title="会诊列表">
-        <Table columns={columns} dataSource={mockConsultations} rowKey="id" size="small" pagination={false} />
-      </Card>
+        <Card title="会诊列表">
+          <Table columns={columns} dataSource={meetings} rowKey="id" size="small" pagination={false} />
+        </Card>
 
-      <Drawer
-        title="患者详细信息"
-        placement="right"
-        width={1200}
-        open={patientDrawerVisible}
-        onClose={() => setPatientDrawerVisible(false)}
-      >
-        {selectedPatientId && (() => {
-          // 查找当前选中的会诊
-          const selectedConsultation = mockConsultations.find(c => c.patientId === selectedPatientId)
-          
-          return (
+        <Drawer
+          title="患者详细信息"
+          placement="right"
+          width={1200}
+          open={patientDrawerVisible}
+          onClose={() => setPatientDrawerVisible(false)}
+        >
+          {selectedPatientId && selectedConsultation && (
             <div className="space-y-4">
               {/* 患者基本信息 */}
               <PatientInfo
@@ -169,7 +290,7 @@ export default function MyMeetings() {
               />
 
               {/* 病历资料 */}
-              {selectedConsultation?.medicalRecords && (
+              {selectedConsultation.medicalRecords && (
                 <Card 
                   size="small" 
                   title={
@@ -212,7 +333,7 @@ export default function MyMeetings() {
               )}
 
               {/* 附件材料 */}
-              {selectedConsultation?.uploadedFiles && selectedConsultation.uploadedFiles.length > 0 && (
+              {selectedConsultation.uploadedFiles && selectedConsultation.uploadedFiles.length > 0 && (
                 <Card 
                   size="small" 
                   title={
@@ -226,95 +347,39 @@ export default function MyMeetings() {
                     size="small"
                     type="card"
                     items={(() => {
-                      const filesByType = selectedConsultation.uploadedFiles?.reduce((acc, file) => {
+                      const filesByType = selectedConsultation.uploadedFiles?.reduce((acc: Record<string, UploadedFile[]>, file) => {
                         if (!acc[file.fileType]) {
                           acc[file.fileType] = []
                         }
                         acc[file.fileType].push(file)
                         return acc
-                      }, {} as Record<string, typeof selectedConsultation.uploadedFiles>) || {}
+                      }, {})
 
-                      return Object.keys(filesByType).map(type => ({
+                      return Object.entries(filesByType).map(([type, files]) => ({
                         key: type,
-                        label: (
-                          <Space>
-                            <span>{type}</span>
-                            <Badge count={filesByType[type].length} size="small" />
-                          </Space>
-                        ),
+                        label: type,
                         children: (
-                          <List
-                            dataSource={filesByType[type]}
-                            renderItem={(file) => (
-                              <List.Item
-                                actions={[
-                                  <Space key="actions">
-                                    <Button 
-                                      type="link" 
-                                      size="small" 
-                                      icon={<EyeOutlined />}
-                                      onClick={() => window.open(file.uploadUrl, '_blank')}
-                                    >
-                                      查看
-                                    </Button>
-                                    <Button 
-                                      type="link" 
-                                      size="small" 
-                                      icon={<UploadOutlined />}
-                                      onClick={() => {
-                                        const link = document.createElement('a')
-                                        link.href = file.uploadUrl
-                                        link.download = file.fileName
-                                        link.click()
-                                      }}
-                                    >
-                                      下载
-                                    </Button>
-                                  </Space>
-                                ]}
-                              >
-                                <List.Item.Meta
-                                  avatar={
-                                    <Avatar 
-                                      icon={
-                                        file.fileType.includes('影像') || file.fileType.includes('图片') ? 
-                                          <PictureOutlined /> : 
-                                          file.fileType.includes('病理') || file.fileName.endsWith('.pdf') ? 
-                                            <FilePdfOutlined /> : 
-                                            <FileTextOutlined />
-                                      }
-                                      size={40}
-                                      style={{ backgroundColor: file.fromHIS ? '#52c41a' : '#1890ff' }}
-                                    />
-                                  }
-                                  title={
-                                    <Space>
-                                      <Text strong>{file.fileName}</Text>
-                                      {file.fromHIS && (
-                                        <Tag color="green" icon={<DatabaseOutlined />}>HIS</Tag>
-                                      )}
-                                      <Tag color="default">{(file.fileSize / 1024).toFixed(1)} KB</Tag>
-                                    </Space>
-                                  }
-                                  description={
-                                    <div className="text-xs text-gray-500">
-                                      上传时间：{new Date(file.uploadTime).toLocaleString()}
-                                    </div>
-                                  }
-                                />
-                              </List.Item>
-                            )}
-                          />
-                        )
+                          <div className="space-y-2">
+                            {files.map((file) => (
+                              <div key={file.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                <Space>
+                                  {file.fileType === '影像资料' ? <PictureOutlined /> : <FilePdfOutlined />}
+                                  <span className="text-sm">{file.fileName}</span>
+                                </Space>
+                                <Button size="small" icon={<EyeOutlined />}>查看</Button>
+                              </div>
+                            ))}
+                          </div>
+                        ),
                       }))
                     })()}
                   />
                 </Card>
               )}
             </div>
-          )
-        })()}
-      </Drawer>
-    </div>
+          )}
+        </Drawer>
+      </div>
+    </Spin>
   )
 }

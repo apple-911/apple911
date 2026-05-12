@@ -37,6 +37,7 @@ import ConsultationTracking from './pages/consultation/Tracking'
 import MDTManagement from './pages/consultation/MDTManagement'
 import DirectorConfirm from './pages/consultation/DirectorConfirm'
 import ExpertConfirm from './pages/consultation/ExpertConfirm'
+import ExpertInvite from './pages/consultation/ExpertInvite'
 import SupplementMaterial from './pages/consultation/SupplementMaterial'
 import MHome from './pages/m/Home'
 import MRoom from './pages/m/Room'
@@ -45,6 +46,9 @@ import TeamList from './pages/admin/TeamList'
 import Roles from './pages/admin/Roles'
 import Logs from './pages/admin/Logs'
 import AuditLogs from './pages/admin/AuditLogs'
+import Organizations from './pages/admin/Organizations'
+import Users from './pages/admin/Users'
+import CodeTable from './pages/admin/CodeTable'
 import AIFeatures from './pages/ai/Features'
 import AIScreening from './pages/ai/Screening'
 import ScreeningDetail from './pages/ai/ScreeningDetail'
@@ -103,6 +107,7 @@ function App() {
           <Route path="/consultation/mdt-management" element={<MDTManagement />} />
           <Route path="/consultation/director-confirm" element={<DirectorConfirm />} />
           <Route path="/consultation/expert-confirm" element={<ExpertConfirm />} />
+          <Route path="/consultation/expert-invite/:id" element={<ExpertInvite />} />
           <Route path="/consultation/supplement-material/:id" element={<SupplementMaterial />} />
           <Route path="/case-library" element={<CaseLibraryIndex />} />
           <Route path="/case-library/search" element={<CaseSearch />} />
@@ -117,6 +122,9 @@ function App() {
           <Route path="/admin/roles" element={<Roles />} />
           <Route path="/admin/logs" element={<Logs />} />
           <Route path="/admin/audit-logs" element={<AuditLogs />} />
+          <Route path="/admin/organizations" element={<Organizations />} />
+          <Route path="/admin/users" element={<Users />} />
+          <Route path="/admin/code-table" element={<CodeTable />} />
           <Route path="/m/home" element={<MHome />} />
           <Route path="/m/room/:id" element={<MRoom />} />
         </Route>

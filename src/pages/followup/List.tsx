@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Select, DatePicker, Input, message, Badge, Drawer, Alert, List, Progress, Divider, Statistic, Row, Col, Popover, Empty, Steps, Descriptions, Timeline } from 'antd'
+import { Card, Table, Button, Tag, Space, Typography, Modal, Form, Select, DatePicker, Input, message, Badge, Drawer, Alert, List, Progress, Divider, Statistic, Row, Col, Popover, Empty, Steps, Descriptions, Timeline, Result } from 'antd'
 import { PlusOutlined, EditOutlined, StopOutlined, CalendarOutlined, WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ThunderboltOutlined, TeamOutlined, EyeOutlined, SearchOutlined, FilterOutlined, RobotOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { mockFollowupPlans, mockPatients } from '../../mocks/data'
 import type { FollowupPlan } from '../../stores/consultationStore'
@@ -8,6 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import intelligentFollowupService, { FollowupAnalysisResult } from '../../services/integration/ai/intelligentFollowupService'
 import aiFollowupPlanningService, { PatientInfo, AIFollowupPlan, FollowupNode } from '../../services/integration/ai/aiFollowupPlanningService'
 import dayjs from 'dayjs'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title, Text } = Typography
 
@@ -471,6 +472,18 @@ export default function FollowupList() {
       )
     },
   ]
+
+  // 权限检查
+  if (!hasPermission('perm-followup-list')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问随访计划管理。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">

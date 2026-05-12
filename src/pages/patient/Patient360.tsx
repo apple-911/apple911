@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Descriptions, Tag, List, Avatar, Timeline, Typography, Button, Space, Collapse, Modal, message, Tabs, Progress, Statistic, Table, Badge, Alert, Divider, DescriptionsProps, Spin, Drawer } from 'antd'
+import { Card, Row, Col, Descriptions, Tag, List, Avatar, Timeline, Typography, Button, Space, Collapse, Modal, message, Tabs, Progress, Statistic, Table, Badge, Alert, Divider, DescriptionsProps, Spin, Drawer, Result } from 'antd'
+import { hasPermission } from '../../utils/helpers'
 import {
   ArrowLeftOutlined,
   CalendarOutlined,
@@ -30,7 +31,8 @@ import {
   FallOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons'
-import { mockPatients, mockConsultations, mockReports, mockFollowupPlans } from '../../mocks/data'
+import { supabase } from '../../lib/supabase'
+import { useAppStore } from '../../stores/appStore'
 import RiskAssessment from '../../components/RiskAssessment'
 import MDTWarningCard from '../../components/MDTWarningCard'
 import aiPatientScreeningService, { MDTNecessityAssessment } from '../../services/integration/ai/aiPatientScreeningService'
@@ -41,16 +43,17 @@ const { Panel } = Collapse
 export default function Patient360() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAppStore()
   const [activeTab, setActiveTab] = useState('timeline')
   const [showMDTAssessment, setShowMDTAssessment] = useState(false)
   const [mdtAssessment, setMdtAssessment] = useState<MDTNecessityAssessment | null>(null)
   const [loadingMDT, setLoadingMDT] = useState(false)
-  const [medicalTeam, setMedicalTeam] = useState([
-    { name: '张明华', title: '主任医师', role: '主治医生', dept: '胸外科', phone: '138****1234' },
-    { name: '李芳', title: '副主任医师', role: '肿瘤内科', dept: '肿瘤科', phone: '139****5678' },
-    { name: '陈伟', title: '主治医师', role: '放疗科', dept: '放疗科', phone: '136****9012' },
-    { name: '王丽', title: '护师', role: '责任护士', dept: '胸外科', phone: '135****3456' },
-  ])
+  const [medicalTeam, setMedicalTeam] = useState<any[]>([])
+  const [patient, setPatient] = useState<any>(null)
+  const [consultations, setConsultations] = useState<any[]>([])
+  const [followups, setFollowups] = useState<any[]>([])
+  const [timelineItems, setTimelineItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   
   // 病情趋势分析相关状态
   const [showTrendAnalysis, setShowTrendAnalysis] = useState(false)
@@ -58,6 +61,117 @@ export default function Patient360() {
   const [loadingTrend, setLoadingTrend] = useState(false)
   const [selectedIndicator, setSelectedIndicator] = useState('tumor_marker')
   const [timeRange, setTimeRange] = useState('6m')
+
+  // 加载患者数据
+  useEffect(() => {
+    loadPatientData()
+  }, [id])
+
+  const loadPatientData = async () => {
+    try {
+      setLoading(true)
+      
+      // 加载患者基本信息
+      const { data: patientData, error } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', id)
+        .single()
+      
+      if (error || !patientData) {
+        message.error('未找到患者信息')
+        return
+      }
+      
+      setPatient(patientData)
+      
+      // 加载会诊记录
+      const { data: consultationData } = await supabase
+        .from('consultations')
+        .select('*')
+        .eq('patient_id', id)
+        .order('apply_time', { ascending: false })
+      
+      setConsultations(consultationData || [])
+      
+      // 加载医疗团队（从会诊专家中获取）
+      if (consultationData && consultationData.length > 0) {
+        const expertIds = consultationData
+          .filter(c => c.expert_ids && c.expert_ids.length > 0)
+          .flatMap(c => c.expert_ids)
+        
+        if (expertIds.length > 0) {
+          const { data: expertData } = await supabase
+            .from('experts')
+            .select('id, name, department, title, specialty')
+            .in('id', expertIds)
+          
+          const team = (expertData || []).map(expert => ({
+            name: expert.name,
+            title: expert.title,
+            role: expert.specialty || '会诊专家',
+            dept: expert.department,
+            phone: '138****0000',
+          }))
+          
+          setMedicalTeam(team)
+        }
+      }
+      
+      // 加载随访计划
+      const { data: followupData } = await supabase
+        .from('followup_plans')
+        .select('*')
+        .eq('patient_id', id)
+        .order('plan_date', { ascending: false })
+      
+      setFollowups(followupData || [])
+      
+      // 构建时间轴（从会诊记录和随访计划生成）
+      const timeline: any[] = []
+      
+      // 添加入院事件（从患者数据获取）
+      if (patientData.admission_time) {
+        timeline.push({
+          date: patientData.admission_time,
+          event: '入院',
+          detail: `${patientData.department} - ${patientData.main_diagnosis || '入院治疗'}`,
+        })
+      }
+      
+      // 添加会诊记录
+      if (consultationData && consultationData.length > 0) {
+        consultationData.forEach(c => {
+          timeline.push({
+            date: c.apply_time,
+            event: 'MDT 会诊',
+            detail: `${c.type} - ${c.urgency === '急诊' ? '急诊' : '常规'}申请`,
+          })
+        })
+      }
+      
+      // 添加随访计划
+      if (followupData && followupData.length > 0) {
+        followupData.forEach(f => {
+          timeline.push({
+            date: f.plan_date,
+            event: f.type || '随访',
+            detail: f.note || '计划随访',
+          })
+        })
+      }
+      
+      // 按日期排序
+      timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      
+      setTimelineItems(timeline)
+    } catch (err) {
+      console.error('加载患者数据失败:', err)
+      message.error('加载数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // 按职称排序医生列表（主任医师 > 副主任医师 > 主治医师 > 护师）
   const sortedMedicalTeam = [...medicalTeam].sort((a, b) => {
@@ -70,11 +184,6 @@ export default function Patient360() {
     }
     return (titleRank[b.title] || 0) - (titleRank[a.title] || 0)
   })
-
-  const patient = mockPatients.find(p => p.id === id)
-  const consultations = mockConsultations.filter(c => c.patientId === id)
-  const reports = mockReports.filter(r => consultations.some(c => c.id === r.consultationId))
-  const followups = mockFollowupPlans.filter(f => f.patientId === id)
 
   // 加载 MDT 评估数据
   useEffect(() => {
@@ -230,6 +339,29 @@ export default function Patient360() {
     }
   }
 
+  // 加载中的显示
+  if (loading) {
+    return (
+      <Card>
+        <div className="text-center py-8">
+          <Spin size="large" tip="加载患者数据中..." />
+        </div>
+      </Card>
+    )
+  }
+
+  // 权限检查
+  if (!hasPermission('perm-patient-360')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问患者360视图。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
+  }
+
   if (!patient) {
     return (
       <Card>
@@ -240,15 +372,6 @@ export default function Patient360() {
       </Card>
     )
   }
-
-  const timelineItems = [
-    { date: '2024-03-01', event: '入院', detail: '因咳嗽伴痰中带血入院' },
-    { date: '2024-03-05', event: 'CT检查', detail: '胸部CT：左肺占位性病变' },
-    { date: '2024-03-08', event: '病理活检', detail: '支气管镜活检：鳞状细胞癌' },
-    { date: '2024-03-15', event: 'MDT会诊', detail: '肺癌MDT讨论，制定治疗方案' },
-    { date: '2024-03-20', event: '开始治疗', detail: '开始第一周期化疗' },
-    { date: '2024-04-05', event: '随访', detail: '第一次随访复查' },
-  ]
 
   return (
     <div className="space-y-4">
@@ -295,7 +418,7 @@ export default function Patient360() {
               <div className="space-y-3 text-left">
                 <div>
                   <Text type="secondary" className="text-xs">住院号</Text>
-                  <div className="font-medium">{patient.inpatientNo}</div>
+                  <div className="font-medium">{patient.inpatient_no}</div>
                 </div>
                 <div>
                   <Text type="secondary" className="text-xs">联系电话</Text>
@@ -311,15 +434,15 @@ export default function Patient360() {
                 </div>
                 <div>
                   <Text type="secondary" className="text-xs">入院时间</Text>
-                  <div className="font-medium">{patient.admissionTime}</div>
+                  <div className="font-medium">{patient.admission_time ? new Date(patient.admission_time).toLocaleString('zh-CN') : '-'}</div>
                 </div>
                 <div>
                   <Text type="secondary" className="text-xs">病区床号</Text>
-                  <div className="font-medium">A 区 15 床</div>
+                  <div className="font-medium">{patient.bed_no || '-'}</div>
                 </div>
                 <div>
                   <Text type="secondary" className="text-xs">护理级别</Text>
-                  <div><Tag color="green">二级护理</Tag></div>
+                  <div><Tag color="green">{patient.nursing_level || '二级护理'}</Tag></div>
                 </div>
               </div>
               <Divider style={{ margin: '12px 0' }} />
@@ -689,7 +812,7 @@ export default function Patient360() {
             <Card title="基本信息">
               <Descriptions column={6} size="small">
                 <Descriptions.Item label="主要诊断" span={2}>
-                  <Tag color="red">{patient.mainDiagnosis}</Tag>
+                  <Tag color="red">{patient.main_diagnosis}</Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="临床分期" span={2}>
                   <Tag color="orange">T2N1M0 - IIB 期</Tag>
@@ -700,14 +823,14 @@ export default function Patient360() {
                 <Descriptions.Item label="过敏史" span={2}>
                   {patient.allergies?.length ? (
                     <Space wrap size="small">
-                      {patient.allergies.map(a => <Tag key={a} color="orange">{a}</Tag>)}
+                      {patient.allergies.map((a: string) => <Tag key={a} color="orange">{a}</Tag>)}
                     </Space>
                   ) : <Text type="secondary">无已知过敏</Text>}
                 </Descriptions.Item>
                 <Descriptions.Item label="既往史" span={4}>
                   {patient.history?.length ? (
                     <Space wrap size="small">
-                      {patient.history.map(h => <Tag key={h}>{h}</Tag>)}
+                      {patient.history.map((h: string) => <Tag key={h}>{h}</Tag>)}
                     </Space>
                   ) : '无明显既往史'}
                 </Descriptions.Item>
@@ -968,12 +1091,12 @@ export default function Patient360() {
                       <List.Item.Meta
                         avatar={
                           <Badge 
-                            status={c.status === '已完成' ? 'success' : c.status === '进行中' ? 'processing' : 'default'} 
+                            status={c.status === '已完成' ? 'success' : c.status === '进行中' ? 'processing' : c.status === '待会诊' ? 'warning' : c.status === '待科室审核' ? 'warning' : 'default'} 
                           />
                         }
                         title={
                           <Space>
-                            <Text strong>{c.mainDiagnosis}</Text>
+                            <Text strong>{c.main_diagnosis}</Text>
                             <Tag color={c.status === '已完成' ? 'green' : c.status === '进行中' ? 'blue' : 'gray'}>
                               {c.status}
                             </Tag>
@@ -983,15 +1106,15 @@ export default function Patient360() {
                           <Space direction="vertical" size={0}>
                             <Space>
                               <CalendarOutlined className="text-gray-400" />
-                              <Text type="secondary">会诊时间：{c.expectTime}</Text>
+                              <Text type="secondary">会诊时间：{c.expect_time ? new Date(c.expect_time).toLocaleDateString('zh-CN') : '-'}</Text>
                             </Space>
                             <Space>
                               <UserOutlined className="text-gray-400" />
-                              <Text type="secondary">参与专家：{c.experts.map(e => e.name).join('、')}</Text>
+                              <Text type="secondary">参与专家：{c.apply_doctor || '-'}</Text>
                             </Space>
                             <Space>
                               <FileTextOutlined className="text-gray-400" />
-                              <Text type="secondary">会诊结论：{c.conclusion?.summary || '待完善'}</Text>
+                              <Text type="secondary">会诊结论：{c.summary || '待完善'}</Text>
                             </Space>
                           </Space>
                         }
@@ -1017,7 +1140,7 @@ export default function Patient360() {
                       <List.Item.Meta
                         avatar={
                           <Badge 
-                            status={f.status === '进行中' ? 'processing' : f.status === '已完成' ? 'success' : 'default'} 
+                            status={f.status === '进行中' ? 'processing' : f.status === '已完成' ? 'success' : f.status === '待执行' ? 'warning' : 'default'} 
                           />
                         }
                         title={
@@ -1030,15 +1153,15 @@ export default function Patient360() {
                           <Space direction="vertical" size={0}>
                             <Space>
                               <CalendarOutlined className="text-gray-400" />
-                              <Text type="secondary">计划周期：{f.startDate} 至 {f.endDate}</Text>
+                              <Text type="secondary">计划周期：{f.start_date ? new Date(f.start_date).toLocaleDateString('zh-CN') : '-'} 至 {f.end_date ? new Date(f.end_date).toLocaleDateString('zh-CN') : '-'}</Text>
                             </Space>
                             <Space>
                               <ScheduleOutlined className="text-gray-400" />
-                              <Text type="secondary">下次随访：{f.nextFollowup}</Text>
+                              <Text type="secondary">下次随访：{f.next_followup_date ? new Date(f.next_followup_date).toLocaleDateString('zh-CN') : '-'}</Text>
                             </Space>
                             <Space>
                               <UserOutlined className="text-gray-400" />
-                              <Text type="secondary">负责医生：{f.doctor}</Text>
+                              <Text type="secondary">负责医生：{f.doctor || '-'}</Text>
                             </Space>
                           </Space>
                         }
@@ -1146,7 +1269,7 @@ export default function Patient360() {
       <RiskAssessment
         patientId={patient.id}
         age={patient.age}
-        diagnosis={patient.diagnosis}
+        diagnosis={patient.main_diagnosis}
         comorbidities={patient.history}
         vitalSigns={{
           bloodPressure: '130/85 mmHg',

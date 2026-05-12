@@ -1,11 +1,29 @@
 import { create } from 'zustand'
 import type { MDTNecessityAssessment } from '../services/integration/ai/aiPatientScreeningService'
 
-export type ConsultationStatus = '待科室审核' | '待秘书审核' | '待补充材料' | '待会诊' | '已通过' | '已拒绝' | '已完成' | '进行中'
-export type MaterialStatus = '未提交' | '待提交' | '待秘书审核' | '待质控审核' | '审核通过' | '已退回'
+// 完整的会诊流程状态
+export type ConsultationStatus = 
+  | 'doctor_submit'        // 1. 医生提交申请
+  | 'director_pending'     // 2. 等待主任医生审核
+  | 'director_rejected'    // 3. 主任医生驳回（需要补充材料）
+  | 'secretary_pending'    // 4. 秘书审核材料
+  | 'pending_supplement'   // 5. 等待补充材料
+  | 'material_rejected'    // 6. 退回修改
+  | 'scheduled'            // 7. 等待安排会诊时间 / 已排期
+  | 'expert_invited'       // 8. 已发送专家邀请
+  | 'expert_confirmed'     // 9. 专家已确认参加
+  | 'pending_meeting'      // 10. 已排期，等待会诊开始
+  | 'in_progress'          // 11. 正在进行会诊
+  | 'completed'            // 12. 会诊已完成
+  | 'archived'             // 13. 已归档完成
+  | 'rejected'             // 14. 已拒绝
+  | 'cancelled'            // 15. 已取消
+
+export type MaterialStatus = 'pending' | 'submitted' | 'secretary_pending' | 'quality_pending' | 'approved' | 'rejected'
 
 export interface Consultation {
-  id: string
+  id: string  // UUID，数据库主键
+  consultationCode?: string  // 会诊编码，如 HZ260420001，对外展示用
   patientId: string
   patientName: string
   patientInpatientNo: string
@@ -88,6 +106,8 @@ export interface Expert {
   specialty: string
   status: '空闲' | '忙碌' | '离线'
   avatar?: string
+  rating?: number
+  consultation_count?: number
 }
 
 export interface Patient {
@@ -111,6 +131,14 @@ export interface Patient {
   otherExams?: OtherExam[]
   // AI MDT 预判结果（后台预先评估）
   aiAssessment?: MDTNecessityAssessment
+  // 病历相关字段（从数据库加载）
+  physicalExamination?: string
+  initialDiagnosis?: string
+  treatmentPlan?: string
+  chiefComplaint?: string
+  presentIllness?: string
+  pastHistory?: string
+  auxiliaryExamination?: string
 }
 
 export interface ImagingExam {

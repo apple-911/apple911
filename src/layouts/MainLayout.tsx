@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Avatar, Dropdown, Button, Tag, message } from 'antd'
 import {
@@ -24,239 +24,123 @@ import {
 import type { MenuProps } from 'antd'
 import { useAppStore, Role } from '../stores/appStore'
 import NotificationPanel from '../components/NotificationPanel'
+import { hasPermission } from '../utils/helpers'
+import { getRoleName } from '../utils/codeTable'
 
 const { Header, Sider, Content } = Layout
 
-const menuItemsByRole: Record<Role, MenuProps['items']> = {
-  '申请医生': [
-    { key: '/workbench', icon: <DashboardOutlined />, label: '工作台' },
-    { key: '/dashboard', icon: <BarChartOutlined />, label: '数据仪表盘' },
-    { key: '/consultation/apply', icon: <PlusCircleOutlined />, label: '申请会诊' },
-    { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
-    { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
-    {
-      key: 'case-library',
-      icon: <BookOutlined />,
-      label: '病案库',
-      children: [
-        { key: '/case-library', label: '病案库首页' },
-        { key: '/case-library/search', label: '病案检索' },
-        { key: '/case-library/typical', label: '典型病例' },
-        { key: '/case-library/statistics', label: '统计分析' },
-        { key: '/case-library/favorites', label: '我的收藏' },
-        { key: '/case-library/learning', label: '学习进度' },
-        { key: '/case-library/comparison', label: '病例对比' },
-      ]
-    },
-    { key: '/consultation/submit-material', icon: <FileTextOutlined />, label: 'MDT 材料归档' },
-    { key: '/ai/screening', icon: <RobotOutlined />, label: 'AI 患者筛查' },
-    {
-      key: 'followup',
-      icon: <CalendarOutlined />,
-      label: '随访管理',
-      children: [
-        { key: '/followup/list', label: '随访计划' },
-        { key: '/followup/execute', label: '随访执行' },
-        { key: '/followup/planner', label: '计划生成器' },
-      ]
-    },
-    { key: '/notifications', icon: <BellOutlined />, label: '消息通知' },
-  ],
-  '主任医生': [
-    { key: '/workbench', icon: <DashboardOutlined />, label: '工作台' },
-    { key: '/dashboard', icon: <BarChartOutlined />, label: '数据仪表盘' },
-    { key: '/consultation/director-confirm', icon: <CheckSquareOutlined />, label: '会诊确认' },
-    { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
-    {
-      key: 'case-library',
-      icon: <BookOutlined />,
-      label: '病案库',
-      children: [
-        { key: '/case-library', label: '病案库首页' },
-        { key: '/case-library/search', label: '病案检索' },
-        { key: '/case-library/typical', label: '典型病例' },
-        { key: '/case-library/statistics', label: '统计分析' },
-        { key: '/case-library/favorites', label: '我的收藏' },
-        { key: '/case-library/learning', label: '学习进度' },
-        { key: '/case-library/comparison', label: '病例对比' },
-      ]
-    },
-    { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
-    { key: '/ai/screening', icon: <RobotOutlined />, label: 'AI 患者筛查' },
-    { key: '/notifications', icon: <BellOutlined />, label: '消息通知' },
-  ],
-  'MDT 秘书': [
-    { key: '/workbench', icon: <DashboardOutlined />, label: '工作台' },
-    { key: '/dashboard', icon: <BarChartOutlined />, label: '数据仪表盘' },
-    { key: '/consultation/pending-review', icon: <CheckSquareOutlined />, label: '待审核' },
-    { key: '/consultation/schedule', icon: <CalendarOutlined />, label: '排期管理' },
-    { key: '/consultation/material-supervise', icon: <BellOutlined />, label: '材料督办' },
-    { key: '/consultation/mdt-management', icon: <CalendarOutlined />, label: '会诊管理' },
-    { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
-    {
-      key: 'case-library',
-      icon: <BookOutlined />,
-      label: '病案库',
-      children: [
-        { key: '/case-library', label: '病案库首页' },
-        { key: '/case-library/search', label: '病案检索' },
-        { key: '/case-library/typical', label: '典型病例' },
-        { key: '/case-library/statistics', label: '统计分析' },
-        { key: '/case-library/favorites', label: '我的收藏' },
-        { key: '/case-library/learning', label: '学习进度' },
-        { key: '/case-library/comparison', label: '病例对比' },
-      ]
-    },
-    { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
-    { key: '/ai/screening', icon: <RobotOutlined />, label: 'AI 患者筛查' },
-    {
-      key: 'followup',
-      icon: <CalendarOutlined />,
-      label: '随访管理',
-      children: [
-        { key: '/followup/list', label: '随访计划' },
-        { key: '/followup/execute', label: '随访执行' },
-        { key: '/followup/planner', label: '计划生成器' },
-      ]
-    },
-    { key: '/notifications', icon: <BellOutlined />, label: '消息通知' },
-  ],
-  '会诊专家': [
-    { key: '/workbench', icon: <DashboardOutlined />, label: '工作台' },
-    { key: '/dashboard', icon: <BarChartOutlined />, label: '数据仪表盘' },
-    { key: '/consultation/expert-confirm', icon: <CheckSquareOutlined />, label: '会诊确认' },
-    { key: '/consultation/my-meetings', icon: <CalendarOutlined />, label: '我的待参会' },
-    { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
-    {
-      key: 'case-library',
-      icon: <BookOutlined />,
-      label: '病案库',
-      children: [
-        { key: '/case-library', label: '病案库首页' },
-        { key: '/case-library/search', label: '病案检索' },
-        { key: '/case-library/typical', label: '典型病例' },
-        { key: '/case-library/statistics', label: '统计分析' },
-        { key: '/case-library/favorites', label: '我的收藏' },
-        { key: '/case-library/learning', label: '学习进度' },
-        { key: '/case-library/comparison', label: '病例对比' },
-      ]
-    },
-    { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
-    { key: '/ai/screening', icon: <RobotOutlined />, label: 'AI 患者筛查' },
-    {
-      key: 'followup',
-      icon: <CalendarOutlined />,
-      label: '随访管理',
-      children: [
-        { key: '/followup/list', label: '随访计划' },
-        { key: '/followup/execute', label: '随访执行' },
-        { key: '/followup/planner', label: '计划生成器' },
-      ]
-    },
-    { key: '/notifications', icon: <BellOutlined />, label: '消息通知' },
-  ],
-  '质控员': [
-    { key: '/workbench', icon: <DashboardOutlined />, label: '工作台' },
-    { key: '/dashboard', icon: <BarChartOutlined />, label: '数据仪表盘' },
-    { key: '/quality/dashboard', icon: <BarChartOutlined />, label: '质控仪表盘' },
-    { key: '/quality/tasks', icon: <SafetyOutlined />, label: '质控任务' },
-    { key: '/statistics', icon: <BarChartOutlined />, label: '统计分析' },
-    { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
-    {
-      key: 'case-library',
-      icon: <BookOutlined />,
-      label: '病案库',
-      children: [
-        { key: '/case-library', label: '病案库首页' },
-        { key: '/case-library/search', label: '病案检索' },
-        { key: '/case-library/typical', label: '典型病例' },
-        { key: '/case-library/statistics', label: '统计分析' },
-        { key: '/case-library/favorites', label: '我的收藏' },
-        { key: '/case-library/learning', label: '学习进度' },
-        { key: '/case-library/comparison', label: '病例对比' },
-      ]
-    },
-    { key: '/ai/screening', icon: <RobotOutlined />, label: 'AI 患者筛查' },
-    { key: '/notifications', icon: <BellOutlined />, label: '消息通知' },
-  ],
-  '系统管理员': [
-    { key: '/workbench', icon: <DashboardOutlined />, label: '工作台' },
-    { key: '/dashboard', icon: <BarChartOutlined />, label: '数据仪表盘' },
-    { key: '/admin/expert-list', icon: <TeamOutlined />, label: '专家库管理' },
-    { key: '/admin/team-list', icon: <TeamOutlined />, label: '团队管理' },
-    { key: '/admin/roles', icon: <SettingOutlined />, label: '角色权限' },
-    {
-      key: 'case-library',
-      icon: <BookOutlined />,
-      label: '病案库',
-      children: [
-        { key: '/case-library', label: '病案库首页' },
-        { key: '/case-library/search', label: '病案检索' },
-        { key: '/case-library/typical', label: '典型病例' },
-        { key: '/case-library/statistics', label: '统计分析' },
-        { key: '/case-library/favorites', label: '我的收藏' },
-        { key: '/case-library/learning', label: '学习进度' },
-        { key: '/case-library/comparison', label: '病例对比' },
-      ]
-    },
-    { key: '/admin/logs', icon: <SafetyOutlined />, label: '系统日志' },
-    { key: '/admin/audit-logs', icon: <SafetyOutlined />, label: '审计日志' },
-    { key: '/notifications', icon: <BellOutlined />, label: '消息通知' },
-  ],
-  '超级管理员': [
-    { key: '/workbench', icon: <DashboardOutlined />, label: '工作台' },
-    { key: '/dashboard', icon: <BarChartOutlined />, label: '数据仪表盘' },
-    // 会诊业务
-    { key: '/consultation/apply', icon: <PlusCircleOutlined />, label: '申请会诊' },
-    { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请' },
-    { key: '/consultation/director-confirm', icon: <CheckSquareOutlined />, label: '会诊确认' },
-    { key: '/consultation/pending-review', icon: <CheckSquareOutlined />, label: '待审核' },
-    { key: '/consultation/schedule', icon: <CalendarOutlined />, label: '排期管理' },
-    { key: '/consultation/material-supervise', icon: <BellOutlined />, label: '材料督办' },
-    { key: '/consultation/my-meetings', icon: <CalendarOutlined />, label: '我的待参会' },
-    { key: '/consultation/mdt-management', icon: <CalendarOutlined />, label: '会诊管理' },
-    { key: '/consultation/submit-material', icon: <FileTextOutlined />, label: 'MDT 材料归档' },
-    // 患者与病案
-    { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案' },
-    {
-      key: 'case-library',
-      icon: <BookOutlined />,
-      label: '病案库',
-      children: [
-        { key: '/case-library', label: '病案库首页' },
-        { key: '/case-library/search', label: '病案检索' },
-        { key: '/case-library/typical', label: '典型病例' },
-        { key: '/case-library/statistics', label: '统计分析' },
-        { key: '/case-library/favorites', label: '我的收藏' },
-        { key: '/case-library/learning', label: '学习进度' },
-        { key: '/case-library/comparison', label: '病例对比' },
-      ]
-    },
-    // 报告与随访
-    { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理' },
-    {
-      key: 'followup',
-      icon: <CalendarOutlined />,
-      label: '随访管理',
-      children: [
-        { key: '/followup/list', label: '随访计划' },
-        { key: '/followup/execute', label: '随访执行' },
-        { key: '/followup/planner', label: '计划生成器' },
-      ]
-    },
-    // 质控与统计
-    { key: '/statistics', icon: <BarChartOutlined />, label: '统计分析' },
-    { key: '/quality/dashboard', icon: <BarChartOutlined />, label: '质控仪表盘' },
-    { key: '/quality/tasks', icon: <SafetyOutlined />, label: '质控任务' },
-    { key: '/ai/screening', icon: <RobotOutlined />, label: 'AI 患者筛查' },
-    // 系统管理
-    { key: '/admin/expert-list', icon: <TeamOutlined />, label: '专家库' },
-    { key: '/admin/team-list', icon: <TeamOutlined />, label: '团队管理' },
-    { key: '/admin/roles', icon: <SettingOutlined />, label: '角色权限' },
-    { key: '/admin/logs', icon: <SafetyOutlined />, label: '系统日志' },
-    { key: '/admin/audit-logs', icon: <SafetyOutlined />, label: '审计日志' },
-    { key: '/notifications', icon: <BellOutlined />, label: '消息通知' },
-  ],
+// 定义带权限的菜单项类型
+interface MenuItemConfig {
+  key: string
+  icon?: React.ReactNode
+  label: string
+  permission?: string
+  children?: MenuItemConfig[]
+}
+
+// 所有可用的菜单项及其所需权限
+const allMenuItems: MenuItemConfig[] = [
+  { key: '/workbench', icon: <DashboardOutlined />, label: '工作台' },
+  { key: '/dashboard', icon: <BarChartOutlined />, label: '数据仪表盘' },
+  { key: '/consultation/apply', icon: <PlusCircleOutlined />, label: '申请会诊', permission: 'perm-consultation-apply' },
+  { key: '/consultation/my-applies', icon: <FileTextOutlined />, label: '我的申请', permission: 'perm-consultation-my-applies' },
+  { key: '/consultation/director-confirm', icon: <CheckSquareOutlined />, label: '会诊确认', permission: 'perm-consultation-confirm' },
+  { key: '/consultation/pending-review', icon: <CheckSquareOutlined />, label: '待审核', permission: 'perm-consultation-pending-review' },
+  { key: '/consultation/schedule', icon: <CalendarOutlined />, label: '排期管理', permission: 'perm-consultation-schedule' },
+  { key: '/consultation/material-supervise', icon: <BellOutlined />, label: '材料督办', permission: 'perm-consultation-material' },
+  { key: '/consultation/my-meetings', icon: <CalendarOutlined />, label: '我的待参会', permission: 'perm-consultation-my-meetings' },
+  { key: '/consultation/mdt-management', icon: <CalendarOutlined />, label: '会诊管理', permission: 'perm-consultation-detail' },
+  { key: '/consultation/submit-material', icon: <FileTextOutlined />, label: 'MDT 材料归档', permission: 'perm-consultation-material' },
+  { key: '/patient/list', icon: <TeamOutlined />, label: '患者档案', permission: 'perm-patient-list' },
+  {
+    key: 'case-library',
+    icon: <BookOutlined />,
+    label: '病案库',
+    permission: 'perm-case-library-index',
+    children: [
+      { key: '/case-library', label: '病案库首页', permission: 'perm-case-library-index' },
+      { key: '/case-library/search', label: '病案检索', permission: 'perm-case-library-search' },
+      { key: '/case-library/typical', label: '典型病例', permission: 'perm-case-library-typical' },
+      { key: '/case-library/statistics', label: '统计分析', permission: 'perm-case-library-statistics' },
+      { key: '/case-library/favorites', label: '我的收藏', permission: 'perm-case-library-favorites' },
+      { key: '/case-library/learning', label: '学习进度', permission: 'perm-case-library-index' },
+      { key: '/case-library/comparison', label: '病例对比', permission: 'perm-case-library-search' },
+    ]
+  },
+  { key: '/report/list', icon: <FileTextOutlined />, label: '报告管理', permission: 'perm-report-list' },
+  {
+    key: 'followup',
+    icon: <CalendarOutlined />,
+    label: '随访管理',
+    permission: 'perm-followup-list',
+    children: [
+      { key: '/followup/list', label: '随访计划', permission: 'perm-followup-list' },
+      { key: '/followup/execute', label: '随访执行', permission: 'perm-followup-execute' },
+      { key: '/followup/planner', label: '计划生成器', permission: 'perm-followup-list' },
+    ]
+  },
+  { key: '/statistics', icon: <BarChartOutlined />, label: '统计分析', permission: 'perm-quality-statistics' },
+  { key: '/quality/dashboard', icon: <BarChartOutlined />, label: '质控仪表盘', permission: 'perm-quality-dashboard' },
+  { key: '/quality/tasks', icon: <SafetyOutlined />, label: '质控任务', permission: 'perm-quality-tasks' },
+  { key: '/ai/screening', icon: <RobotOutlined />, label: 'AI 患者筛查', permission: 'perm-ai-screening' },
+  {
+    key: 'system-admin',
+    icon: <SettingOutlined />,
+    label: '系统管理',
+    permission: 'perm-admin-org',
+    children: [
+      { key: '/admin/organizations', label: '组织机构', permission: 'perm-admin-org' },
+      { key: '/admin/users', label: '用户管理', permission: 'perm-admin-users' },
+      { key: '/admin/roles', label: '角色权限', permission: 'perm-admin-roles' },
+      { key: '/admin/code-table', label: '码表管理', permission: 'perm-admin-codes' },
+      { key: '/admin/expert-list', label: '专家库管理', permission: 'perm-admin-experts' },
+      { key: '/admin/team-list', label: '团队管理', permission: 'perm-admin-teams' },
+      { key: '/admin/logs', label: '系统日志', permission: 'perm-admin-logs' },
+      { key: '/admin/audit-logs', label: '审计日志', permission: 'perm-admin-audit-logs' },
+    ]
+  },
+  { key: '/notifications', icon: <BellOutlined />, label: '消息通知' },
+]
+
+// 根据权限过滤菜单项
+function filterMenuItems(items: MenuItemConfig[]): MenuProps['items'] {
+  const result: MenuProps['items'] = []
+  
+  for (const item of items) {
+    if (!item) continue
+    
+    // 没有设置权限要求的菜单项始终显示
+    if (!item.permission) {
+      // 如果有子菜单，也需要过滤
+      if (item.children && item.children.length > 0) {
+        const filteredChildren = filterMenuItems(item.children)
+        if (filteredChildren && filteredChildren.length > 0) {
+          result.push({ ...item, children: filteredChildren })
+        }
+      } else {
+        result.push({ key: item.key, icon: item.icon, label: item.label })
+      }
+      continue
+    }
+
+    // 检查是否有该权限
+    if (hasPermission(item.permission)) {
+      // 如果有子菜单，也需要过滤
+      if (item.children && item.children.length > 0) {
+        const filteredChildren = filterMenuItems(item.children)
+        if (filteredChildren && filteredChildren.length > 0) {
+          result.push({ key: item.key, icon: item.icon, label: item.label, children: filteredChildren })
+        } else {
+          // 子菜单都没有权限，但父菜单项有权限，显示父菜单
+          result.push({ key: item.key, icon: item.icon, label: item.label })
+        }
+      } else {
+        result.push({ key: item.key, icon: item.icon, label: item.label })
+      }
+    }
+  }
+  
+  return result
 }
 
 export default function MainLayout() {
@@ -265,7 +149,10 @@ export default function MainLayout() {
   const location = useLocation()
   const { user, role, logout } = useAppStore()
 
-  const menuItems = menuItemsByRole[role] || menuItemsByRole['申请医生']
+  // 根据用户权限动态生成菜单
+  const menuItems = useMemo(() => {
+    return filterMenuItems(allMenuItems)
+  }, [])
 
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -335,11 +222,19 @@ export default function MainLayout() {
           className="!border-none"
           style={{
             background: 'transparent',
+            height: 'calc(100% - 64px)',
+            overflowY: 'auto',
           }}
         />
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 220 }}>
-        <Header className="!bg-white !px-4 flex items-center justify-between !h-16 !leading-16 border-b" style={{ borderColor: 'var(--border-light)' }}>
+      <Layout style={{ marginLeft: collapsed ? 80 : 220, display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <Header 
+          className="!bg-white !px-4 flex items-center justify-between !h-16 !leading-16 border-b" 
+          style={{ 
+            borderColor: 'var(--border-light)',
+            flexShrink: 0
+          }}
+        >
           <Button
             type="text"
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -347,7 +242,7 @@ export default function MainLayout() {
           />
           <div className="flex items-center gap-4">
             <NotificationPanel />
-            <Tag color="green" style={{ background: 'var(--xiehe-green-bg)', color: 'var(--xiehe-green)' }}>{role}</Tag>
+            <Tag color="green" style={{ background: 'var(--xiehe-green-bg)', color: 'var(--xiehe-green)' }}>{user?.name || '用户'}</Tag>
             <Dropdown 
               menu={{ items: userMenuItems }} 
               placement="bottomRight" 
@@ -369,11 +264,14 @@ export default function MainLayout() {
           </div>
         </Header>
         <Content 
-          className="m-4 p-4 rounded-lg" 
+          className="p-4 rounded-lg" 
           style={{ 
             background: 'var(--bg-paper)',
+            marginLeft: 16,
+            marginRight: 16,
+            marginBottom: 16,
             overflow: 'auto',
-            height: 'calc(100vh - 32px)'
+            flex: 1
           }}
         >
           <Outlet />

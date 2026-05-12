@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Table, Tag, Space, Typography, Badge, Button, Avatar } from 'antd'
+import { Card, Row, Col, Table, Tag, Space, Typography, Badge, Button, Avatar, message } from 'antd'
 import {
   TeamOutlined,
   UserOutlined,
@@ -11,7 +11,9 @@ import {
   BarChartOutlined,
 } from '@ant-design/icons'
 import { useAppStore } from '../../stores/appStore'
+import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 
@@ -37,52 +39,78 @@ export default function AdminWorkbench() {
   const [users, setUsers] = useState<SystemUser[]>([])
 
   useEffect(() => {
-    setTimeout(() => {
-      setStats({
-        totalUsers: 256,
-        totalExperts: 89,
-        totalDepartments: 24,
-        systemLogs: 1024,
-      })
-
-      setUsers([
-        {
-          id: 'U001',
-          name: '张明华',
-          role: '会诊专家',
-          department: '胸外科',
-          status: 'active',
-          lastLogin: '2024-03-20 10:30',
-        },
-        {
-          id: 'U002',
-          name: '李建国',
-          role: '主任医生',
-          department: '肿瘤科',
-          status: 'active',
-          lastLogin: '2024-03-20 09:15',
-        },
-        {
-          id: 'U003',
-          name: '王芳',
-          role: 'MDT 秘书',
-          department: '医务处',
-          status: 'active',
-          lastLogin: '2024-03-20 08:50',
-        },
-        {
-          id: 'U004',
-          name: '刘伟',
-          role: '申请医生',
-          department: '放疗科',
-          status: 'inactive',
-          lastLogin: '2024-03-19 16:20',
-        },
-      ])
-
-      setLoading(false)
-    }, 500)
+    loadUsers()
   }, [])
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true)
+      
+      // 查询用户表
+      const { data: usersData, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      
+      // 查询专家表
+      const { data: experts, error: eError } = await supabase
+        .from('experts')
+        .select('*')
+      
+      if (eError) throw eError
+      
+      // 查询科室表
+      const { data: departments, error: dError } = await supabase
+        .from('departments')
+        .select('*')
+      
+      if (dError) throw dError
+      
+      // 构建用户列表
+      const expertIds = new Set((experts || []).map(e => e.id))
+      
+      const allUsers: SystemUser[] = (usersData || []).map(u => {
+        const isExpert = expertIds.has(u.id)
+        const roleMap: Record<string, string> = {
+          'admin': '系统管理员',
+          'director': '主任医生',
+          'secretary': 'MDT 秘书',
+          'doctor': '申请医生',
+          'expert': '会诊专家',
+          'quality': '质控人员',
+        }
+        
+        return {
+          id: `U${u.id.substring(0, 8).toUpperCase()}`,
+          name: u.name || '未知用户',
+          role: isExpert ? '会诊专家' : (roleMap[u.role] || '申请医生'),
+          department: u.department || '未知科室',
+          status: u.status === 'active' ? 'active' : 'inactive',
+          lastLogin: u.last_login ? dayjs(u.last_login).format('YYYY-MM-DD HH:mm') : '从未登录',
+        }
+      })
+      
+      // 取前 5 条
+      const sortedUsers = allUsers.slice(0, 5)
+      
+      // 统计数据
+      setStats({
+        totalUsers: (usersData || []).length,
+        totalExperts: (experts || []).length,
+        totalDepartments: (departments || []).length,
+        systemLogs: 0, // 系统日志表需要单独设计
+      })
+      
+      setUsers(sortedUsers)
+    } catch (err) {
+      console.error('加载用户数据失败:', err)
+      message.error('加载数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const columns: ColumnsType<SystemUser> = [
     {
@@ -291,10 +319,10 @@ export default function AdminWorkbench() {
               <Button
                 icon={<FileTextOutlined />}
                 size="large"
-                className="h-16 !border-purple-500 !text-purple-500 hover:!bg-purple-500 hover:!text-white"
-                onClick={() => navigate('/admin/logs')}
+                className="h-16 !border-cyan-500 !text-cyan-500 hover:!bg-cyan-500 hover:!text-white"
+                onClick={() => navigate('/admin/code-table')}
               >
-                系统日志
+                码表管理
               </Button>
             </div>
           </Card>

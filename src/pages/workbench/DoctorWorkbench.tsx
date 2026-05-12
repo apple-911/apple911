@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Statistic, Table, Tag, Space, Typography, Badge, Button, Progress, Timeline, Avatar, Alert } from 'antd'
+import { Card, Row, Col, Statistic, Table, Tag, Space, Typography, Badge, Button, Progress, Timeline, Avatar, Alert, message } from 'antd'
 import {
   FileTextOutlined,
   ClockCircleOutlined,
@@ -12,23 +12,34 @@ import {
   EditOutlined,
   BookOutlined,
   WarningOutlined,
+  DeleteOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons'
 import { useAppStore } from '../../stores/appStore'
+import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
-import aiPatientScreeningService from '../../services/integration/ai/aiPatientScreeningService'
+import dayjs from 'dayjs'
+import { getConsultationStatusName, getConsultationStatusColor, getUrgencyName, getUrgencyColor } from '../../utils/codeTable'
 
 const { Title, Text } = Typography
 
 interface MyApplication {
   id: string
+  dbId: string
+  consultationCode: string
   patientName: string
   patientId: string
+  patientInpatientNo: string
   department: string
   diagnosis: string
-  status: '待科室审核' | '待秘书审核' | '待补充材料' | '待会诊' | '进行中' | '已完成'
-  urgency: '常规' | '较急' | '紧急'
+  status: string
+  originalStatus: string
+  urgency: string
+  type: string
+  expectTime: string
   createTime: string
   expertCount: number
+  rejectReason: string
 }
 
 export default function DoctorWorkbench() {
@@ -42,223 +53,136 @@ export default function DoctorWorkbench() {
     completedToday: 0,
   })
   const [applications, setApplications] = useState<MyApplication[]>([])
-  const [aiAlerts, setAiAlerts] = useState<any[]>([])
 
   useEffect(() => {
-    // 模拟加载数据
-    setTimeout(() => {
-      setStats({
-        totalApplications: 45,
-        ongoingConsultations: 3,
-        pendingSupplement: 2,
-        completedToday: 1,
+    loadApplications()
+  }, [])
+
+  const loadApplications = async () => {
+    try {
+      setLoading(true)
+      
+      // 查询当前医生提交的会诊申请
+      const { data: consultations, error } = await supabase
+        .from('consultations')
+        .select('*')
+        .eq('apply_doctor', user?.name || '')
+        .order('apply_time', { ascending: false })
+      
+      if (error) throw error
+      
+      // 获取会诊专家关联
+      const { data: consultationExperts, error: ceError } = await supabase
+        .from('consultation_experts')
+        .select('consultation_id, expert_id')
+      
+      if (ceError) throw ceError
+      
+      // 构建会诊ID到专家数量的映射
+      const expertCountMap = new Map<string, number>();
+      (consultationExperts || []).forEach((ce: { consultation_id: string }) => {
+        expertCountMap.set(ce.consultation_id, (expertCountMap.get(ce.consultation_id) || 0) + 1)
       })
-
-      const allApplications: MyApplication[] = [
-        {
-          id: 'MDT20240320001',
-          patientName: '王建国',
-          patientId: 'P001',
-          department: '胸外科',
-          diagnosis: '左肺鳞癌 III 期',
-          status: '待科室审核',
-          urgency: '紧急',
-          createTime: '2024-03-20 10:30',
-          expertCount: 0,
-        },
-        {
-          id: 'MDT20240319002',
-          patientName: '李秀英',
-          patientId: 'P002',
-          department: '肿瘤科',
-          diagnosis: '右肺腺癌 IV 期',
-          status: '待秘书审核',
-          urgency: '较急',
-          createTime: '2024-03-19 15:20',
-          expertCount: 3,
-        },
-        {
-          id: 'MDT20240318003',
-          patientName: '张贵芳',
-          patientId: 'P003',
-          department: '呼吸内科',
-          diagnosis: '肺结节病 IV 期',
-          status: '待会诊',
-          urgency: '常规',
-          createTime: '2024-03-18 09:15',
-          expertCount: 5,
-        },
-        {
-          id: 'MDT20240317004',
-          patientName: '刘志强',
-          patientId: 'P004',
-          department: '普外科',
-          diagnosis: '胰腺癌 III 期',
-          status: '待补充材料',
-          urgency: '常规',
-          createTime: '2024-03-17 14:30',
-          expertCount: 6,
-        },
-        {
-          id: 'MDT20240316005',
-          patientName: '陈桂兰',
-          patientId: 'P005',
-          department: '肿瘤科',
-          diagnosis: '乳腺癌 III 期',
-          status: '进行中',
-          urgency: '常规',
-          createTime: '2024-03-16 11:30',
-          expertCount: 7,
-        },
-        {
-          id: 'MDT20240315006',
-          patientName: '赵志强',
-          patientId: 'P006',
-          department: '肝胆外科',
-          diagnosis: '肝癌 II 期',
-          status: '已完成',
-          urgency: '常规',
-          createTime: '2024-03-15 09:00',
-          expertCount: 5,
-        },
-        {
-          id: 'MDT20240314007',
-          patientName: '孙丽萍',
-          patientId: 'P007',
-          department: '神经内科',
-          diagnosis: '胶质母细胞瘤 IV 期',
-          status: '待科室审核',
-          urgency: '紧急',
-          createTime: '2024-03-14 16:45',
-          expertCount: 0,
-        },
-        {
-          id: 'MDT20240313008',
-          patientName: '周建华',
-          patientId: 'P008',
-          department: '泌尿外科',
-          diagnosis: '肾细胞癌 III 期',
-          status: '待秘书审核',
-          urgency: '较急',
-          createTime: '2024-03-13 14:20',
-          expertCount: 4,
-        },
-        {
-          id: 'MDT20240312009',
-          patientName: '吴桂英',
-          patientId: 'P009',
-          department: '妇科',
-          diagnosis: '卵巢癌 IV 期',
-          status: '待补充材料',
-          urgency: '常规',
-          createTime: '2024-03-12 10:15',
-          expertCount: 6,
-        },
-        {
-          id: 'MDT20240311010',
-          patientName: '郑国强',
-          patientId: 'P010',
-          department: '骨科',
-          diagnosis: '骨肉瘤 III 期',
-          status: '待会诊',
-          urgency: '常规',
-          createTime: '2024-03-11 08:30',
-          expertCount: 5,
-        },
-      ]
-
+      
+      // 转换数据格式
+      const allApplications: MyApplication[] = (consultations || []).map(c => {
+        return {
+          id: c.consultation_code || c.id,
+          dbId: c.id,
+          consultationCode: c.consultation_code || '',
+          patientName: c.patient_name,
+          patientId: c.patient_id,
+          patientInpatientNo: c.patient_inpatient_no,
+          department: c.department,
+          diagnosis: c.main_diagnosis || '',
+          status: getConsultationStatusName(c.status),
+          originalStatus: c.status,
+          urgency: getUrgencyName(c.urgency || c.urgency_level || 'normal'),
+          type: c.type || '院内',
+          expectTime: c.expect_time ? dayjs(c.expect_time).format('YYYY-MM-DD HH:mm') : '-',
+          createTime: dayjs(c.apply_time).format('YYYY-MM-DD HH:mm'),
+          expertCount: expertCountMap.get(c.id) || 0,
+          rejectReason: c.reject_reason || '',
+        }
+      })
+      
       // 按时间倒序排序，取前 5 条
       const sortedApplications = allApplications
         .sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime())
         .slice(0, 5)
-
+      
+      // 统计数据
+      const today = dayjs().format('YYYY-MM-DD')
+      const completedToday = allApplications.filter(a => 
+        ['completed', 'archived', 'rejected', 'cancelled'].includes(a.originalStatus) && a.createTime.startsWith(today)
+      ).length
+      
+      setStats({
+        totalApplications: allApplications.length,
+        ongoingConsultations: allApplications.filter(a => a.originalStatus === 'in_progress').length,
+        pendingSupplement: allApplications.filter(a => ['pending_supplement', 'material_rejected'].includes(a.originalStatus)).length,
+        completedToday,
+      })
+      
       setApplications(sortedApplications)
+    } catch (err) {
+      console.error('加载申请失败:', err)
+      message.error('加载数据失败')
+    } finally {
       setLoading(false)
-    }, 500)
-  }, [])
-
-  // 加载 AI 预警
-  useEffect(() => {
-    loadAIAlerts()
-  }, [])
-
-  const loadAIAlerts = async () => {
-    try {
-      const alerts = await aiPatientScreeningService.getAlerts({ level: 'urgent' })
-      setAiAlerts(alerts.slice(0, 3)) // 只显示前 3 条紧急预警
-    } catch (error) {
-      console.error('加载 AI 预警失败:', error)
-      setAiAlerts([])
     }
   }
 
   const columns: ColumnsType<MyApplication> = [
     {
-      title: '申请单号',
-      dataIndex: 'id',
-      key: 'id',
-      width: 150,
-      render: (text) => <Text code>{text}</Text>,
+      title: '会诊 ID',
+      dataIndex: 'consultationCode',
+      key: 'consultationCode',
+      width: 120,
+      render: (code) => <Tag color="blue">{code || '-'}</Tag>,
     },
-    {
-      title: '患者信息',
-      key: 'patient',
-      width: 150,
-      render: (_, record) => (
-        <Space>
-          <Avatar size={32} style={{ backgroundColor: '#045126' }}>
-            {record.patientName[0]}
-          </Avatar>
-          <div>
-            <a onClick={() => navigate(`/patient/360/${record.patientId}`)} className="font-medium">
-              {record.patientName}
-            </a>
-            <div className="text-xs text-gray-400">{record.patientId}</div>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: '诊断',
-      dataIndex: 'diagnosis',
-      key: 'diagnosis',
-      width: 200,
-      ellipsis: true,
+    { title: '患者姓名', dataIndex: 'patientName', key: 'patientName', width: 100 },
+    { 
+      title: '会诊类型', 
+      dataIndex: 'type', 
+      key: 'type', 
+      width: 100,
+      render: (t) => <Tag color={t === '院内' ? 'blue' : 'green'}>{t}</Tag> 
     },
     {
       title: '紧急程度',
       dataIndex: 'urgency',
       key: 'urgency',
-      width: 80,
-      render: (urgency) => (
-        <Tag color={urgency === '紧急' ? 'red' : urgency === '较急' ? 'orange' : 'green'}>
-          {urgency}
-        </Tag>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
       width: 100,
-      render: (status) => {
-        const statusMap: Record<string, { color: string; text: string }> = {
-          '待科室审核': { color: 'orange', text: '科室审核' },
-          '待秘书审核': { color: 'purple', text: '秘书审核' },
-          '待补充材料': { color: 'red', text: '待补充' },
-          '待会诊': { color: 'blue', text: '待会诊' },
-          '进行中': { color: 'processing', text: '进行中' },
-          '已完成': { color: 'success', text: '已完成' },
+      render: (urgency) => {
+        const color = urgency === '特急' ? 'red' : urgency === '紧急' ? 'orange' : 'green'
+        if (urgency === '特急') {
+          return <Tag color={color}><strong>{urgency}</strong></Tag>
         }
-        const config = statusMap[status] || { color: 'default', text: status }
-        return <Badge color={config.color} text={config.text} />
+        return <Tag color={color}>{urgency}</Tag>
       },
     },
+    { 
+      title: '申请时间', 
+      dataIndex: 'createTime', 
+      key: 'createTime', 
+      width: 150,
+      render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-',
+      sorter: (a, b) => new Date(a.createTime).getTime() - new Date(b.createTime).getTime(),
+    },
+    { 
+      title: '期望时间', 
+      dataIndex: 'expectTime', 
+      key: 'expectTime', 
+      width: 150,
+      render: (t) => t && t !== '-' ? t : '-',
+    },
+    { title: '主要诊断', dataIndex: 'diagnosis', key: 'diagnosis', ellipsis: true, width: 200 },
     {
       title: '邀请专家',
       dataIndex: 'expertCount',
       key: 'expertCount',
-      width: 80,
+      width: 100,
       render: (count) => (
         <Space>
           <TeamOutlined />
@@ -267,41 +191,153 @@ export default function DoctorWorkbench() {
       ),
     },
     {
-      title: '申请时间',
-      dataIndex: 'createTime',
-      key: 'createTime',
-      width: 150,
-      sorter: (a, b) => new Date(a.createTime).getTime() - new Date(b.createTime).getTime(),
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status, record: MyApplication) => {
+        const colors: Record<string, string> = {
+          'doctor_submit': 'blue',
+          'director_pending': 'orange',
+          'director_rejected': 'red',
+          'secretary_pending': 'purple',
+          'pending_supplement': 'orange',
+          'material_rejected': 'orange',
+          'scheduled': 'blue',
+          'expert_confirmed': 'cyan',
+          'pending_meeting': 'blue',
+          'in_progress': 'processing',
+          'completed': 'green',
+          'archived': 'green',
+          'rejected': 'red',
+          'cancelled': 'default',
+          '医生提交': 'blue',
+          '待主任审核': 'orange',
+          '主任驳回': 'red',
+          '秘书审核': 'purple',
+          '待补正': 'orange',
+          '退回修改': 'orange',
+          '已排期': 'blue',
+          '专家确认': 'cyan',
+          '待会诊': 'blue',
+          '会诊中': 'processing',
+          '已完成': 'green',
+          '已归档': 'green',
+        }
+        const texts: Record<string, string> = {
+          'doctor_submit': '已提交',
+          'director_pending': '主任审核',
+          'director_rejected': '主任驳回',
+          'secretary_pending': '秘书审核',
+          'pending_supplement': '待补正',
+          'material_rejected': '退回修改',
+          'scheduled': '已排期',
+          'expert_confirmed': '专家确认',
+          'pending_meeting': '待会诊',
+          'in_progress': '会诊中',
+          'completed': '已完成',
+          'archived': '已归档',
+          '医生提交': '已提交',
+          '待主任审核': '主任审核',
+          '主任驳回': '主任驳回',
+          '秘书审核': '秘书审核',
+          '待补正': '待补正',
+          '退回修改': '退回修改',
+          '已排期': '已排期',
+          '专家确认': '专家确认',
+          '待会诊': '待会诊',
+          '会诊中': '会诊中',
+          '已完成': '已完成',
+          '已归档': '已归档',
+        }
+        const displayStatus = record.originalStatus || status;
+        return <Tag color={colors[displayStatus] || 'default'}>{texts[displayStatus] || displayStatus}</Tag>
+      },
+    },
+    {
+      title: '拒绝原因',
+      dataIndex: 'rejectReason',
+      key: 'rejectReason',
+      ellipsis: true,
+      width: 200,
+      render: (text: string, record: MyApplication) => {
+        if ((['director_rejected', 'pending_supplement', 'material_rejected', '主任驳回', '待补正', '退回修改'].includes(record.originalStatus)) && text) {
+          return <Text type="warning" ellipsis>{text}</Text>
+        }
+        return '-'
+      }
     },
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 250,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="small">
+        <Space wrap size="small">
           <Button
-            type="link"
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => navigate(`/consultation/detail/${record.id}`)}
+            onClick={() => navigate(`/consultation/detail/${record.dbId}`)}
           >
-            查看
+            详情
           </Button>
-          {record.status === '待补充材料' && (
+          {/* 在专家确认前都可以撤销 */}
+          {(['doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected', '医生提交', '待主任审核', '主任驳回', '秘书审核', '待补正', '退回修改'].includes(record.originalStatus)) && (
             <Button
-              type="link"
               size="small"
-              icon={<EditOutlined />}
-              onClick={() => navigate(`/consultation/supplement-material/${record.id}`)}
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleRevoke(record.dbId)}
             >
-              补充
+              撤销
+            </Button>
+          )}
+          {/* 主任驳回后可以修改重提 */}
+          {(['director_rejected', '主任驳回'].includes(record.originalStatus)) && (
+            <Button
+              size="small"
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/consultation/apply/${record.dbId}`)}
+            >
+              修改重提
+            </Button>
+          )}
+          {/* 秘书退回待补正 */}
+          {(['pending_supplement', 'material_rejected', '待补正', '退回修改'].includes(record.originalStatus)) && (
+            <Button
+              size="small"
+              type="primary"
+              icon={<ReloadOutlined />}
+              onClick={() => navigate(`/consultation/apply/${record.dbId}`)}>
+              补正
             </Button>
           )}
         </Space>
       ),
     },
   ]
+
+  // 撤销申请
+  const handleRevoke = async (consultationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('consultations')
+        .update({ 
+          status: '已取消',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', consultationId)
+      
+      if (error) throw error
+      
+      message.success('申请已撤销')
+      loadApplications()
+    } catch (err) {
+      console.error('撤销申请失败:', err)
+      message.error('撤销申请失败')
+    }
+  }
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-gray-400">加载中...</div></div>
@@ -401,79 +437,6 @@ export default function DoctorWorkbench() {
           </Card>
         </Col>
       </Row>
-
-      {/* AI MDT 预警卡片 */}
-      {aiAlerts.length > 0 && (
-        <Row gutter={[16, 16]}>
-          <Col span={24}>
-            <Card 
-              title={
-                <div className="flex items-center gap-2">
-                  <ThunderboltOutlined className="text-yellow-500" style={{ fontSize: '18px' }} />
-                  <span className="font-semibold">AI MDT 紧急预警</span>
-                  <Badge count={aiAlerts.length} style={{ backgroundColor: '#faad14' }} />
-                </div>
-              }
-              headStyle={{ 
-                borderBottom: '2px solid #f0f0f0', 
-                paddingBottom: '12px',
-                background: 'linear-gradient(to right, #fffbe6, #fff)'
-              }}
-              extra={
-                <Button 
-                  type="primary" 
-                  size="small"
-                  icon={<ThunderboltOutlined />}
-                  onClick={() => navigate('/ai/screening')}
-                >
-                  查看全部
-                </Button>
-              }
-            >
-              <div className="space-y-3">
-                {aiAlerts.map((alert) => (
-                  <Alert
-                    key={alert.id}
-                    type="warning"
-                    showIcon
-                    icon={<WarningOutlined />}
-                    message={
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Text strong>{alert.patientName}</Text>
-                          <Text className="ml-2">({alert.department})</Text>
-                          <Tag color="red" className="ml-2">评分：{alert.score}</Tag>
-                        </div>
-                        <Button
-                          type="link"
-                          size="small"
-                          onClick={() => navigate(`/ai/screening/${alert.id}`)}
-                        >
-                          处理
-                        </Button>
-                      </div>
-                    }
-                    description={
-                      <div className="mt-1">
-                        <Text type="secondary">{alert.message}</Text>
-                        <div className="mt-1">
-                          {(alert.indications || []).slice(0, 2).map((reason: string, index: number) => (
-                            <Tag key={index} color="orange" className="mr-1">{reason}</Tag>
-                          ))}
-                        </div>
-                      </div>
-                    }
-                    style={{ 
-                      border: '1px solid #ffe58f',
-                      background: 'linear-gradient(to right, #fffbe6, #fff)'
-                    }}
-                  />
-                ))}
-              </div>
-            </Card>
-          </Col>
-        </Row>
-      )}
 
       {/* 我的申请列表 */}
       <Card

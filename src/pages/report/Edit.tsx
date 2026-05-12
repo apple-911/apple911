@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Form, Input, Button, Space, Typography, Divider, Tag, Row, Col, message, Modal, Table, Descriptions, Tabs, Drawer, Spin, Alert, Progress, Popover, Checkbox, Select, Badge, List, Collapse, Statistic } from 'antd'
+import { Card, Form, Input, Button, Space, Typography, Divider, Tag, Row, Col, message, Modal, Table, Descriptions, Tabs, Drawer, Spin, Alert, Progress, Popover, Checkbox, Select, Badge, List, Collapse, Statistic, Result } from 'antd'
 import { SaveOutlined, SendOutlined, CheckCircleOutlined, ArrowLeftOutlined, EyeOutlined, PrinterOutlined, FilePdfOutlined, RobotOutlined, ThunderboltOutlined, AudioOutlined, FileTextOutlined, WarningOutlined, CheckCircleFilled, ExclamationCircleOutlined, BulbOutlined } from '@ant-design/icons'
 import { mockReports, mockConsultations, mockPatients } from '../../mocks/data'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -560,6 +561,18 @@ export default function ReportEdit() {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // 权限检查
+  if (!hasPermission('perm-report-edit')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限编辑会诊报告。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
   }
 
   return (

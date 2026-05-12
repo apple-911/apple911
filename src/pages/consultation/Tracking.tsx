@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Card, Row, Col, Statistic, Table, Tag, Space, Typography, Button, Badge, Timeline, Modal, Descriptions, Select, Input, Drawer } from 'antd'
+import { useNavigate } from 'react-router-dom'
+import { Card, Row, Col, Statistic, Table, Tag, Space, Typography, Button, Badge, Timeline, Modal, Descriptions, Select, Input, Drawer, Result } from 'antd'
 import { ClockCircleOutlined, CheckCircleOutlined, WarningOutlined, SearchOutlined, BellOutlined, SendOutlined, UserOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { mockConsultationProgress, mockProgressStats, type ConsultationProgress } from '../../mocks/progressData'
 import PatientInfo from '../../components/PatientInfo'
+import { hasPermission } from '../../utils/helpers'
 
 const { Title, Text } = Typography
 
@@ -15,6 +17,7 @@ const stageStatusConfig = {
 }
 
 export default function ConsultationTracking() {
+  const navigate = useNavigate()
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [keyword, setKeyword] = useState('')
   const [detailVisible, setDetailVisible] = useState(false)
@@ -40,10 +43,10 @@ export default function ConsultationTracking() {
 
   const columns: ColumnsType<ConsultationProgress> = [
     {
-      title: '会诊ID',
-      dataIndex: 'id',
-      width: 100,
-      render: (id: string) => <Tag color="blue">{id}</Tag>,
+      title: '会诊 ID',
+      dataIndex: 'consultationCode',
+      width: 120,
+      render: (code: string, record: any) => <Tag color="blue">{code || record.id}</Tag>,
     },
     {
       title: '患者信息',
@@ -177,6 +180,18 @@ export default function ConsultationTracking() {
     setSelectedPatientName(patientName)
     setSelectedPatientInpatientNo(patientInpatientNo)
     setPatientDrawerVisible(true)
+  }
+
+  // 权限检查
+  if (!hasPermission('perm-consultation-tracking')) {
+    return (
+      <Result
+        status="403"
+        title="暂无权限"
+        subTitle="抱歉，您没有权限访问会诊进度追踪页面。如需获取权限，请联系系统管理员。"
+        extra={<Button type="primary" onClick={() => navigate(-1)}>返回</Button>}
+      />
+    )
   }
 
   return (
