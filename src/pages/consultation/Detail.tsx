@@ -26,6 +26,7 @@ import type { AuditRecord } from '../../stores/consultationStore'
 import dayjs from 'dayjs'
 import { hasPermission } from '../../utils/helpers'
 import { getConsultationStatusName, getConsultationStatusColor, getUrgencyName, getUrgencyColor } from '../../utils/codeTable'
+import { CONSULTATION_STATUS } from '../../utils/statusMapping'
 
 const { Title, Text } = Typography
 
@@ -141,7 +142,7 @@ export default function ConsultationDetail() {
   // 权限检查
   // 主任医生可以查看待审核的会诊，申请医生可以查看自己的申请
   const canAccess = hasPermission('perm-consultation-detail') || 
-    (user?.role === 'director' && (consultation?.status === '医生提交' || consultation?.status === 'doctor_submit')) ||
+    (user?.role === 'director' && consultation?.status === CONSULTATION_STATUS.DOCTOR_SUBMIT) ||
     (user?.id === consultation?.apply_doctor_id)
   
   if (!canAccess) {

@@ -16,6 +16,7 @@ import { useAppStore } from '../../stores/appStore'
 import { generateConsultationCode } from '../../utils/consultationCode'
 import { sendSystemNotification } from '../../stores/notificationStore'
 import { hasPermission } from '../../utils/helpers'
+import { CONSULTATION_STATUS, ROLE, POSITION } from '../../utils/statusMapping'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -769,7 +770,7 @@ export default function Apply() {
       if (consultationId) {
         // 更新已拒绝的申请
         const updateData = {
-          status: '医生提交',
+          status: CONSULTATION_STATUS.DOCTOR_SUBMIT,
           urgency: urgency,
           type: type,
           expect_time: expectTime ? expectTime.toISOString() : null,
@@ -844,7 +845,7 @@ export default function Apply() {
           patient_name: selectedPatient?.name,
           patient_inpatient_no: selectedPatient?.inpatientNo,
           type: type, // 使用直接从 form 获取的值
-          status: '医生提交',
+          status: CONSULTATION_STATUS.DOCTOR_SUBMIT,
           urgency: urgency, // 使用直接从 form 获取的值
           department: doctorDepartment, // 使用申请医生的科室
           apply_doctor: user?.name,
@@ -929,7 +930,7 @@ export default function Apply() {
         const { data: secretariesData } = await supabase
           .from('users')
           .select('id, manager_id')
-          .eq('position', 'MDT 秘书')
+          .eq('position', POSITION.MDT_SECRETARY)
           .eq('status', 'active')
           .returns<{ id: string; manager_id: string | null }[]>()
         
@@ -1002,7 +1003,7 @@ export default function Apply() {
           const { data: secretaries } = await supabase
             .from('users')
             .select('id, position, manager_id')
-            .eq('position', 'MDT 秘书')
+            .eq('position', POSITION.MDT_SECRETARY)
             .eq('status', 'active')
             .returns<{ id: string; position: string; manager_id: string | null }[]>()
           
@@ -1046,7 +1047,7 @@ export default function Apply() {
           const { data: directors } = await supabase
             .from('users')
             .select('id')
-            .eq('role', '主任医生')
+            .eq('role', ROLE.DIRECTOR)
             .limit(1)
             .returns<{ id: string }[]>()
 
