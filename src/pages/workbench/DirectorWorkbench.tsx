@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { getUrgencyName, getUrgencyColor, getConsultationStatusName } from '../../utils/codeTable'
+import { CONSULTATION_STATUS, ROLE } from '../../utils/statusMapping'
 
 const { Title } = Typography
 const { TextArea } = Input
@@ -84,7 +85,7 @@ export default function DirectorWorkbench() {
         supabase
           .from('consultations')
           .select('*')
-          .eq('status', '医生提交')
+          .eq('status', CONSULTATION_STATUS.DOCTOR_SUBMIT)
           .eq('department', directorDepartment)
           .order('urgency', { ascending: false })
           .order('apply_time', { ascending: false }),

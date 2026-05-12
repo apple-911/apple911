@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 import { useAppStore } from '../../stores/appStore'
 import { sendSystemNotification } from '../../stores/notificationStore'
 import { hasPermission } from '../../utils/helpers'
+import { CONSULTATION_STATUS, ROLE, POSITION } from '../../utils/statusMapping'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -328,7 +329,7 @@ export default function DirectorConfirm() {
           .select('*')
           .gte('time', todayStart.toISOString())
           .lte('time', todayEnd.toISOString())
-          .eq('operator_role', '主任医生')
+          .eq('operator_role', ROLE.DIRECTOR)
       ])
       
       // 错误处理
@@ -501,7 +502,7 @@ export default function DirectorConfirm() {
             const { data: secretaries } = await supabase
               .from('users')
               .select('id')
-              .eq('role', 'MDT 秘书')
+              .eq('role', POSITION.MDT_SECRETARY)
               .returns<{ id: string }[]>()
 
             if (secretaries && secretaries.length > 0) {

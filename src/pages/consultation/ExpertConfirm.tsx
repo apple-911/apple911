@@ -10,6 +10,7 @@ import type { UploadedFile } from '../../stores/consultationStore'
 import PatientInfo from '../../components/PatientInfo'
 import { sendSystemNotification } from '../../stores/notificationStore'
 import { hasPermission } from '../../utils/helpers'
+import { POSITION } from '../../utils/statusMapping'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -174,7 +175,7 @@ export default function ExpertConfirm() {
             const { data: secretaries } = await supabase
               .from('users')
               .select('id')
-              .eq('role', 'MDT 秘书')
+              .eq('role', POSITION.MDT_SECRETARY)
               .limit(1)
               .returns<{ id: string }[]>()
 

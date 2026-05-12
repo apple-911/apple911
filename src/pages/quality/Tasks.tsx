@@ -4,6 +4,7 @@ import { CheckOutlined, CloseOutlined, ExclamationCircleOutlined, FileTextOutlin
 import type { ColumnsType } from 'antd/es/table'
 import { supabase } from '../../lib/supabase'
 import { sendSystemNotification } from '../../stores/notificationStore'
+import { POSITION } from '../../utils/statusMapping'
 
 const { Title, Text } = Typography
 
@@ -231,7 +232,7 @@ export default function QualityTasks() {
       const { data: secretaries } = await supabase
         .from('users')
         .select('id')
-        .eq('role', 'MDT 秘书')
+        .eq('role', POSITION.MDT_SECRETARY)
         .limit(1)
         .returns<{ id: string }[]>()
 
