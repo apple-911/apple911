@@ -141,7 +141,7 @@ export default function ConsultationDetail() {
   // 权限检查
   // 主任医生可以查看待审核的会诊，申请医生可以查看自己的申请
   const canAccess = hasPermission('perm-consultation-detail') || 
-    (user?.role === 'director' && consultation?.status === 'doctor_submit') ||
+    (user?.role === 'director' && (consultation?.status === '医生提交' || consultation?.status === 'doctor_submit')) ||
     (user?.id === consultation?.apply_doctor_id)
   
   if (!canAccess) {
