@@ -502,6 +502,7 @@ export default function DirectorConfirm() {
               .from('users')
               .select('id')
               .eq('role', 'MDT 秘书')
+              .returns<{ id: string }[]>()
 
             if (secretaries && secretaries.length > 0) {
               for (const secretary of secretaries) {

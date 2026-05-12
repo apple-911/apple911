@@ -931,6 +931,7 @@ export default function Apply() {
           .select('id, manager_id')
           .eq('position', 'MDT 秘书')
           .eq('status', 'active')
+          .returns<{ id: string; manager_id: string | null }[]>()
         
         if (secretariesData && secretariesData.length > 0) {
           // 找到秘书组长（主要责任人）
@@ -1000,9 +1001,10 @@ export default function Apply() {
           // 1. 发送通知给 MDT 秘书（支持多个秘书）
           const { data: secretaries } = await supabase
             .from('users')
-            .select('id, position, manager_id')  // manager_id 指向秘书组长
+            .select('id, position, manager_id')
             .eq('position', 'MDT 秘书')
             .eq('status', 'active')
+            .returns<{ id: string; position: string; manager_id: string | null }[]>()
           
           if (secretaries && secretaries.length > 0) {
             // 找到秘书组长（主要责任人）
@@ -1046,6 +1048,7 @@ export default function Apply() {
             .select('id')
             .eq('role', '主任医生')
             .limit(1)
+            .returns<{ id: string }[]>()
 
           if (directors && directors.length > 0) {
             await sendSystemNotification(

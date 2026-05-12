@@ -176,6 +176,7 @@ export default function ExpertConfirm() {
               .select('id')
               .eq('role', 'MDT 秘书')
               .limit(1)
+              .returns<{ id: string }[]>()
 
             if (secretaries && secretaries.length > 0) {
               await sendSystemNotification(
