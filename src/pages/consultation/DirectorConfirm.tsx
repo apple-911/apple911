@@ -303,6 +303,8 @@ export default function DirectorConfirm() {
       }
       
       console.log('主任所在科室:', directorDepartment)
+      console.log('查询条件 - status:', CONSULTATION_STATUS.DOCTOR_SUBMIT)
+      console.log('查询条件 - department:', directorDepartment)
       
       // 并行获取所有数据
       const [
@@ -311,16 +313,13 @@ export default function DirectorConfirm() {
         { data: consultationExperts, error: ceError },
         { data: auditHistory, error: auditError }
       ] = await Promise.all([
-        // 先查询所有状态符合条件的会诊（只查询主任所在科室的申请）
+        // 查询待科室审核的会诊（只查询主任所在科室的申请）
         supabase
           .from('consultations')
           .select('*')
-          .in('status', [
-            CONSULTATION_STATUS.DOCTOR_SUBMIT,
-            CONSULTATION_STATUS.SECRETARY_PENDING,
-            CONSULTATION_STATUS.DIRECTOR_REJECTED
-          ])
+          .eq('status', CONSULTATION_STATUS.DOCTOR_SUBMIT)
           .eq('department', directorDepartment)
+          .order('urgency', { ascending: false })
           .order('apply_time', { ascending: false }),
         supabase
           .from('experts')
