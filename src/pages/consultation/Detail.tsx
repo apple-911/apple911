@@ -141,8 +141,16 @@ export default function ConsultationDetail() {
 
   // 权限检查
   // 主任医生可以查看待审核的会诊，申请医生可以查看自己的申请
+  console.log('权限检查:', { 
+    userRole: user?.role, 
+    consultationStatus: consultation?.status,
+    isDirector: user?.role === ROLE.DIRECTOR,
+    isDoctorSubmit: consultation?.status === CONSULTATION_STATUS.DOCTOR_SUBMIT,
+    isApplyDoctor: user?.id === consultation?.apply_doctor_id
+  })
+  
   const canAccess = hasPermission('perm-consultation-detail') || 
-    (user?.role === 'director' && consultation?.status === CONSULTATION_STATUS.DOCTOR_SUBMIT) ||
+    (user?.role === ROLE.DIRECTOR && consultation?.status === CONSULTATION_STATUS.DOCTOR_SUBMIT) ||
     (user?.id === consultation?.apply_doctor_id)
   
   if (!canAccess) {

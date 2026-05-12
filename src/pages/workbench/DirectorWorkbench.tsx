@@ -79,6 +79,12 @@ export default function DirectorWorkbench() {
       }
       
       console.log('主任所在科室:', directorDepartment)
+      console.log('查询条件:', { 
+        status: CONSULTATION_STATUS.DOCTOR_SUBMIT,
+        department: directorDepartment,
+        userRole: user?.role,
+        userName: user?.name
+      })
       
       // 并行加载两个列表
       const [pendingResult, applicationResult] = await Promise.all([
@@ -95,6 +101,16 @@ export default function DirectorWorkbench() {
           .eq('apply_doctor', user?.name)
           .order('apply_time', { ascending: false })
       ])
+      
+      console.log('查询结果:', { 
+        pendingCount: pendingResult.data?.length, 
+        myCount: applicationResult.data?.length,
+        pendingData: pendingResult.data?.map(c => ({ 
+          patient: c.patient_name, 
+          department: c.department, 
+          status: c.status 
+        }))
+      })
 
       // 处理待审核列表
       if (pendingResult.error) throw pendingResult.error
