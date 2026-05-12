@@ -26,7 +26,7 @@ import type { AuditRecord } from '../../stores/consultationStore'
 import dayjs from 'dayjs'
 import { hasPermission } from '../../utils/helpers'
 import { getConsultationStatusName, getConsultationStatusColor, getUrgencyName, getUrgencyColor } from '../../utils/codeTable'
-import { CONSULTATION_STATUS } from '../../utils/statusMapping'
+import { CONSULTATION_STATUS, ROLE } from '../../utils/statusMapping'
 
 const { Title, Text } = Typography
 
