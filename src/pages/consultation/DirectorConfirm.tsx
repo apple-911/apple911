@@ -10,6 +10,7 @@ import { useAppStore } from '../../stores/appStore'
 import { sendSystemNotification } from '../../stores/notificationStore'
 import { hasPermission } from '../../utils/helpers'
 import { CONSULTATION_STATUS, ROLE, POSITION } from '../../utils/statusMapping'
+import { getConsultationStatusName, getConsultationStatusColor } from '../../utils/codeTable'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -29,7 +30,7 @@ interface ConsultationApplication {
   otherDiagnoses: string[]
   consultationPurpose: string
   urgency: '普通' | '紧急' | '特急'
-  status: '医生提交' | '待主任审核' | '秘书审核' | '主任驳回'
+  status: 'doctor_submit' | 'director_pending' | 'secretary_pending' | 'director_rejected'
   experts: Array<{ id: string; name: string; department: string; title: string }>
   // 材料相关字段
   medicalRecords?: {
@@ -61,7 +62,7 @@ const mockPendingApplications: ConsultationApplication[] = [
     otherDiagnoses: ['高血压 2 级', '2 型糖尿病'],
     consultationPurpose: '明确分期及后续治疗方案',
     urgency: '紧急',
-    status: '待主任审核',
+    status: 'director_pending',
     experts: [
       { id: '1', name: '李芳', department: '胸外科', title: '副主任医师' },
       { id: '3', name: '王建国', department: '放射科', title: '主任医师' },
@@ -150,7 +151,7 @@ const mockPendingApplications: ConsultationApplication[] = [
     otherDiagnoses: ['贫血'],
     consultationPurpose: '评估二次手术可行性',
     urgency: '紧急',
-    status: '待主任审核',
+    status: 'director_pending',
     experts: [
       { id: '2', name: '张伟', department: '胃肠外科', title: '主任医师' },
       { id: '5', name: '陈伟', department: '肿瘤科', title: '副主任医师' }
@@ -210,7 +211,7 @@ const mockPendingApplications: ConsultationApplication[] = [
     otherDiagnoses: ['冠心病', '高血压 3 级'],
     consultationPurpose: '多学科综合治疗方案制定',
     urgency: '普通',
-    status: '待主任审核',
+    status: 'director_pending',
     experts: [
       { id: '6', name: '赵红梅', department: '呼吸科', title: '主任医师' },
       { id: '7', name: '刘洋', department: '心内科', title: '副主任医师' }
@@ -256,12 +257,15 @@ const urgencyConfig = {
 
 export default function DirectorConfirm() {
   const { user } = useAppStore()
-  const [data, setData] = useState<ConsultationApplication[]>([])
+  const [pendingData, setPendingData] = useState<ConsultationApplication[]>([])
+  const [processedData, setProcessedData] = useState<ConsultationApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [detailVisible, setDetailVisible] = useState(false)
   const [rejectVisible, setRejectVisible] = useState(false)
   const [selectedItem, setSelectedItem] = useState<ConsultationApplication | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [opinion, setOpinion] = useState('')
+  const [opinionVisible, setOpinionVisible] = useState(false)
   const [activeTab, setActiveTab] = useState('pending')
   const [submitting, setSubmitting] = useState(false)
   const [todayConfirmed, setTodayConfirmed] = useState(0)
@@ -308,16 +312,29 @@ export default function DirectorConfirm() {
       
       // 并行获取所有数据
       const [
-        { data: consultations, error: consultationError },
+        { data: pendingConsultations, error: pendingError },
+        { data: processedConsultations, error: processedError },
         { data: allExperts, error: expertsError },
         { data: consultationExperts, error: ceError },
         { data: auditHistory, error: auditError }
       ] = await Promise.all([
-        // 查询待科室审核的会诊（只查询主任所在科室的申请）
+        // 待确认列表：查询医生提交的会诊（与主任工作台一致）
         supabase
           .from('consultations')
           .select('*')
           .eq('status', CONSULTATION_STATUS.DOCTOR_SUBMIT)
+          .eq('department', directorDepartment)
+          .order('urgency', { ascending: false })
+          .order('apply_time', { ascending: false }),
+        // 已处理列表：查询主任已处理的会诊（主任驳回 + 主任通过后进入秘书审核 + 医生撤回）
+        supabase
+          .from('consultations')
+          .select('*')
+          .in('status', [
+            CONSULTATION_STATUS.DIRECTOR_REJECTED,
+            CONSULTATION_STATUS.SECRETARY_PENDING,
+            CONSULTATION_STATUS.CANCELLED
+          ])
           .eq('department', directorDepartment)
           .order('urgency', { ascending: false })
           .order('apply_time', { ascending: false }),
@@ -336,7 +353,8 @@ export default function DirectorConfirm() {
       ])
       
       // 错误处理
-      if (consultationError) throw consultationError
+      if (pendingError) throw pendingError
+      if (processedError) throw processedError
       if (expertsError) throw expertsError
       if (ceError) throw ceError
       if (auditError) throw auditError
@@ -359,14 +377,25 @@ export default function DirectorConfirm() {
       })
 
       // 在代码中过滤：只显示当前主任负责的会诊
-      let filteredConsultations = consultations || []
+      let filteredPending = pendingConsultations || []
+      let filteredProcessed = processedConsultations || []
       if (user?.org_id && user?.position?.includes('主任')) {
-        filteredConsultations = filteredConsultations.filter(c => {
-          // 1. 如果是主要责任人（director_id），显示
+        filteredPending = filteredPending.filter((c: any) => {
+          // 如果是主要责任人（director_id），显示
           if (c.director_id === user.id) return true
           
-          // 2. 如果是同科室的主任，也能看到和审批
-          // 将科室名称转换为 org_id 进行比较
+          // 如果会诊的科室和主任的科室一致，也能看到和审批
+          const consultationOrgId = c.department ? `org-${c.department.toLowerCase()}` : null
+          if (consultationOrgId === user.org_id) return true
+          
+          return false
+        })
+        
+        filteredProcessed = filteredProcessed.filter((c: any) => {
+          // 如果是主要责任人（director_id），显示
+          if (c.director_id === user.id) return true
+          
+          // 如果会诊的科室和主任的科室一致，也能看到和审批
           const consultationOrgId = c.department ? `org-${c.department.toLowerCase()}` : null
           if (consultationOrgId === user.org_id) return true
           
@@ -375,7 +404,7 @@ export default function DirectorConfirm() {
       }
       
       // 使用过滤后的数据构建应用程序数据
-      const applications: ConsultationApplication[] = filteredConsultations.map(c => {
+      const buildApplication = (c: any) => {
         // 从 consultation_experts 表获取专家ID列表
         const expertIds = consultationExpertMap.get(c.id) || []
         const experts = expertIds.map((id: string) => {
@@ -394,13 +423,13 @@ export default function DirectorConfirm() {
         })
 
         return {
-          id: c.id,
-          consultationCode: c.consultation_code,  // 添加会诊编码
-          patientId: c.patient_id,
-          patientName: c.patient_name,
-          patientInpatientNo: c.patient_inpatient_no,
+          id: String(c.id),
+          consultationCode: String(c.consultation_code),
+          patientId: String(c.patient_id),
+          patientName: String(c.patient_name),
+          patientInpatientNo: String(c.patient_inpatient_no),
           age: 50, // 需要从 patients 表关联查询
-          gender: '男', // 需要从 patients 表关联查询
+          gender: '男' as const, // 需要从 patients 表关联查询
           department: c.department,
           applyDoctor: c.apply_doctor,
           applyTime: new Date(c.apply_time).toLocaleString('zh-CN'),
@@ -411,9 +440,13 @@ export default function DirectorConfirm() {
           status: c.status,
           experts,
         }
-      })
+      }
 
-      setData(applications)
+      const pendingApplications: ConsultationApplication[] = filteredPending.map(buildApplication)
+      const processedApplications: ConsultationApplication[] = filteredProcessed.map(buildApplication)
+
+      setPendingData(pendingApplications)
+      setProcessedData(processedApplications)
     } catch (err) {
       console.error('加载会诊申请失败:', err)
       message.error('加载会诊申请失败')
@@ -421,9 +454,6 @@ export default function DirectorConfirm() {
       setLoading(false)
     }
   }
-
-  const pendingData = data.filter(item => item.status === '医生提交')
-  const processedData = data.filter(item => item.status !== '医生提交')
 
   const getPatientInfo = async (patientId: string) => {
     const { data: patient, error } = await supabase
@@ -441,101 +471,91 @@ export default function DirectorConfirm() {
   }
 
   const handleConfirm = (item: ConsultationApplication) => {
-    Modal.confirm({
-      title: '确认会诊申请',
-      content: `确认通过患者 ${item.patientName} 的会诊申请？`,
-      okText: '确认',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          setSubmitting(true)
-          // 更新会诊状态
-          await supabase
-            .from('consultations')
-            .update({ status: '待秘书审核' })
-            .eq('id', item.id)
-          
-          // 添加审核历史
-          const auditInsert: any = {
-            consultation_id: item.id,
-            operator: user?.name,
-            operator_role: '主任医生',
-            node: '科室审核',
-            result: '通过',
-            time: new Date().toISOString(),
-          }
-          
-          // 如果用户有 ID 且是 UUID 格式，才添加 operator_id
-          if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
-            auditInsert.operator_id = user.id
-          }
-          
-          await supabase
-            .from('audit_history')
-            .insert(auditInsert)
-          
-          // 发送通知给申请医生
-          try {
-            // 查询申请医生用户
-            const { data: doctors } = await supabase
-              .from('users')
-              .select('id')
-              .eq('name', item.applyDoctor)
-              .limit(1)
+    setSelectedItem(item)
+    setOpinion('')
+    setOpinionVisible(true)
+  }
 
-            if (doctors && doctors.length > 0) {
-              await sendSystemNotification(
-                doctors[0].id,
-                'success',
-                '会诊申请已通过主任确认',
-                `您提交的 ${item.patientName} 会诊申请已通过主任确认，进入秘书审核阶段`,
-                {
-                  label: '查看',
-                  url: `/consultation/my-applies`,
-                }
-              )
-            }
-          } catch (notificationError) {
-            console.error('发送通知失败:', notificationError)
-          }
-          
-          // 发送通知给 MDT 秘书
-          try {
-            // 查询 MDT 秘书用户
-            const { data: secretaries } = await supabase
-              .from('users')
-              .select('id')
-              .eq('role', POSITION.MDT_SECRETARY)
-              .returns<{ id: string }[]>()
+  const submitOpinion = async () => {
+    try {
+      setSubmitting(true)
+      if (!selectedItem) return
 
-            if (secretaries && secretaries.length > 0) {
-              for (const secretary of secretaries) {
-                await sendSystemNotification(
-                  secretary.id,
-                  'info',
-                  '新会诊申请待审核',
-                  `主任已确认患者 ${item.patientName} 的会诊申请，请进行审核`,
-                  {
-                    label: '审核',
-                    url: `/consultation/pending-review`,
-                  }
-                )
-              }
-            }
-          } catch (notificationError) {
-            console.error('发送通知给秘书失败:', notificationError)
-          }
-          
-          message.success(`已确认 ${item.patientName} 的会诊申请，已流转至秘书审核`)
-          loadData()
-        } catch (err) {
-          console.error('确认失败:', err)
-          message.error('确认失败，请重试')
-        } finally {
-          setSubmitting(false)
-        }
+      await supabase
+        .from('consultations')
+        .update({ status: CONSULTATION_STATUS.SECRETARY_PENDING })
+        .eq('id', selectedItem.id)
+
+      const auditInsert: any = {
+        consultation_id: selectedItem.id,
+        operator: user?.name,
+        operator_role: ROLE.DIRECTOR,
+        operator_type: 'approved',
+        node: '科室审核',
+        result: '通过',
+        opinion: opinion || '同意',
+        time: new Date().toISOString(),
       }
-    })
+
+      if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+        auditInsert.operator_id = user.id
+      }
+
+      await supabase.from('audit_history').insert(auditInsert)
+
+      try {
+        const { data: doctors } = await supabase
+          .from('users')
+          .select('id')
+          .eq('name', selectedItem.applyDoctor)
+          .limit(1)
+
+        if (doctors && doctors.length > 0) {
+          await sendSystemNotification(
+            doctors[0].id,
+            'success',
+            '会诊申请已通过主任确认',
+            `您提交的 ${selectedItem.patientName} 会诊申请已通过主任确认，进入秘书审核阶段`,
+            { label: '查看', url: `/consultation/my-applies` }
+          )
+        }
+      } catch (notificationError) {
+        console.error('发送通知失败:', notificationError)
+      }
+
+      try {
+        const { data: secretaries } = await supabase
+          .from('users')
+          .select('id')
+          .eq('role', POSITION.MDT_SECRETARY)
+          .returns<{ id: string }[]>()
+
+        if (secretaries && secretaries.length > 0) {
+          for (const secretary of secretaries) {
+            await sendSystemNotification(
+              secretary.id,
+              'info',
+              '新会诊申请待审核',
+              `主任已确认患者 ${selectedItem.patientName} 的会诊申请，请进行审核`,
+              { label: '审核', url: `/consultation/pending-review` }
+            )
+          }
+        }
+      } catch (notificationError) {
+        console.error('发送通知给秘书失败:', notificationError)
+      }
+
+      message.success(`已确认 ${selectedItem.patientName} 的会诊申请，已流转至秘书审核`)
+      setOpinionVisible(false)
+      setSelectedItem(null)
+      setOpinion('')
+      loadData()
+    } catch (err) {
+      console.error('确认失败:', err)
+      message.error('确认失败，请重试')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleReject = (item: ConsultationApplication) => {
@@ -558,7 +578,7 @@ export default function DirectorConfirm() {
       await supabase
         .from('consultations')
         .update({ 
-          status: '主任驳回',
+          status: CONSULTATION_STATUS.DIRECTOR_REJECTED,
           reject_reason: rejectReason
         })
         .eq('id', selectedItem.id)
@@ -607,7 +627,7 @@ export default function DirectorConfirm() {
         console.error('发送通知失败:', notificationError)
       }
       
-      message.success(`已拒绝 ${selectedItem?.patientName} 的会诊申请`)
+      message.success(`已驳回 ${selectedItem?.patientName} 的会诊申请`)
       setRejectVisible(false)
       setSelectedItem(null)
       setRejectReason('')
@@ -695,10 +715,10 @@ export default function DirectorConfirm() {
     {
       title: '操作',
       key: 'action',
-      width: 240,
+      width: 260,
       fixed: 'right',
       render: (_, record) => (
-        <Space wrap size="small">
+        <Space size="small">
           <Button
             size="small"
             icon={<EyeOutlined />}
@@ -721,6 +741,98 @@ export default function DirectorConfirm() {
             onClick={() => handleReject(record)}
           >
             拒绝
+          </Button>
+        </Space>
+      )
+    }
+  ]
+
+  const processedColumns: ColumnsType<ConsultationApplication> = [
+    {
+      title: '会诊 ID',
+      dataIndex: 'consultationCode',
+      width: 120,
+      render: (code: string, record: ConsultationApplication) => <Tag color="blue">{code || record.id}</Tag>
+    },
+    {
+      title: '患者信息',
+      key: 'patient',
+      width: 150,
+      render: (_, record) => (
+        <Space direction="vertical" size={0}>
+          <Space>
+            <UserOutlined />
+            <Text strong>{record.patientName}</Text>
+          </Space>
+          <Text type="secondary" className="text-xs">{record.patientInpatientNo}</Text>
+        </Space>
+      )
+    },
+    {
+      title: '性别/年龄',
+      key: 'demographics',
+      width: 100,
+      render: (_, record) => `${record.gender} / ${record.age}岁`
+    },
+    {
+      title: '申请科室',
+      dataIndex: 'department',
+      width: 120,
+    },
+    {
+      title: '申请医生',
+      dataIndex: 'applyDoctor',
+      width: 120,
+    },
+    {
+      title: '申请时间',
+      dataIndex: 'applyTime',
+      width: 150,
+    },
+    {
+      title: '主要诊断',
+      dataIndex: 'mainDiagnosis',
+      ellipsis: true,
+      width: 200,
+    },
+    {
+      title: '紧急程度',
+      dataIndex: 'urgency',
+      width: 100,
+      render: (urgency: string) => <Tag color={urgencyConfig[urgency as keyof typeof urgencyConfig]?.color}>{urgency}</Tag>
+    },
+    {
+      title: '审核状态',
+      dataIndex: 'status',
+      width: 120,
+      render: (status: string) => <Tag color={getConsultationStatusColor(status)}>{getConsultationStatusName(status)}</Tag>
+    },
+    {
+      title: '拟邀专家',
+      dataIndex: 'experts',
+      width: 200,
+      render: (experts: Array<{ name: string; department: string }>) => (
+        <Space wrap>
+          {experts.slice(0, 2).map(e => (
+            <Tag key={e.name} color="cyan">{e.name}({e.department})</Tag>
+          ))}
+          {experts.length > 2 && <Tag>+{experts.length - 2}</Tag>}
+        </Space>
+      )
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 120,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewDetail(record)}
+          >
+            详情
           </Button>
         </Space>
       )
@@ -766,7 +878,7 @@ export default function DirectorConfirm() {
         <Col span={6}>
           <Card>
             <Statistic
-              title="今日已拒绝"
+              title="今日已驳回"
               value={todayRejected}
               valueStyle={{ color: '#ff4d4f' }}
             />
@@ -808,10 +920,10 @@ export default function DirectorConfirm() {
               label: '已处理',
               children: (
                 <Table
-                  columns={columns}
+                  columns={processedColumns}
                   dataSource={processedData}
                   rowKey="id"
-                  scroll={{ x: 1400 }}
+                  scroll={{ x: 1500 }}
                   pagination={{ pageSize: 10 }}
                   loading={loading}
                 />
@@ -1064,6 +1176,36 @@ export default function DirectorConfirm() {
       </Modal>
 
       <Modal
+        title="审核会诊申请"
+        open={opinionVisible}
+        onOk={submitOpinion}
+        onCancel={() => setOpinionVisible(false)}
+        confirmLoading={submitting}
+        okText="通过"
+        cancelText="取消"
+      >
+        <div className="space-y-4">
+          {selectedItem && (
+            <div>
+              <p><strong>患者：</strong>{selectedItem.patientName}</p>
+              <p><strong>会诊ID：</strong>{selectedItem.consultationCode || selectedItem.id}</p>
+              <p><strong>诊断：</strong>{selectedItem.mainDiagnosis}</p>
+              <p><strong>申请医生：</strong>{selectedItem.applyDoctor}</p>
+            </div>
+          )}
+          <div>
+            <strong>审核意见：</strong>
+            <TextArea
+              rows={4}
+              value={opinion}
+              onChange={e => setOpinion(e.target.value)}
+              placeholder="请输入审核意见..."
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
         title="拒绝原因"
         open={rejectVisible}
         onOk={submitReject}
@@ -1073,7 +1215,12 @@ export default function DirectorConfirm() {
         cancelText="取消"
       >
         <div className="space-y-2">
-          <Text>会诊申请：{selectedItem?.patientName} ({selectedItem?.id})</Text>
+          <div>
+            <p><strong>患者：</strong>{selectedItem?.patientName}</p>
+            <p><strong>会诊ID：</strong>{selectedItem?.consultationCode || selectedItem?.id}</p>
+            <p><strong>诊断：</strong>{selectedItem?.mainDiagnosis}</p>
+            <p><strong>申请医生：</strong>{selectedItem?.applyDoctor}</p>
+          </div>
           <TextArea
             rows={4}
             placeholder="请输入拒绝原因，将反馈给申请医生"

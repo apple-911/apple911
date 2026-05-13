@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { useAppStore } from '../../stores/appStore'
 import { sendSystemNotification } from '../../stores/notificationStore'
 import { hasPermission } from '../../utils/helpers'
+import { getUrgencyName } from '../../utils/codeTable'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -24,7 +25,7 @@ interface ExtendedConsultation {
   applyDate?: string
   expectTime?: string
   status: string
-  urgency: '普通' | '紧急' | '特急'
+  urgency: '普通' | '紧急' | '危急'
   department: string
   applyDoctor: string
   experts: Array<{ id: string; name: string; department: string; title: string; status?: string; specialty?: string }>
@@ -117,7 +118,8 @@ export default function PendingReview() {
       })
 
       const applications: ExtendedConsultation[] = consultations.map(c => {
-        // 从 consultation_experts 表获取专家ID列表
+        console.log('原始会诊数据 - 患者:', c.patient_name, 'urgency:', c.urgency)
+        // 从 consultation_experts 表获取专家 ID 列表
         const expertIds = consultationExpertMap.get(c.id) || []
         const experts = expertIds.map((id: string) => {
           const expert = expertMap.get(id)
@@ -148,7 +150,7 @@ export default function PendingReview() {
           applyTime: new Date(c.apply_time).toLocaleString('zh-CN'),
           expectTime: c.expect_time ? new Date(c.expect_time).toLocaleString('zh-CN') : undefined,
           status: c.status,
-          urgency: c.urgency as '普通' | '紧急' | '特急',
+          urgency: getUrgencyName(c.urgency) as '普通' | '紧急' | '危急',
           department: c.department,
           applyDoctor: c.apply_doctor,
           experts,
@@ -160,6 +162,11 @@ export default function PendingReview() {
         }
       })
 
+      console.log('加载的会诊数据 - 紧急程度:', applications.map(a => ({ 
+        patientName: a.patientName, 
+        originalUrgency: a.urgency,
+        displayUrgency: a.urgency 
+      })))
       setData(applications)
     } catch (err) {
       console.error('加载会诊申请失败:', err)
@@ -193,7 +200,7 @@ export default function PendingReview() {
           // 更新会诊状态
           await supabase
             .from('consultations')
-            .update({ status: '专家邀请' })
+            .update({ status: 'expert_invited' })
             .eq('id', consultation.id)
         
           // 添加审核历史
@@ -296,7 +303,7 @@ export default function PendingReview() {
               
               await supabase
                 .from('consultations')
-                .update({ status: '申请终止', reject_reason: '秘书审核拒绝' })
+                .update({ status: 'rejected', reject_reason: '秘书审核拒绝' })
                 .eq('id', consultation.id)
               
               const auditInsert: any = {
@@ -341,7 +348,7 @@ export default function PendingReview() {
                 console.error('发送通知失败:', notificationError)
               }
               
-              message.success('已拒绝申请')
+              message.success('已驳回申请')
               loadConsultations()
             } catch (err) {
               console.error('拒绝失败:', err)
@@ -387,7 +394,7 @@ export default function PendingReview() {
           
           await supabase
             .from('consultations')
-            .update({ status: '退回修改', reject_reason: rejectReason })
+            .update({ status: 'material_rejected', reject_reason: rejectReason })
             .eq('id', consultation.id)
           
           const auditInsert: any = {
@@ -467,8 +474,9 @@ export default function PendingReview() {
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
-      case '紧急': return 'red'
-      case '特急': return 'orange'
+      case '危急': return 'red'
+      case '紧急': return 'orange'
+      case '普通': return 'green'
       default: return 'default'
     }
   }
@@ -506,7 +514,7 @@ export default function PendingReview() {
         </Card>
         <Card className="text-center" style={{ background: '#fff7e6' }}>
           <div className="text-2xl font-bold" style={{ color: '#fa8c16' }}>
-            {data.filter(d => d.urgency === '紧急' || d.urgency === '特急').length}
+            {data.filter(d => d.urgency === '危急' || d.urgency === '紧急').length}
           </div>
           <div className="text-xs text-gray-500 mt-1">紧急申请</div>
         </Card>

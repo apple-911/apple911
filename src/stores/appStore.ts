@@ -8,6 +8,8 @@ export interface User {
   role: Role
   avatar?: string
   department?: string
+  org_id?: string
+  position?: string
 }
 
 interface AppState {

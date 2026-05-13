@@ -17,7 +17,9 @@ export const CONSULTATION_STATUS = {
   
   // 专家确认阶段
   EXPERT_INVITED: 'expert_invited',         // 专家邀请
+  EXPERT_PENDING: 'expert_pending',         // 待专家确认
   EXPERT_CONFIRMED: 'expert_confirmed',     // 专家确认
+  EXPERT_REJECTED: 'expert_rejected',       // 专家拒绝
   
   // 会诊阶段
   SCHEDULED: 'scheduled',                   // 已排期
@@ -27,7 +29,7 @@ export const CONSULTATION_STATUS = {
   ARCHIVED: 'archived',                     // 已归档
   
   // 其他状态
-  REJECTED: 'rejected',                     // 已拒绝
+  REJECTED: 'rejected',                     // 秘书驳回
   CANCELLED: 'cancelled',                   // 已取消
 } as const
 
@@ -49,7 +51,13 @@ export const URGENCY_LEVEL = {
   NORMAL: 'normal',      // 普通
 } as const
 
-// 用户职位编码
+// 会诊类型编码定义
+export const CONSULTATION_TYPE = {
+  INHOSPITAL: 'inhospital',  // 院内会诊
+  REMOTE: 'remote',          // 远程会诊
+} as const
+
+// 类型导出用户职位编码
 export const POSITION = {
   MDT_SECRETARY: 'mdt_secretary',  // MDT 秘书
   CHIEF_PHYSICIAN: 'chief_physician', // 主任医师
@@ -61,6 +69,7 @@ export const POSITION = {
 export type ConsultationStatus = typeof CONSULTATION_STATUS[keyof typeof CONSULTATION_STATUS]
 export type Role = typeof ROLE[keyof typeof ROLE]
 export type UrgencyLevel = typeof URGENCY_LEVEL[keyof typeof URGENCY_LEVEL]
+export type ConsultationType = typeof CONSULTATION_TYPE[keyof typeof CONSULTATION_TYPE]
 export type Position = typeof POSITION[keyof typeof POSITION]
 
 /**
@@ -83,7 +92,7 @@ export function getStatusCodeByChineseName(chineseName: string): ConsultationSta
     '会诊中': CONSULTATION_STATUS.IN_PROGRESS,
     '已完成': CONSULTATION_STATUS.COMPLETED,
     '已归档': CONSULTATION_STATUS.ARCHIVED,
-    '已拒绝': CONSULTATION_STATUS.REJECTED,
+    '秘书驳回': CONSULTATION_STATUS.REJECTED,
     '已取消': CONSULTATION_STATUS.CANCELLED,
     '待补正': CONSULTATION_STATUS.PENDING_SUPPLEMENT,
     '材料退回': CONSULTATION_STATUS.MATERIAL_REJECTED,
@@ -104,6 +113,7 @@ export function getStatusNameByCode(code: ConsultationStatus): string {
     [CONSULTATION_STATUS.DIRECTOR_PENDING]: '待主任审核',
     [CONSULTATION_STATUS.DIRECTOR_APPROVED]: '主任通过',
     [CONSULTATION_STATUS.DIRECTOR_REJECTED]: '主任驳回',
+    [CONSULTATION_STATUS.EXPERT_INVITED]: '专家邀请',
     [CONSULTATION_STATUS.EXPERT_PENDING]: '待专家确认',
     [CONSULTATION_STATUS.EXPERT_CONFIRMED]: '专家确认',
     [CONSULTATION_STATUS.EXPERT_REJECTED]: '专家拒绝',
@@ -112,7 +122,7 @@ export function getStatusNameByCode(code: ConsultationStatus): string {
     [CONSULTATION_STATUS.IN_PROGRESS]: '会诊中',
     [CONSULTATION_STATUS.COMPLETED]: '已完成',
     [CONSULTATION_STATUS.ARCHIVED]: '已归档',
-    [CONSULTATION_STATUS.REJECTED]: '已拒绝',
+    [CONSULTATION_STATUS.REJECTED]: '秘书驳回',
     [CONSULTATION_STATUS.CANCELLED]: '已取消',
     [CONSULTATION_STATUS.PENDING_SUPPLEMENT]: '待补正',
     [CONSULTATION_STATUS.MATERIAL_REJECTED]: '材料退回',

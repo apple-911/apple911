@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Row, Col, Table, Tag, Space, Typography, Button, message, Modal, Input, Spin, Statistic } from 'antd'
-import { CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, FireOutlined, EyeOutlined, FileTextOutlined, TeamOutlined } from '@ant-design/icons'
+import { AlertOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, EyeOutlined, FileTextOutlined, FireOutlined, TeamOutlined } from '@ant-design/icons'
 import { useAppStore } from '../../stores/appStore'
 import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
@@ -48,6 +48,7 @@ export default function DirectorWorkbench() {
   const [selectedConsultation, setSelectedConsultation] = useState<any>(null)
   const [auditComment, setAuditComment] = useState('')
   const [auditLoading, setAuditLoading] = useState(false)
+  const [auditAction, setAuditAction] = useState<'通过' | '拒绝'>('通过')
 
   useEffect(() => {
     loadData()
@@ -114,7 +115,23 @@ export default function DirectorWorkbench() {
 
       // 处理待审核列表
       if (pendingResult.error) throw pendingResult.error
-      const pendingReviews: PendingReview[] = (pendingResult.data || []).map(item => ({
+      
+      // 过滤：只显示当前主任负责的会诊
+      let filteredConsultations = pendingResult.data || []
+      if (user?.org_id && user?.position?.includes('主任')) {
+        filteredConsultations = filteredConsultations.filter((c: any) => {
+          // 1. 如果是主要责任人（director_id），显示
+          if (c.director_id === user.id) return true
+          
+          // 2. 如果是同科室的主任，也能看到和审批
+          const consultationOrgId = c.department ? `org-${c.department.toLowerCase()}` : null
+          if (consultationOrgId === user.org_id) return true
+          
+          return false
+        })
+      }
+      
+      const pendingReviews: PendingReview[] = filteredConsultations.map((item: any) => ({
         id: item.id,
         consultationCode: item.consultation_code || item.id,
         patientName: item.patient_name,
@@ -127,8 +144,8 @@ export default function DirectorWorkbench() {
       }))
       setPendingList(pendingReviews)
       setStats({
-        pending: pendingResult.data?.length || 0,
-        urgent: pendingResult.data?.filter((c: any) => c.urgency === 'urgent' || c.urgency === 'critical').length || 0,
+        pending: filteredConsultations.length || 0,
+        urgent: filteredConsultations.filter((c: any) => c.urgency === 'urgent' || c.urgency === 'critical').length || 0,
         approved: 0,
       })
 
@@ -158,6 +175,7 @@ export default function DirectorWorkbench() {
 
   const handleApprove = (consultation: any) => {
     setSelectedConsultation(consultation)
+    setAuditAction('通过')
     setAuditModalVisible(true)
   }
 
@@ -188,7 +206,7 @@ export default function DirectorWorkbench() {
           next_node: action === '通过' ? 'secretary_audit' : 'archive',
         })
       
-      message.success(`${action === '通过' ? '审核通过' : '已拒绝'}`)
+      message.success(`${action === '通过' ? '审核通过' : '已驳回'}`)
       setAuditModalVisible(false)
       setAuditComment('')
       loadData()
@@ -209,15 +227,45 @@ export default function DirectorWorkbench() {
     { 
       title: '紧急程度', 
       dataIndex: 'urgency',
-      width: 90,
+      width: 100,
       render: (urgency) => {
-        const color = getUrgencyColor(urgency)
-        const name = getUrgencyName(urgency)
-        if (urgency === 'critical' || urgency === 'urgent' || urgency === '紧急' || urgency === '特急') {
-          const isUrgent = urgency === 'urgent' || urgency === '紧急'
-          return <Tag color={isUrgent ? 'red' : color} style={isUrgent ? { fontWeight: 'bold' } : {}}><FireOutlined />{name}</Tag>
+        // 处理中文值映射为英文代码
+        let level = urgency
+        const chineseToEnglish: Record<string, string> = {
+          '普通': 'normal',
+          '紧急': 'urgent',
+          '特急': 'critical',
         }
-        return <Tag color={color}>{name}</Tag>
+        if (chineseToEnglish[urgency]) {
+          level = chineseToEnglish[urgency]
+        }
+        
+        const color = getUrgencyColor(level)
+        const name = getUrgencyName(level) || urgency
+        
+        if (level === 'critical') {
+          return (
+            <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px', fontWeight: 'bold', animation: 'pulse 1s infinite' }}>
+              <span className="flex items-center gap-1">
+                <AlertOutlined />
+                {name}
+              </span>
+            </Tag>
+          )
+        }
+        
+        if (level === 'urgent') {
+          return (
+            <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px', fontWeight: 'bold' }}>
+              <span className="flex items-center gap-1">
+                <ClockCircleOutlined />
+                {name}
+              </span>
+            </Tag>
+          )
+        }
+        
+        return <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px' }}>{name}</Tag>
       }
     },
     { title: '申请医生', dataIndex: 'applicant', width: 100 },
@@ -255,6 +303,7 @@ export default function DirectorWorkbench() {
             icon={<CloseCircleOutlined />}
             onClick={() => {
               setSelectedConsultation(record)
+              setAuditAction('拒绝')
               setAuditModalVisible(true)
             }}
           >
@@ -354,7 +403,7 @@ export default function DirectorWorkbench() {
           '会诊中': 'processing',
           '已完成': 'green',
           '已归档': 'green',
-          '已拒绝': 'red',
+          '秘书驳回': 'red',
           '已取消': 'default',
         }
         return <Tag color={colors[status] || 'default'}>{status}</Tag>
@@ -454,7 +503,7 @@ export default function DirectorWorkbench() {
 
         {/* 审核弹窗 */}
         <Modal
-          title="审核会诊申请"
+          title={auditAction === '通过' ? '审核会诊申请' : '拒绝会诊申请'}
           open={auditModalVisible}
           footer={[
             <Button
@@ -466,28 +515,32 @@ export default function DirectorWorkbench() {
             >
               取消
             </Button>,
-            <Button
-              key="reject"
-              danger
-              loading={auditLoading}
-              onClick={() => submitAudit('拒绝')}
-            >
-              拒绝
-            </Button>,
-            <Button
-              key="approve"
-              type="primary"
-              loading={auditLoading}
-              onClick={() => submitAudit('通过')}
-            >
-              通过
-            </Button>,
+            auditAction === '通过' ? (
+              <Button
+                key="approve"
+                type="primary"
+                loading={auditLoading}
+                onClick={() => submitAudit('通过')}
+              >
+                通过
+              </Button>
+            ) : (
+              <Button
+                key="reject"
+                danger
+                loading={auditLoading}
+                onClick={() => submitAudit('拒绝')}
+              >
+                拒绝
+              </Button>
+            ),
           ]}
         >
           <div className="space-y-4">
             {selectedConsultation && (
               <div>
                 <p><strong>患者：</strong>{selectedConsultation.patientName}</p>
+                <p><strong>会诊ID：</strong>{selectedConsultation.consultationCode}</p>
                 <p><strong>诊断：</strong>{selectedConsultation.diagnosis}</p>
                 <p><strong>申请医生：</strong>{selectedConsultation.applicant}</p>
               </div>

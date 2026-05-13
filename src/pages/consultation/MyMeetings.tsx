@@ -20,7 +20,7 @@ const statusMapping: Record<string, string> = {
   '待秘书审核': 'secretary_pending',
   '待补充材料': 'pending_supplement',
   '退回修改': 'material_rejected',
-  '已排期': 'scheduled',
+  'scheduled': 'scheduled',
   '已邀请专家': 'expert_invited',
   '待专家确认': 'expert_confirmed',
   '专家已确认': 'expert_confirmed',
@@ -28,7 +28,7 @@ const statusMapping: Record<string, string> = {
   '会诊中': 'in_progress',
   '已完成': 'completed',
   '已归档': 'archived',
-  '已拒绝': 'rejected',
+  '秘书驳回': 'rejected',
   '已取消': 'cancelled',
 }
 
@@ -58,17 +58,13 @@ export default function MyMeetings() {
       let statuses: string[] = []
       
       if (user?.role === 'secretary') {
-        // 秘书：待秘书审核、已安排、会诊中
-        statuses = ['待秘书审核', '待会诊', '会诊中']
+        statuses = ['secretary_pending', 'pending_meeting', 'in_progress']
       } else if (user?.role === 'expert') {
-        // 专家：待专家确认、待会诊、会诊中
-        statuses = ['待专家确认', '待会诊', '会诊中']
+        statuses = ['expert_pending', 'pending_meeting', 'in_progress']
       } else if (user?.role === 'director') {
-        // 主任：待科室审核、待秘书审核、待会诊、会诊中
-        statuses = ['待科室审核', '待秘书审核', '待会诊', '会诊中']
+        statuses = ['director_pending', 'secretary_pending', 'pending_meeting', 'in_progress']
       } else {
-        // 默认：所有状态
-        statuses = ['待科室审核', '待秘书审核', '待专家确认', '待会诊', '会诊中']
+        statuses = ['director_pending', 'secretary_pending', 'expert_pending', 'pending_meeting', 'in_progress']
       }
       
       const { data: consultations, error } = await supabase

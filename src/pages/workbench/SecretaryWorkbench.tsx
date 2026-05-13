@@ -6,6 +6,7 @@ import { useAppStore } from '../../stores/appStore'
 import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
+import { getUrgencyName } from '../../utils/codeTable'
 
 const { Title } = Typography
 const { TextArea } = Input
@@ -17,7 +18,7 @@ interface PendingReview {
   patientInpatientNo: string
   department: string
   diagnosis: string
-  urgency: '普通' | '紧急' | '特急'
+  urgency: '普通' | '紧急' | '危急'
   applicant: string
   applyTime: string
 }
@@ -36,19 +37,28 @@ export default function SecretaryWorkbench() {
     notes: '',
   })
   const [scheduleLoading, setScheduleLoading] = useState(false)
+  const [experts, setExperts] = useState<any[]>([])
+  const [selectedExperts, setSelectedExperts] = useState<string[]>([])
 
   useEffect(() => {
     loadPendingReviews()
+    loadExperts()
   }, [])
+
+  const loadExperts = async () => {
+    const { data } = await supabase.from('experts').select('*').eq('status', 'active')
+    if (data) setExperts(data)
+  }
 
   const loadPendingReviews = async () => {
     try {
       setLoading(true)
       
+      // 查询待秘书审核的会诊（支持中文和英文状态码）
       const { data: consultations, error } = await supabase
         .from('consultations')
         .select('*')
-        .eq('status', '待秘书审核')
+        .eq('status', 'secretary_pending')
         .order('urgency', { ascending: false })
         .order('apply_time', { ascending: false })
       
@@ -60,7 +70,7 @@ export default function SecretaryWorkbench() {
         patientInpatientNo: item.patient_inpatient_no,
         department: item.department,
         diagnosis: item.main_diagnosis,
-        urgency: item.urgency as '普通' | '紧急' | '特急',
+        urgency: getUrgencyName(item.urgency) as '普通' | '紧急' | '危急',
         applicant: item.apply_doctor,
         applyTime: item.apply_time,
       }))
@@ -94,7 +104,7 @@ export default function SecretaryWorkbench() {
       await supabase
         .from('consultations')
         .update({ 
-          status: '待会诊',
+          status: 'pending_meeting',
           expect_time: scheduleData.expect_time,
           meeting_room: scheduleData.meeting_room,
         })
@@ -132,10 +142,21 @@ export default function SecretaryWorkbench() {
       await supabase
         .from('audit_history')
         .insert(auditInsert)
-      
+
+      // 保存选中的专家
+      if (selectedExperts.length > 0) {
+        const expertInserts = selectedExperts.map(expertId => ({
+          consultation_id: selectedConsultation.id,
+          expert_id: expertId,
+          status: 'pending_meeting',
+        }))
+        await supabase.from('consultation_experts').insert(expertInserts)
+      }
+
       message.success('会诊已安排')
       setScheduleModalVisible(false)
       setScheduleData({ expect_time: '', meeting_room: '', notes: '' })
+      setSelectedExperts([])
       loadPendingReviews()
     } catch (err) {
       console.error('安排失败:', err)
@@ -155,7 +176,7 @@ export default function SecretaryWorkbench() {
       dataIndex: 'urgency',
       width: 90,
       render: (urgency) => (
-        <Tag color={urgency === '特急' ? 'red' : urgency === '紧急' ? 'orange' : 'default'}>
+        <Tag color={urgency === '危急' ? 'red' : urgency === '紧急' ? 'orange' : urgency === '普通' ? 'green' : 'default'}>
           {urgency}
         </Tag>
       )
@@ -252,9 +273,10 @@ export default function SecretaryWorkbench() {
           onCancel={() => {
             setScheduleModalVisible(false)
             setScheduleData({ expect_time: '', meeting_room: '', notes: '' })
+            setSelectedExperts([])
           }}
           confirmLoading={scheduleLoading}
-          width={600}
+          width={700}
         >
           <div className="space-y-4">
             {selectedConsultation && (
@@ -282,6 +304,26 @@ export default function SecretaryWorkbench() {
                 onChange={(e) => setScheduleData({ ...scheduleData, meeting_room: e.target.value })}
                 style={{ marginTop: 8 }}
               />
+            </div>
+            <div>
+              <strong>选择专家：</strong>
+              <Select
+                mode="multiple"
+                style={{ width: '100%', marginTop: 8 }}
+                placeholder="请选择会诊专家"
+                value={selectedExperts}
+                onChange={setSelectedExperts}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {experts.map(expert => (
+                  <Select.Option key={expert.id} value={expert.id}>
+                    {expert.name} - {expert.department} - {expert.title}
+                  </Select.Option>
+                ))}
+              </Select>
             </div>
             <div>
               <strong>备注：</strong>

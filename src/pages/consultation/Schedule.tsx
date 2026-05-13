@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Calendar, Badge, List, Avatar, Tag, Space, Button, Modal, DatePicker, message, Typography, Tabs, Table, Drawer, Result } from 'antd'
-import { PlusOutlined, TeamOutlined, CalendarOutlined, EditOutlined, ClockCircleOutlined, CheckCircleOutlined, UserOutlined } from '@ant-design/icons'
+import { PlusOutlined, TeamOutlined, CalendarOutlined, EditOutlined, ClockCircleOutlined, CheckCircleOutlined, UserOutlined, EyeOutlined } from '@ant-design/icons'
 import { supabase } from '../../lib/supabase'
 import dayjs from 'dayjs'
 import IntelligentScheduler from '../../components/IntelligentScheduler'
 import PatientInfo from '../../components/PatientInfo'
 import { hasPermission } from '../../utils/helpers'
+import { getUrgencyName } from '../../utils/codeTable'
 
 const { Title, Text } = Typography
 
@@ -21,6 +22,7 @@ interface ScheduleConsultation {
   applyTime: string
   urgency: string
   expectTime: string
+  scheduleTime?: string
   consultationPurpose?: string
   experts: Expert[]
   status: string
@@ -87,36 +89,41 @@ export default function Schedule() {
       const { data: pendingData, error: pendingError } = await supabase
         .from('consultations')
         .select('*')
-        .in('status', ['秘书审核', '待排期'])
+        .eq('status', 'secretary_pending')
         .order('apply_time', { ascending: false })
 
       if (pendingError) throw pendingError
 
-      const pendingList: ScheduleConsultation[] = (pendingData || []).map(c => ({
-        id: c.id,
-        patientName: c.patient_name,
-        patientInpatientNo: c.patient_inpatient_no,
-        patientId: c.patient_id,
-        mainDiagnosis: c.main_diagnosis,
-        department: c.department,
-        applyDoctor: c.apply_doctor,
-        applyTime: c.apply_time ? dayjs(c.apply_time).format('YYYY-MM-DD HH:mm') : '',
-        urgency: c.urgency || '普通',
-        expectTime: c.expect_time ? dayjs(c.expect_time).format('YYYY-MM-DD HH:mm') : '',
-        consultationPurpose: c.summary,
-        experts: consultationExpertMap.get(c.id)?.map(eid => {
-          const expert = expertMap.get(eid)
-          return { 
-            id: eid, 
-            name: expert?.name || '未知专家', 
-            department: expert?.department || '未知科室',
-            title: expert?.title || '',
-            status: '空闲' as const,
-            specialty: expert?.specialty || ''
-          }
-        }) || [],
-        status: c.status
-      }))
+      const pendingList: ScheduleConsultation[] = (pendingData || []).map(c => {
+        console.log('待排期会诊 - 患者:', c.patient_name, 'urgency:', c.urgency, 'status:', c.status)
+        
+        return {
+          id: c.id,
+          patientName: c.patient_name,
+          patientInpatientNo: c.patient_inpatient_no,
+          patientId: c.patient_id,
+          mainDiagnosis: c.main_diagnosis,
+          department: c.department,
+          applyDoctor: c.apply_doctor,
+          applyTime: c.apply_time ? dayjs(c.apply_time).format('YYYY-MM-DD HH:mm') : '',
+          urgency: getUrgencyName(c.urgency),
+          expectTime: c.expect_time ? dayjs(c.expect_time).format('YYYY-MM-DD HH:mm') : '',
+          scheduleTime: c.schedule_time ? dayjs(c.schedule_time).format('YYYY-MM-DD HH:mm') : '',
+          consultationPurpose: c.summary,
+          experts: consultationExpertMap.get(c.id)?.map(eid => {
+            const expert = expertMap.get(eid)
+            return { 
+              id: eid, 
+              name: expert?.name || '未知专家', 
+              department: expert?.department || '未知科室',
+              title: expert?.title || '',
+              status: '空闲' as const,
+              specialty: expert?.specialty || ''
+            }
+          }) || [],
+          status: c.status
+        }
+      })
 
       setPendingConsultations(pendingList)
 
@@ -140,6 +147,7 @@ export default function Schedule() {
         applyTime: c.apply_time ? dayjs(c.apply_time).format('YYYY-MM-DD HH:mm') : '',
         urgency: c.urgency || '普通',
         expectTime: c.expect_time ? dayjs(c.expect_time).format('YYYY-MM-DD HH:mm') : '',
+        scheduleTime: c.schedule_time ? dayjs(c.schedule_time).format('YYYY-MM-DD HH:mm') : '',
         consultationPurpose: c.summary,
         experts: consultationExpertMap.get(c.id)?.map(eid => {
           const expert = expertMap.get(eid)
@@ -167,7 +175,7 @@ export default function Schedule() {
   const getListData = (value: dayjs.Dayjs) => {
     const dateStr = value.format('YYYY-MM-DD')
     return scheduledConsultations
-      .filter(c => c.expectTime.startsWith(dateStr))
+      .filter(c => c.scheduleTime ? c.scheduleTime.startsWith(dateStr) : c.expectTime.startsWith(dateStr))
       .map(c => ({
         id: c.id,
         type: c.urgency === '紧急' ? 'error' : c.urgency === '特急' ? 'warning' : 'success',
@@ -180,7 +188,7 @@ export default function Schedule() {
   }
 
   const selectedDateConsultations = scheduledConsultations.filter(c =>
-    c.expectTime.startsWith(selectedDate.format('YYYY-MM-DD'))
+    c.scheduleTime ? c.scheduleTime.startsWith(selectedDate.format('YYYY-MM-DD')) : c.expectTime.startsWith(selectedDate.format('YYYY-MM-DD'))
   )
 
   // 打开智能排期
@@ -233,132 +241,43 @@ export default function Schedule() {
         <Table
           dataSource={pendingConsultations}
           rowKey="id"
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1200 }}
           columns={[
-            {
-              title: '患者信息',
-              dataIndex: 'patientName',
-              width: 120,
-              fixed: 'left',
-              render: (name, record: any) => (
-                <Space>
-                  <Avatar icon={<UserOutlined />} size="small" />
-                  <div>
-                    <div className="font-medium">{name}</div>
-                    <div className="text-xs text-gray-500">{record.patientInpatientNo}</div>
-                    <div className="text-xs text-gray-400">{record.age ? `${record.age}岁` : ''} {record.gender === 'male' ? '男' : record.gender === 'female' ? '女' : ''}</div>
-                  </div>
-                </Space>
-              )
-            },
-            {
-              title: '诊断信息',
-              key: 'diagnosis',
-              width: 180,
-              render: (_, record: any) => (
-                <div>
-                  <div className="font-medium text-sm">{record.mainDiagnosis}</div>
-                  {record.otherDiagnoses && record.otherDiagnoses.length > 0 && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      其他：{record.otherDiagnoses.slice(0, 2).join('、')}
-                      {record.otherDiagnoses.length > 2 && ` 等${record.otherDiagnoses.length}项`}
-                    </div>
-                  )}
-                </div>
-              )
-            },
-            {
-              title: '申请信息',
-              key: 'apply',
-              width: 120,
-              render: (_, record: any) => (
-                <div>
-                  <div className="text-sm">{record.department}</div>
-                  <div className="text-xs text-gray-500">{record.applyDoctor}</div>
-                  <div className="text-xs text-gray-400">{record.applyDate}</div>
-                </div>
-              )
-            },
+            { title: '患者姓名', dataIndex: 'patientName', width: 100 },
+            { title: '住院号', dataIndex: 'patientInpatientNo', width: 140 },
+            { title: '科室', dataIndex: 'department', width: 100 },
+            { title: '诊断', dataIndex: 'mainDiagnosis', ellipsis: true },
             {
               title: '紧急程度',
               dataIndex: 'urgency',
               width: 90,
-              render: (urgency: string) => {
-                const colorMap: Record<string, string> = {
-                  '特急': 'red',
-                  '紧急': 'orange',
-                  '普通': 'default'
-                }
-                return <Tag color={colorMap[urgency] || 'default'}>{urgency}</Tag>
-              }
-            },
-            {
-              title: '期望时间',
-              dataIndex: 'expectTime',
-              width: 140,
-              render: (time) => (
-                <div>
-                  <div className="text-sm">{time}</div>
-                </div>
+              render: (urgency: string) => (
+                <Tag color={urgency === '危急' ? 'red' : urgency === '紧急' ? 'orange' : urgency === '普通' ? 'green' : 'default'}>
+                  {urgency}
+                </Tag>
               )
             },
+            { title: '申请医生', dataIndex: 'applyDoctor', width: 100 },
             {
-              title: '会诊目的',
-              dataIndex: 'consultationPurpose',
-              width: 150,
-              ellipsis: true
-            },
-            {
-              title: '邀请专家',
-              dataIndex: 'experts',
-              width: 180,
-              render: (experts: Expert[]) => (
-                <Space wrap>
-                  {experts.slice(0, 3).map(e => (
-                    <Tag key={e.id} color="blue">
-                      {e.name}
-                      <br />
-                      <span className="text-xs">{e.department}</span>
-                    </Tag>
-                  ))}
-                  {experts.length > 3 && (
-                    <Tag color="gray">+{experts.length - 3}人</Tag>
-                  )}
-                </Space>
-              )
+              title: '申请时间',
+              dataIndex: 'applyTime',
+              width: 160,
+              render: (t: string) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
             },
             {
               title: '操作',
               key: 'action',
-              width: 120,
+              width: 100,
               fixed: 'right',
               render: (_, record) => (
-                <Space direction="vertical" size="small">
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<CalendarOutlined />}
-                    onClick={() => handleSchedule(record)}
-                    block
-                  >
-                    智能排期
-                  </Button>
-                  <Button
-                    size="small"
-                    icon={<UserOutlined />}
-                    onClick={() => showPatientInfo(record.patientId, record.patientName, record.patientInpatientNo)}
-                    block
-                  >
-                    患者信息
-                  </Button>
-                  <Button
-                    size="small"
-                    onClick={() => navigate(`/consultation/detail/${record.id}`)}
-                    block
-                  >
-                    会诊详情
-                  </Button>
-                </Space>
+                <Button
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={() => navigate(`/consultation/detail/${record.id}`)}
+                  block
+                >
+                  详情
+                </Button>
               )
             }
           ]}
@@ -399,11 +318,11 @@ export default function Schedule() {
             },
             {
               title: '会诊时间',
-              dataIndex: 'expectTime',
-              render: (time) => (
+              dataIndex: 'scheduleTime',
+              render: (scheduleTime, record: any) => (
                 <Space>
                   <CalendarOutlined />
-                  {time}
+                  {scheduleTime || record.expectTime || '-'}
                 </Space>
               )
             },

@@ -8,6 +8,7 @@ import type { Consultation } from '../../stores/consultationStore'
 import dayjs from 'dayjs'
 import { useAppStore } from '../../stores/appStore'
 import { hasPermission } from '../../utils/helpers'
+import { getConsultationStatusName, getConsultationStatusColor, getUrgencyName, getUrgencyColor, getConsultationTypeName, getConsultationTypeColor } from '../../utils/codeTable'
 
 const { Title, Text } = Typography
 
@@ -98,7 +99,7 @@ export default function MyApplies() {
         try {
           const { error } = await supabase
             .from('consultations')
-            .update({ status: '已取消' })
+            .update({ status: 'cancelled' })
             .eq('id', id)
           
           if (error) throw error
@@ -140,17 +141,29 @@ export default function MyApplies() {
       render: (code) => <Tag color="blue">{code || '-'}</Tag> 
     },
     { title: '患者姓名', dataIndex: 'patientName', width: 100 },
-    { title: '会诊类型', dataIndex: 'type', width: 100, render: (t) => <Tag color={t === '院内' ? 'blue' : 'green'}>{t}</Tag> },
+    { 
+      title: '会诊类型', 
+      dataIndex: 'type', 
+      width: 100, 
+      render: (t) => {
+        // t 是编码（inhospital/remote），需要转换为中文
+        const typeName = getConsultationTypeName(t)
+        const typeColor = getConsultationTypeColor(t)
+        return <Tag color={typeColor}>{typeName}</Tag>
+      }
+    },
     {
       title: '紧急程度',
       dataIndex: 'urgency',
       width: 100,
       render: (urgency) => {
-        const color = urgency === '特急' ? 'red' : urgency === '紧急' ? 'orange' : 'green'
-        if (urgency === '特急') {
-          return <Tag color={color}><strong>{urgency}</strong></Tag>
+        // urgency 是编码（critical/urgent/normal），需要转换为中文
+        const urgencyName = getUrgencyName(urgency)
+        const urgencyColor = getUrgencyColor(urgency)
+        if (urgencyName === '危急') {
+          return <Tag color={urgencyColor}><strong>{urgencyName}</strong></Tag>
         }
-        return <Tag color={color}>{urgency}</Tag>
+        return <Tag color={urgencyColor}>{urgencyName}</Tag>
       },
     },
     { title: '申请时间', dataIndex: 'applyTime', width: 150, render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-' },
@@ -171,40 +184,13 @@ export default function MyApplies() {
       },
     },
     {
-      title: '状态',
+      title: '审批状态',
       dataIndex: 'status',
+      width: 120,
       render: (t: Consultation['status']) => {
-        const colors: Record<string, string> = {
-          'doctor_submit': 'blue',
-          'director_pending': 'orange',
-          'director_rejected': 'red',
-          'secretary_pending': 'purple',
-          'pending_supplement': 'orange',
-          'material_rejected': 'orange',
-          'scheduled': 'blue',
-          'expert_confirmed': 'cyan',
-          'pending_meeting': 'blue',
-          'in_progress': 'processing',
-          'completed': 'green',
-          'archived': 'green',
-          'rejected': 'red',
-          'cancelled': 'default',
-        }
-        const texts: Record<string, string> = {
-          'doctor_submit': '已提交',
-          'director_pending': '主任审核',
-          'director_rejected': '主任驳回',
-          'secretary_pending': '秘书审核',
-          'pending_supplement': '待补正',
-          'material_rejected': '退回修改',
-          'scheduled': '已排期',
-          'expert_confirmed': '专家确认',
-          'pending_meeting': '待会诊',
-          'in_progress': '会诊中',
-          'completed': '已完成',
-          'archived': '已归档',
-        }
-        return <Tag color={colors[t] || 'default'}>{texts[t] || t}</Tag>
+        const name = getConsultationStatusName(t);
+        const color = getConsultationStatusColor(t);
+        return <Tag color={color}>{name}</Tag>;
       }
     },
     {
@@ -214,9 +200,9 @@ export default function MyApplies() {
       width: 200,
       render: (text: string, record: any) => {
         // 只有在拒绝/驳回状态下才显示拒绝原因
-        const rejectStatuses = ['director_rejected', 'pending_supplement', 'material_rejected', '主任驳回', '待补正', '退回修改'];
+        const rejectStatuses = ['director_rejected', 'pending_supplement', 'material_rejected'];
         // 过滤掉状态值被错误写入的情况
-        const statusValues = ['医生提交', '待主任审核', '主任驳回', '秘书审核', '待补正', '退回修改', '已排期', '专家确认', '待会诊', '会诊中', '已完成', '已归档', '已拒绝', '已取消', 'doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected', 'scheduled', 'expert_confirmed', 'pending_meeting', 'in_progress', 'completed', 'archived', 'rejected', 'cancelled'];
+        const statusValues = ['医生提交', '待主任审核', '主任驳回', '秘书审核', '待补正', '退回修改', '已排期', '专家确认', '待会诊', '会诊中', '已完成', '已归档', '秘书驳回', '已取消', 'doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected', 'scheduled', 'expert_confirmed', 'pending_meeting', 'in_progress', 'completed', 'archived', 'rejected', 'cancelled'];
         
         if (rejectStatuses.includes(record.status) && text && !statusValues.includes(text)) {
           return <Text type="warning" ellipsis>{text}</Text>
@@ -239,7 +225,7 @@ export default function MyApplies() {
             详情
           </Button>
           {/* 在专家确认前都可以撤销 */}
-          {(['doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected', '医生提交', '待主任审核', '主任驳回', '秘书审核', '待补正', '退回修改'].includes(record.status)) && (
+          {(['doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected'].includes(record.status)) && (
             <Button
               size="small"
               danger
@@ -250,18 +236,18 @@ export default function MyApplies() {
             </Button>
           )}
           {/* 主任驳回后可以修改重提 */}
-          {(['director_rejected', '主任驳回'].includes(record.status)) && (
+          {(['director_rejected'].includes(record.status)) && (
             <Button
               size="small"
               type="primary"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
             >
-              修改重提
+              补正
             </Button>
           )}
           {/* 秘书退回待补正 */}
-          {(['pending_supplement', 'material_rejected', '待补正', '退回修改'].includes(record.status)) && (
+          {(['pending_supplement', 'material_rejected'].includes(record.status)) && (
             <Button
               size="small"
               type="primary"
@@ -306,21 +292,19 @@ export default function MyApplies() {
           value={statusFilter || undefined}
           onChange={setStatusFilter}
           options={[
-            { value: '医生提交', label: '医生提交' },
-            { value: '待主任审核', label: '待主任审核' },
-            { value: '主任驳回', label: '主任驳回' },
-            { value: '秘书审核', label: '秘书审核' },
-            { value: '待补正', label: '待补正' },
-            { value: '待排期', label: '待排期' },
-            { value: '待专家确认', label: '待专家确认' },
-            { value: '待会诊', label: '待会诊' },
-            { value: '会诊中', label: '会诊中' },
-            { value: '会诊结束', label: '会诊结束' },
-            { value: '待质检审核', label: '待质检审核' },
-            { value: '待归档', label: '待归档' },
-            { value: '已归档', label: '已归档' },
-            { value: '已拒绝', label: '已拒绝' },
-            { value: '已取消', label: '已取消' },
+            { value: 'doctor_submit', label: '医生提交' },
+            { value: 'director_pending', label: '待主任审核' },
+            { value: 'director_rejected', label: '主任驳回' },
+            { value: 'secretary_pending', label: '秘书审核' },
+            { value: 'pending_supplement', label: '待补正' },
+            { value: 'scheduled', label: '已排期' },
+            { value: 'expert_confirmed', label: '专家确认' },
+            { value: 'pending_meeting', label: '待会诊' },
+            { value: 'in_progress', label: '会诊中' },
+            { value: 'completed', label: '已完成' },
+            { value: 'archived', label: '已归档' },
+            { value: 'rejected', label: '秘书驳回' },
+            { value: 'cancelled', label: '已取消' },
           ]}
         />
         <Select

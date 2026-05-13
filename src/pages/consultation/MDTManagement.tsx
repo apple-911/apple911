@@ -345,7 +345,7 @@ export default function MDTManagement() {
       '待归档': 7,
       '已完成': 7,
       '已取消': 7,
-      '已拒绝': 7,
+      '秘书驳回': 7,
     }
 
     const currentIndex = statusOrder[status] ?? 0

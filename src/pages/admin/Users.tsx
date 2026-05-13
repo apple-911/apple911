@@ -36,7 +36,7 @@ export default function Users() {
   // 获取科室主任列表（用于选择直属上级）
   const getDirectors = () => {
     return users.filter(u => 
-      u.position.includes('主任') && u.status === 'active'
+      u.position?.includes('主任') && u.status === 'active'
     )
   }
 

@@ -116,28 +116,110 @@ export function getCodeColor(typeId: string, code: string): string {
  * 获取紧急程度名称
  */
 export function getUrgencyName(code: string): string {
-  return getCodeName('urgency_level', code)
+  // 先尝试从码表获取
+  const name = getCodeName('urgency_level', code)
+  
+  // 如果返回的还是原始代码（说明码表未加载或不存在），使用默认映射
+  if (name === code) {
+    const defaultNames: Record<string, string> = {
+      'critical': '危急',
+      'urgent': '紧急',
+      'normal': '普通',
+    }
+    return defaultNames[code] || code
+  }
+  
+  return name
 }
 
 /**
  * 获取紧急程度颜色
  */
 export function getUrgencyColor(code: string): string {
-  return getCodeColor('urgency_level', code)
+  // 先尝试从码表获取
+  const color = getCodeColor('urgency_level', code)
+  
+  // 如果码表有定义颜色，则使用码表颜色
+  if (color && color !== 'default') {
+    return color
+  }
+  
+  // 否则使用默认映射（确保危急=红，紧急=橙，普通=绿）
+  const defaultColors: Record<string, string> = {
+    'critical': 'red',
+    'urgent': 'orange',
+    'normal': 'green',
+  }
+  
+  return defaultColors[code] || 'default'
 }
 
 /**
  * 获取会诊状态名称
  */
 export function getConsultationStatusName(code: string): string {
-  return getCodeName('consultation_status', code)
+  // 先尝试从码表获取
+  const name = getCodeName('consultation_status', code)
+  
+  // 如果返回的还是原始代码（说明码表未加载或不存在），使用默认映射
+  if (name === code) {
+    const defaultStatus: Record<string, string> = {
+      'doctor_submit': '医生提交',
+      'director_pending': '待主任审核',
+      'director_approved': '主任通过',
+      'director_rejected': '主任驳回',
+      'secretary_pending': '待秘书审核',
+      'secretary_approved': '秘书通过',
+      'pending_supplement': '待补正',
+      'material_rejected': '退回修改',
+      'expert_invited': '专家邀请',
+      'expert_confirmed': '专家确认',
+      'scheduled': '已排期',
+      'in_progress': '会诊中',
+      'completed': '已完成',
+      'archived': '已归档',
+      'cancelled': '已取消',
+      'rejected': '秘书驳回',
+      'pending_meeting': '待会诊',
+    }
+    return defaultStatus[code] || code
+  }
+  
+  return name
 }
 
 /**
  * 获取会诊状态颜色
  */
 export function getConsultationStatusColor(code: string): string {
-  return getCodeColor('consultation_status', code)
+  // 先尝试从码表获取
+  const color = getCodeColor('consultation_status', code)
+  
+  // 如果返回的还是默认值（说明码表未加载或不存在），使用默认映射
+  if (color === 'default') {
+    const defaultColors: Record<string, string> = {
+      'doctor_submit': 'blue',
+      'director_pending': 'orange',
+      'director_approved': 'green',
+      'director_rejected': 'red',
+      'secretary_pending': 'orange',
+      'secretary_approved': 'green',
+      'pending_supplement': 'orange',
+      'material_rejected': 'red',
+      'expert_invited': 'blue',
+      'expert_confirmed': 'green',
+      'scheduled': 'blue',
+      'in_progress': 'processing',
+      'completed': 'green',
+      'archived': 'gray',
+      'cancelled': 'red',
+      'rejected': 'red',
+      'pending_meeting': 'orange',
+    }
+    return defaultColors[code] || 'default'
+  }
+  
+  return color
 }
 
 /**
@@ -184,6 +266,96 @@ export function getUserStatusName(code: string): string {
  */
 export function getProcessNodeName(code: string): string {
   return getCodeName('process_node', code)
+}
+
+/**
+ * 获取审核节点名称（用于审核流程显示）
+ */
+export function getAuditNodeName(code: string): string {
+  // 先尝试从码表获取
+  const name = getCodeName('audit_node', code)
+  
+  // 如果返回的还是原始代码（说明码表未加载或不存在），使用默认映射
+  if (name === code) {
+    const defaultNames: Record<string, string> = {
+      'apply_submit': '申请提交',
+      'department_audit': '科室审核',
+      'secretary_audit': '秘书审核',
+      'expert_confirm': '专家确认',
+      'meeting_schedule': '会议安排',
+      'meeting_record': '会议记录',
+      'report_submit': '报告提交',
+      'revoke': '撤回',
+      '重新提交': '重新提交',
+      '申请提交': '申请提交',
+    }
+    return defaultNames[code] || code
+  }
+  
+  return name
+}
+
+/**
+ * 获取会诊类型名称
+ */
+export function getConsultationTypeName(code: string): string {
+  // 先尝试从码表获取
+  const name = getCodeName('consultation_type', code)
+  
+  // 如果返回的还是原始代码（说明码表未加载或不存在），使用默认映射
+  if (name === code) {
+    const defaultNames: Record<string, string> = {
+      'inhospital': '院内会诊',
+      'remote': '远程会诊',
+    }
+    return defaultNames[code] || code
+  }
+  
+  return name
+}
+
+/**
+ * 获取会诊类型颜色
+ */
+export function getConsultationTypeColor(code: string): string {
+  // 先尝试从码表获取
+  const color = getCodeColor('consultation_type', code)
+  
+  // 如果码表有定义颜色，则使用码表颜色
+  if (color && color !== 'default') {
+    return color
+  }
+  
+  // 否则使用默认映射
+  const defaultColors: Record<string, string> = {
+    'inhospital': 'blue',
+    'remote': 'green',
+  }
+  
+  return defaultColors[code] || 'default'
+}
+
+/**
+ * 获取审核结果名称
+ */
+export function getAuditResultName(code: string): string {
+  // 先尝试从码表获取
+  const name = getCodeName('audit_result', code)
+  
+  // 如果返回的还是原始代码（说明码表未加载或不存在），使用默认映射
+  if (name === code) {
+    const defaultNames: Record<string, string> = {
+      'approved': '通过',
+      'rejected': '驳回',
+      'scheduled': '已排期',
+      'rescheduled': '已重排',
+      'confirmed': '已确认',
+      'cancelled': '已取消',
+    }
+    return defaultNames[code] || code
+  }
+  
+  return name
 }
 
 /**

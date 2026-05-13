@@ -19,7 +19,7 @@ import { useAppStore } from '../../stores/appStore'
 import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { getConsultationStatusName, getConsultationStatusColor, getUrgencyName, getUrgencyColor } from '../../utils/codeTable'
+import { getConsultationStatusName, getConsultationStatusColor, getUrgencyName, getUrgencyColor, getConsultationTypeName, getConsultationTypeColor } from '../../utils/codeTable'
 
 const { Title, Text } = Typography
 
@@ -98,7 +98,7 @@ export default function DoctorWorkbench() {
           status: getConsultationStatusName(c.status),
           originalStatus: c.status,
           urgency: getUrgencyName(c.urgency || c.urgency_level || 'normal'),
-          type: c.type || '院内',
+          type: getConsultationTypeName(c.type || 'inhospital'),
           expectTime: c.expect_time ? dayjs(c.expect_time).format('YYYY-MM-DD HH:mm') : '-',
           createTime: dayjs(c.apply_time).format('YYYY-MM-DD HH:mm'),
           expertCount: expertCountMap.get(c.id) || 0,
@@ -147,7 +147,11 @@ export default function DoctorWorkbench() {
       dataIndex: 'type', 
       key: 'type', 
       width: 100,
-      render: (t) => <Tag color={t === '院内' ? 'blue' : 'green'}>{t}</Tag> 
+      render: (t) => {
+        // t 已经是转换后的中文（院内会诊/远程会诊）
+        const color = t === '院内会诊' ? 'blue' : 'green'
+        return <Tag color={color}>{t}</Tag>
+      }
     },
     {
       title: '紧急程度',
@@ -155,8 +159,13 @@ export default function DoctorWorkbench() {
       key: 'urgency',
       width: 100,
       render: (urgency) => {
-        const color = urgency === '特急' ? 'red' : urgency === '紧急' ? 'orange' : 'green'
-        if (urgency === '特急') {
+        const colorMap: Record<string, string> = {
+          '危急': 'red',
+          '紧急': 'orange',
+          '普通': 'green',
+        }
+        const color = colorMap[urgency] || 'default'
+        if (urgency === '危急') {
           return <Tag color={color}><strong>{urgency}</strong></Tag>
         }
         return <Tag color={color}>{urgency}</Tag>
@@ -191,7 +200,7 @@ export default function DoctorWorkbench() {
       ),
     },
     {
-      title: '状态',
+      title: '审批状态',
       dataIndex: 'status',
       key: 'status',
       width: 100,
@@ -237,6 +246,8 @@ export default function DoctorWorkbench() {
           'in_progress': '会诊中',
           'completed': '已完成',
           'archived': '已归档',
+          'rejected': '秘书驳回',
+          'cancelled': '已取消',
           '医生提交': '已提交',
           '待主任审核': '主任审核',
           '主任驳回': '主任驳回',
@@ -261,7 +272,12 @@ export default function DoctorWorkbench() {
       ellipsis: true,
       width: 200,
       render: (text: string, record: MyApplication) => {
-        if ((['director_rejected', 'pending_supplement', 'material_rejected', '主任驳回', '待补正', '退回修改'].includes(record.originalStatus)) && text) {
+        // 只有在拒绝/驳回状态下才显示拒绝原因
+        const rejectStatuses = ['director_rejected', 'pending_supplement', 'material_rejected'];
+        // 过滤掉状态值被错误写入的情况
+        const statusValues = ['医生提交', '待主任审核', '主任驳回', '秘书审核', '待补正', '退回修改', '已排期', '专家确认', '待会诊', '会诊中', '已完成', '已归档', '秘书驳回', '已取消', 'doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected', 'scheduled', 'expert_confirmed', 'pending_meeting', 'in_progress', 'completed', 'archived', 'rejected', 'cancelled'];
+        
+        if (rejectStatuses.includes(record.originalStatus) && text && !statusValues.includes(text)) {
           return <Text type="warning" ellipsis>{text}</Text>
         }
         return '-'
@@ -282,7 +298,7 @@ export default function DoctorWorkbench() {
             详情
           </Button>
           {/* 在专家确认前都可以撤销 */}
-          {(['doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected', '医生提交', '待主任审核', '主任驳回', '秘书审核', '待补正', '退回修改'].includes(record.originalStatus)) && (
+          {(['doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'pending_supplement', 'material_rejected'].includes(record.originalStatus)) && (
             <Button
               size="small"
               danger
@@ -293,18 +309,18 @@ export default function DoctorWorkbench() {
             </Button>
           )}
           {/* 主任驳回后可以修改重提 */}
-          {(['director_rejected', '主任驳回'].includes(record.originalStatus)) && (
+          {(['director_rejected'].includes(record.originalStatus)) && (
             <Button
               size="small"
               type="primary"
               icon={<EditOutlined />}
               onClick={() => navigate(`/consultation/apply/${record.dbId}`)}
             >
-              修改重提
+              补正
             </Button>
           )}
           {/* 秘书退回待补正 */}
-          {(['pending_supplement', 'material_rejected', '待补正', '退回修改'].includes(record.originalStatus)) && (
+          {(['pending_supplement', 'material_rejected'].includes(record.originalStatus)) && (
             <Button
               size="small"
               type="primary"
@@ -324,7 +340,7 @@ export default function DoctorWorkbench() {
       const { error } = await supabase
         .from('consultations')
         .update({ 
-          status: '已取消',
+          status: 'cancelled',
           updated_at: new Date().toISOString()
         })
         .eq('id', consultationId)

@@ -6,6 +6,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { mockConsultationProgress, mockProgressStats, type ConsultationProgress } from '../../mocks/progressData'
 import PatientInfo from '../../components/PatientInfo'
 import { hasPermission } from '../../utils/helpers'
+import { getUrgencyName, getUrgencyColor, getConsultationTypeName, getConsultationTypeColor } from '../../utils/codeTable'
 
 const { Title, Text } = Typography
 
@@ -301,18 +302,19 @@ export default function ConsultationTracking() {
           <div className="space-y-4">
             <Descriptions bordered column={2} size="small">
               <Descriptions.Item label="会诊ID">{selectedRecord.id}</Descriptions.Item>
-              <Descriptions.Item label="会诊类型">{selectedRecord.consultationType}</Descriptions.Item>
+              <Descriptions.Item label="会诊类型">
+                <Tag color={getConsultationTypeColor(selectedRecord.consultationType)}>
+                  {getConsultationTypeName(selectedRecord.consultationType)}
+                </Tag>
+              </Descriptions.Item>
               <Descriptions.Item label="患者姓名">{selectedRecord.patientName}</Descriptions.Item>
               <Descriptions.Item label="性别/年龄">{selectedRecord.gender} / {selectedRecord.age}岁</Descriptions.Item>
               <Descriptions.Item label="申请科室">{selectedRecord.department}</Descriptions.Item>
               <Descriptions.Item label="申请人">{selectedRecord.applicant}</Descriptions.Item>
               <Descriptions.Item label="申请日期">{selectedRecord.applyDate}</Descriptions.Item>
               <Descriptions.Item label="优先级">
-                <Tag color={
-                  selectedRecord.priority === '紧急' ? 'red' :
-                  selectedRecord.priority === '较急' ? 'orange' : 'default'
-                }>
-                  {selectedRecord.priority}
+                <Tag color={getUrgencyColor(selectedRecord.priority)}>
+                  {getUrgencyName(selectedRecord.priority)}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="当前阶段">{selectedRecord.currentStage}</Descriptions.Item>

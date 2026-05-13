@@ -1,0 +1,105 @@
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('urgency_level','critical','危急',NULL,'red',NULL,1,'active','2026-05-12 09:55:24.24533+00','2026-05-12 09:55:24.24533+00'),
+	 ('urgency_level','urgent','紧急',NULL,'orange',NULL,2,'active','2026-05-12 09:55:24.24533+00','2026-05-12 09:55:24.24533+00'),
+	 ('urgency_level','normal','普通',NULL,'green',NULL,3,'active','2026-05-12 09:55:24.24533+00','2026-05-12 09:55:24.24533+00'),
+	 ('consultation_status','医生提交','医生提交',NULL,'blue',NULL,1,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00'),
+	 ('consultation_status','待秘书审核','待秘书审核',NULL,'orange',NULL,2,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00'),
+	 ('consultation_status','秘书通过','秘书通过',NULL,'green',NULL,3,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00'),
+	 ('consultation_status','待主任审核','待主任审核',NULL,'purple',NULL,4,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00'),
+	 ('consultation_status','主任通过','主任通过',NULL,'cyan',NULL,5,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00'),
+	 ('consultation_status','主任驳回','主任驳回',NULL,'red',NULL,6,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00'),
+	 ('consultation_status','待专家确认','待专家确认',NULL,'blue',NULL,7,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00');
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('consultation_status','专家确认','专家确认',NULL,'green',NULL,8,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00'),
+	 ('consultation_status','专家拒绝','专家拒绝',NULL,'red',NULL,9,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00'),
+	 ('consultation_status','已完成','已完成',NULL,'success',NULL,10,'active','2026-05-12 10:00:11.102658+00','2026-05-12 10:00:11.102658+00'),
+	 ('consultation_status','doctor_submit','医生提交','申请医生提交会诊申请','blue',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','director_pending','待主任审核','等待科室主任审核','orange',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','director_approved','主任通过','主任审核通过','green',NULL,3,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','director_rejected','主任驳回','主任审核驳回','red',NULL,4,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','secretary_pending','待秘书审核','等待MDT秘书审核','orange',NULL,5,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','pending_supplement','待补正','等待补充材料','orange',NULL,7,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','material_rejected','退回修改','材料被退回修改','red',NULL,8,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00');
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('consultation_status','expert_invited','专家邀请','已发送专家邀请','blue',NULL,9,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','expert_confirmed','专家确认','专家已确认参会','green',NULL,10,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','scheduled','已排期','会诊已安排时间','blue',NULL,11,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','in_progress','会诊中','会诊正在进行','processing',NULL,12,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','completed','已完成','会诊已完成','success',NULL,13,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','archived','已归档','会诊已归档','gray',NULL,14,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','cancelled','已取消','会诊已取消','red',NULL,15,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','pending_meeting','待会诊','等待会诊开始','orange',NULL,17,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('role_type','apply_doctor','申请医生','发起会诊申请的医生','blue',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('role_type','director','主任医生','科室主任','orange',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00');
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('role_type','secretary','MDT秘书','MDT中心秘书','green',NULL,3,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('role_type','expert','会诊专家','参与会诊的专家','purple',NULL,4,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('role_type','quality_controller','质控员','质量控制人员','red',NULL,5,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('role_type','admin','系统管理员','系统管理员','cyan',NULL,6,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('role_type','super_admin','超级管理员','超级管理员','gold',NULL,7,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('process_node','apply','申请提交','医生提交会诊申请','blue',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('process_node','department_audit','科室审核','主任医生审核','orange',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('process_node','secretary_audit','秘书审核','MDT秘书审核','orange',NULL,3,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('process_node','material_submit','材料提交','提交会诊材料','blue',NULL,4,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','secretary_approved','已排期','秘书审核通过并安排会诊时间','green',NULL,6,'active','2026-05-12 10:27:32.525278+00','2026-05-13 07:47:10.84536+00');
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('process_node','expert_invite','专家邀请','邀请专家参会','purple',NULL,5,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('process_node','schedule','排期安排','安排会诊时间','blue',NULL,6,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('process_node','meeting','会诊实施','进行会诊','green',NULL,7,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('process_node','report','报告编写','编写会诊报告','blue',NULL,8,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('process_node','followup','随访跟踪','患者随访','cyan',NULL,9,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('process_node','archive','归档','会诊归档','gray',NULL,10,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('report_status','draft','草稿','报告草稿','default',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('report_status','pending_sign','待签名','等待签名','orange',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('report_status','signed','已签名','已完成签名','green',NULL,3,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('report_status','archived','已归档','报告已归档','gray',NULL,4,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00');
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('user_status','active','启用','用户账户正常','green',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('user_status','inactive','禁用','用户账户禁用','red',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('expert_status','online','在线','专家在线','green',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('expert_status','busy','忙碌','专家忙碌','orange',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('expert_status','offline','离线','专家离线','gray',NULL,3,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('quality_status','pending','待检查','等待质控检查','orange',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('quality_status','processing','处理中','质控处理中','blue',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('quality_status','resolved','已解决','质控问题已解决','green',NULL,3,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('followup_status','pending','待执行','等待执行随访','orange',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('followup_status','in_progress','进行中','随访进行中','blue',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00');
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('followup_status','completed','已完成','随访已完成','green',NULL,3,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('material_status','pending','待提交','等待提交材料','orange',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('material_status','submitted','已提交','材料已提交','blue',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('material_status','approved','审核通过','材料审核通过','green',NULL,3,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('material_status','rejected','已退回','材料被退回','red',NULL,4,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('audit_result','approved','通过','审核通过','green',NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('audit_result','rejected','拒绝','审核拒绝','red',NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-consultation-apply','会诊申请','申请会诊权限',NULL,NULL,1,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-consultation-detail','会诊详情','查看会诊详情',NULL,NULL,2,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-consultation-review','会诊审核','审核会诊申请',NULL,NULL,3,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00');
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('permission_type','perm-consultation-schedule','排期管理','管理会诊排期',NULL,NULL,4,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-consultation-confirm','会诊确认','确认会诊',NULL,NULL,5,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-consultation-track','会诊跟踪','跟踪会诊进度',NULL,NULL,6,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-consultation-material','材料管理','管理会诊材料',NULL,NULL,7,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-patient-list','患者列表','查看患者列表',NULL,NULL,8,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-patient-360','患者360','查看患者360视图',NULL,NULL,9,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-report-list','报告列表','查看报告列表',NULL,NULL,10,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-report-edit','报告编辑','编辑会诊报告',NULL,NULL,11,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-followup-list','随访管理','管理随访任务',NULL,NULL,12,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-quality-dashboard','质控仪表板','查看质控仪表板',NULL,NULL,13,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00');
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('permission_type','perm-record-library','病案库','查看病案库',NULL,NULL,14,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-ai-screening','AI筛查','使用AI筛查',NULL,NULL,15,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-admin-orgs','组织管理','管理组织机构',NULL,NULL,16,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-admin-users','用户管理','管理用户',NULL,NULL,17,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-admin-roles','角色管理','管理角色权限',NULL,NULL,18,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('permission_type','perm-admin-codes','码表管理','管理系统码表',NULL,NULL,19,'active','2026-05-12 10:27:32.525278+00','2026-05-12 10:27:32.525278+00'),
+	 ('consultation_status','rejected','秘书驳回','秘书审核驳回','red',NULL,16,'active','2026-05-12 10:27:32.525278+00','2026-05-12 16:32:05.094247+00'),
+	 ('meeting_room','room1','MDT会诊中心一号会议室','MDT会诊中心一号会议室',NULL,NULL,1,'active','2026-05-13 04:18:17.790161+00','2026-05-13 04:18:17.790161+00'),
+	 ('meeting_room','room2','MDT会诊中心二号会议室','MDT会诊中心二号会议室',NULL,NULL,2,'active','2026-05-13 04:18:17.790161+00','2026-05-13 04:18:17.790161+00'),
+	 ('meeting_room','room3','远程会诊室','远程视频会诊专用会议室',NULL,NULL,3,'active','2026-05-13 04:18:17.790161+00','2026-05-13 04:18:17.790161+00');
+INSERT INTO public.sys_codes (type_id,code,"name",description,color,icon,sort_order,status,created_at,updated_at) VALUES
+	 ('meeting_room','room4','VIP会诊室','VIP患者专用会诊室',NULL,NULL,4,'active','2026-05-13 04:18:17.790161+00','2026-05-13 04:18:17.790161+00'),
+	 ('consultation_status','rescheduled','已重排','会诊已重新安排时间','purple',NULL,18,'active','2026-05-13 07:47:10.84536+00','2026-05-13 07:47:10.84536+00'),
+	 ('process_node','rescheduled','重新排期','秘书重新安排会诊时间','purple',NULL,11,'active','2026-05-13 07:47:10.84536+00','2026-05-13 07:47:10.84536+00'),
+	 ('audit_result','scheduled','已排期','秘书首次排期','blue',NULL,5,'active','2026-05-13 07:47:10.84536+00','2026-05-13 07:47:10.84536+00'),
+	 ('audit_result','rescheduled','已重排','秘书重新排期','purple',NULL,6,'active','2026-05-13 07:47:10.84536+00','2026-05-13 07:47:10.84536+00');

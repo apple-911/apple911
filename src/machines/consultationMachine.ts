@@ -257,7 +257,7 @@ export const statusConfig: Record<ConsultationStatus, { label: string; color: st
   [ConsultationStatus.SCHEDULED]: { label: '已排期', color: 'blue', icon: '📅', description: '已排期，等待会诊开始' },
   [ConsultationStatus.IN_PROGRESS]: { label: '进行中', color: 'processing', icon: '🔴', description: '会诊正在进行中' },
   [ConsultationStatus.COMPLETED]: { label: '已完成', color: 'green', icon: '✅', description: '会诊已完成' },
-  [ConsultationStatus.REJECTED]: { label: '已拒绝', color: 'red', icon: '❌', description: '申请已被拒绝' },
+  [ConsultationStatus.REJECTED]: { label: '秘书驳回', color: 'red', icon: '❌', description: '申请已被秘书驳回' },
   [ConsultationStatus.CANCELLED]: { label: '已取消', color: 'gray', icon: '🚫', description: '会诊已取消' },
 }
 

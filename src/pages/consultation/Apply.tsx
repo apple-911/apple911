@@ -16,7 +16,8 @@ import { useAppStore } from '../../stores/appStore'
 import { generateConsultationCode } from '../../utils/consultationCode'
 import { sendSystemNotification } from '../../stores/notificationStore'
 import { hasPermission } from '../../utils/helpers'
-import { CONSULTATION_STATUS, ROLE, POSITION } from '../../utils/statusMapping'
+import { CONSULTATION_STATUS, ROLE, POSITION, URGENCY_LEVEL, CONSULTATION_TYPE } from '../../utils/statusMapping'
+import { getUrgencyName, getUrgencyColor, getConsultationTypeName, getConsultationTypeColor } from '../../utils/codeTable'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -85,10 +86,10 @@ export default function Apply() {
           .from('consultations')
           .select('patient_inpatient_no, status')
         
-        // 3. 找出有活跃会诊的患者（状态不是已完成、已取消、已拒绝、待质检审核、待归档的）
+        // 3. 找出有活跃会诊的患者（状态不是已完成、已取消、秘书驳回、待质检审核、待归档的）
         const activePatientNos = new Set(
           (allConsultations || [])
-            .filter(c => !['已完成', '已取消', '已拒绝', '待质检审核', '待归档'].includes(c.status))
+            .filter(c => !['completed', 'archived', 'rejected', 'cancelled'].includes(c.status))
             .map(c => c.patient_inpatient_no)
         )
         
@@ -165,9 +166,9 @@ export default function Apply() {
     const patientId = searchParams.get('patientId')
     const followupId = searchParams.get('followupId')
     const mdtType = searchParams.get('mdtType')
-    const consultationId = searchParams.get('id') // 编辑已拒绝的申请
+    const consultationId = searchParams.get('id') // 编辑驳回的申请
     
-    // 如果是编辑已拒绝的申请
+    // 如果是编辑驳回的申请
     if (consultationId) {
       loadRejectedConsultation(consultationId)
       return
@@ -184,8 +185,8 @@ export default function Apply() {
         setTimeout(() => {
           form.setFieldsValue({
             summary: `AI 筛查推荐 MDT - ${screeningData.recommendations.join('；')}`,
-            type: '多学科会诊',
-            urgency: screeningData.level === 'urgent' ? '紧急' : '常规'
+            type: CONSULTATION_TYPE.INHOSPITAL,
+            urgency: screeningData.level === 'urgent' ? URGENCY_LEVEL.URGENT : URGENCY_LEVEL.NORMAL
           })
         }, 500)
       }
@@ -201,8 +202,8 @@ export default function Apply() {
         setTimeout(() => {
           form.setFieldsValue({
             summary: `二次 MDT 会诊 - ${followupData.mdtReason}`,
-            type: '多学科会诊',
-            urgency: followupData.urgency === 'emergency' ? '紧急' : followupData.urgency === 'urgent' ? '较急' : '常规'
+            type: CONSULTATION_TYPE.INHOSPITAL,
+            urgency: followupData.urgency === 'emergency' ? URGENCY_LEVEL.URGENT : followupData.urgency === 'urgent' ? URGENCY_LEVEL.URGENT : URGENCY_LEVEL.NORMAL
           })
         }, 500)
       }
@@ -215,7 +216,7 @@ export default function Apply() {
     }
   }, [searchParams, location.state])
 
-  // 加载已拒绝的会诊申请用于编辑
+  // 加载驳回的会诊申请用于编辑
   const loadRejectedConsultation = async (id: string) => {
     try {
       const { data: consultation, error } = await supabase
@@ -226,8 +227,10 @@ export default function Apply() {
       
       if (error) throw error
       
-      if (consultation.status !== '主任驳回' && consultation.status !== '退回修改' && consultation.status !== '待补正') {
-        message.error('该申请不是已拒绝状态，无法编辑')
+      // 检查是否为可编辑状态（包含中文和英文状态码）
+      const editableStatuses = ['director_rejected', 'material_rejected', 'pending_supplement']
+      if (!editableStatuses.includes(consultation.status)) {
+        message.error('该申请不是驳回状态，无法编辑')
         navigate('/consultation/my-applies')
         return
       }
@@ -258,7 +261,7 @@ export default function Apply() {
           handleHISDataSync(patient)
         }, 300)
         
-        message.info('正在编辑已拒绝的申请，请修改后重新提交')
+        message.info('正在编辑驳回的申请，请修改后重新提交')
       } else {
         // 如果找不到患者，尝试直接从数据库加载
         const { data: patientData } = await supabase
@@ -307,7 +310,7 @@ export default function Apply() {
             handleHISDataSync(patient)
           }, 300)
           
-          message.info('正在编辑已拒绝的申请，请修改后重新提交')
+          message.info('正在编辑驳回的申请，请修改后重新提交')
         } else {
           message.error('未找到患者信息')
           navigate('/consultation/my-applies')
@@ -564,8 +567,8 @@ export default function Apply() {
       if (suggestion.summary) {
         form.setFieldsValue({
           summary: suggestion.summary,
-          type: suggestion.recommendedType,
-          urgency: '紧急'
+          type: suggestion.recommendedType || CONSULTATION_TYPE.INHOSPITAL,
+          urgency: URGENCY_LEVEL.URGENT
         })
       }
 
@@ -760,15 +763,15 @@ export default function Apply() {
       console.log('submitApplication 接收到的 values:', values)
       
       // 直接从 form 获取值，不依赖 values 参数
-      const urgency = form.getFieldValue('urgency') || '普通'
-      const type = form.getFieldValue('type') || '院内'
+      const urgency = form.getFieldValue('urgency') || URGENCY_LEVEL.NORMAL
+      const type = form.getFieldValue('type') || 'inhospital'
       const expectTime = form.getFieldValue('expectTime')
       console.log('直接获取 - urgency:', urgency, 'type:', type)
       
-      const consultationId = searchParams.get('id') // 检查是否是编辑已拒绝的申请
+      const consultationId = searchParams.get('id') // 检查是否是编辑驳回的申请
       
       if (consultationId) {
-        // 更新已拒绝的申请
+        // 更新驳回的申请
         const updateData = {
           status: CONSULTATION_STATUS.DOCTOR_SUBMIT,
           urgency: urgency,
@@ -858,12 +861,13 @@ export default function Apply() {
           summary: summary, // 病情摘要
           medical_records: medicalRecords, // 病历资料
           uploaded_files: uploadedFiles, // 上传的文件列表
-          director_id: null,  // 先设为 null，后面会根据医生关联的主任自动填充
+          director_id: null as string | null,  // 先设为 null，后面会根据医生关联的主任自动填充
+          secretary_id: null as string | null,  // 先设为 null，后面会设置秘书负责人
         }
         console.log('插入数据:', insertData)
         
         // 查询申请医生的上级主任（支持多个）
-        let directorId = null
+        let directorId: string | null = null
         const directorIds: string[] = []
         
         if (user?.id) {
@@ -878,8 +882,10 @@ export default function Apply() {
             const primaryManager = managersData.find(m => m.is_primary)
             if (primaryManager) {
               directorId = primaryManager.manager_id
-              directorIds.push(directorId)
-              console.log('找到主要责任主任:', directorId)
+              if (directorId) {
+                directorIds.push(directorId)
+                console.log('找到主要责任主任:', directorId)
+              }
             }
             
             // 添加其他主任
@@ -900,8 +906,10 @@ export default function Apply() {
             
             if (doctorData?.manager_id) {
               directorId = doctorData.manager_id
-              directorIds.push(directorId)
-              console.log('找到直属主任:', directorId)
+              if (directorId) {
+                directorIds.push(directorId)
+                console.log('找到直属主任:', directorId)
+              }
             }
           }
           
@@ -983,7 +991,8 @@ export default function Apply() {
           const expertInserts = selectedExperts.map(expert => ({
             consultation_id: consultationId,
             expert_id: expert.id,
-            status: '待会诊',
+            status: 'pending',
+            invited_by: 'doctor',
           }))
           
           const { error: expertError } = await supabase
@@ -1277,16 +1286,19 @@ export default function Apply() {
               <Form form={form} layout="vertical">
                 <Row gutter={16}>
                   <Col span={8}>
-                    <Form.Item label="会诊类型" name="type" initialValue="院内">
-                      <Select options={[{ value: '院内', label: '院内会诊' }, { value: '远程', label: '远程会诊' }]} />
+                    <Form.Item label="会诊类型" name="type" initialValue={CONSULTATION_TYPE.INHOSPITAL}>
+                      <Select options={[
+                        { value: CONSULTATION_TYPE.INHOSPITAL, label: '院内会诊' }, 
+                        { value: CONSULTATION_TYPE.REMOTE, label: '远程会诊' }
+                      ]} />
                     </Form.Item>
                   </Col>
                   <Col span={8}>
-                    <Form.Item label="紧急程度" name="urgency" initialValue="普通">
+                    <Form.Item label="紧急程度" name="urgency" initialValue={URGENCY_LEVEL.NORMAL}>
                       <Select options={[
-                        { value: '普通', label: '普通' },
-                        { value: '紧急', label: '紧急' },
-                        { value: '特急', label: '特急' },
+                        { value: URGENCY_LEVEL.NORMAL, label: '普通' },
+                        { value: URGENCY_LEVEL.URGENT, label: '紧急' },
+                        { value: URGENCY_LEVEL.CRITICAL, label: '特急' },
                       ]} />
                     </Form.Item>
                   </Col>
@@ -1670,15 +1682,14 @@ export default function Apply() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Text type="secondary" className="text-xs">会诊类型：</Text>
-                  <Tag>{form.getFieldValue('type') || '多学科会诊'}</Tag>
+                  <Tag color={getConsultationTypeColor(form.getFieldValue('type'))}>
+                    {getConsultationTypeName(form.getFieldValue('type'))}
+                  </Tag>
                 </div>
                 <div>
                   <Text type="secondary" className="text-xs">紧急程度：</Text>
-                  <Tag color={
-                    form.getFieldValue('urgency') === '紧急' ? 'red' :
-                    form.getFieldValue('urgency') === '较急' ? 'orange' : 'green'
-                  }>
-                    {form.getFieldValue('urgency') || '常规'}
+                  <Tag color={getUrgencyColor(form.getFieldValue('urgency'))}>
+                    {getUrgencyName(form.getFieldValue('urgency'))}
                   </Tag>
                 </div>
                 <div className="col-span-2">

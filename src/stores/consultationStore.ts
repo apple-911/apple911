@@ -16,7 +16,7 @@ export type ConsultationStatus =
   | 'in_progress'          // 11. 正在进行会诊
   | 'completed'            // 12. 会诊已完成
   | 'archived'             // 13. 已归档完成
-  | 'rejected'             // 14. 已拒绝
+  | 'rejected'             // 14. 秘书驳回
   | 'cancelled'            // 15. 已取消
 
 export type MaterialStatus = 'pending' | 'submitted' | 'secretary_pending' | 'quality_pending' | 'approved' | 'rejected'
