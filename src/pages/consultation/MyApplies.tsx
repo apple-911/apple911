@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Button, Tag, Space, Select, Modal, message, Typography, Spin, Result } from 'antd'
-import { EyeOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'
+import { Card, Table, Button, Tag, Space, Select, Modal, message, Typography, Spin, Result, Input, DatePicker } from 'antd'
+import { EyeOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, TeamOutlined, FilterOutlined } from '@ant-design/icons'
 import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
 import type { Consultation } from '../../stores/consultationStore'
@@ -17,6 +17,9 @@ export default function MyApplies() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [typeFilter, setTypeFilter] = useState<string>('')
+  const [patientNameFilter, setPatientNameFilter] = useState<string>('')
+  const [urgencyFilter, setUrgencyFilter] = useState<string>('')
+  const [dateFilter, setDateFilter] = useState<any>(null)
   const navigate = useNavigate()
   const { user } = useAppStore()
 
@@ -35,6 +38,8 @@ export default function MyApplies() {
         .select('*')
         .eq('apply_doctor', user?.name || '')
         .order('apply_time', { ascending: false })
+      
+      console.log('MyApplies 原始会诊数据:', consultations?.map(c => ({ id: c.id, patient_name: c.patient_name, status: c.status })))
       
       if (error) {
         console.error('加载会诊数据失败:', error)
@@ -88,6 +93,13 @@ export default function MyApplies() {
   const filteredData = data.filter(d => {
     if (statusFilter && d.status !== statusFilter) return false
     if (typeFilter && d.type !== typeFilter) return false
+    if (patientNameFilter && !d.patientName.toLowerCase().includes(patientNameFilter.toLowerCase())) return false
+    if (urgencyFilter && d.urgency !== urgencyFilter) return false
+    if (dateFilter) {
+      const selectedDate = dayjs(dateFilter).format('YYYY-MM-DD')
+      const applyDate = dayjs(d.applyTime).format('YYYY-MM-DD')
+      if (applyDate !== selectedDate) return false
+    }
     return true
   })
 
@@ -188,6 +200,7 @@ export default function MyApplies() {
       dataIndex: 'status',
       width: 120,
       render: (t: Consultation['status']) => {
+        console.log('MyApplies 审批状态 render:', { status: t, name: getConsultationStatusName(t), color: getConsultationStatusColor(t) })
         const name = getConsultationStatusName(t);
         const color = getConsultationStatusColor(t);
         return <Tag color={color}>{name}</Tag>;
@@ -284,41 +297,84 @@ export default function MyApplies() {
       </div>
 
       {/* 筛选器 */}
-      <div className="flex gap-4">
-        <Select
-          placeholder="按状态筛选"
-          allowClear
-          className="w-40"
-          value={statusFilter || undefined}
-          onChange={setStatusFilter}
-          options={[
-            { value: 'doctor_submit', label: '医生提交' },
-            { value: 'director_pending', label: '待主任审核' },
-            { value: 'director_rejected', label: '主任驳回' },
-            { value: 'secretary_pending', label: '秘书审核' },
-            { value: 'pending_supplement', label: '待补正' },
-            { value: 'scheduled', label: '已排期' },
-            { value: 'expert_confirmed', label: '专家确认' },
-            { value: 'pending_meeting', label: '待会诊' },
-            { value: 'in_progress', label: '会诊中' },
-            { value: 'completed', label: '已完成' },
-            { value: 'archived', label: '已归档' },
-            { value: 'rejected', label: '秘书驳回' },
-            { value: 'cancelled', label: '已取消' },
-          ]}
-        />
-        <Select
-          placeholder="按类型筛选"
-          allowClear
-          className="w-40"
-          value={typeFilter || undefined}
-          onChange={setTypeFilter}
-          options={[
-            { value: '院内', label: '院内会诊' },
-            { value: '远程', label: '远程会诊' },
-          ]}
-        />
-      </div>
+      <Card>
+        <Space size="middle" wrap>
+          <span style={{ fontWeight: 500 }}><FilterOutlined /> 筛选：</span>
+          <Input
+            placeholder="患者姓名"
+            value={patientNameFilter}
+            onChange={(e) => setPatientNameFilter(e.target.value)}
+            style={{ width: 150 }}
+            allowClear
+          />
+          <Select
+            placeholder="紧急程度"
+            allowClear
+            style={{ width: 120 }}
+            value={urgencyFilter || undefined}
+            onChange={setUrgencyFilter}
+            options={[
+              { value: 'normal', label: '普通' },
+              { value: 'urgent', label: '紧急' },
+              { value: 'critical', label: '特急' },
+            ]}
+          />
+          <DatePicker
+            placeholder="申请时间"
+            value={dateFilter}
+            onChange={setDateFilter}
+            style={{ width: 150 }}
+            allowClear
+          />
+          <Select
+            placeholder="按状态筛选"
+            allowClear
+            style={{ width: 150 }}
+            value={statusFilter || undefined}
+            onChange={setStatusFilter}
+            options={[
+              { value: 'doctor_submit', label: '医生提交' },
+              { value: 'director_pending', label: '待主任审核' },
+              { value: 'director_rejected', label: '主任驳回' },
+              { value: 'secretary_pending', label: '秘书审核' },
+              { value: 'pending_supplement', label: '待补正' },
+              { value: 'scheduled', label: '已排期' },
+              { value: 'expert_confirmed', label: '专家确认' },
+              { value: 'pending_meeting', label: '待会诊' },
+              { value: 'in_progress', label: '会诊中' },
+              { value: 'completed', label: '已完成' },
+              { value: 'archived', label: '已归档' },
+              { value: 'rejected', label: '秘书驳回' },
+              { value: 'cancelled', label: '已取消' },
+            ]}
+          />
+          <Select
+            placeholder="按类型筛选"
+            allowClear
+            style={{ width: 140 }}
+            value={typeFilter || undefined}
+            onChange={setTypeFilter}
+            options={[
+              { value: 'inhospital', label: '院内会诊' },
+              { value: 'remote', label: '远程会诊' },
+            ]}
+          />
+          {(patientNameFilter || urgencyFilter || dateFilter || statusFilter || typeFilter) && (
+            <Button 
+              size="small" 
+              onClick={() => {
+                setPatientNameFilter('')
+                setUrgencyFilter('')
+                setDateFilter(null)
+                setStatusFilter('')
+                setTypeFilter('')
+              }}
+            >
+              重置
+            </Button>
+          )}
+        </Space>
+      </Card>
 
       {/* 数据表格 */}
       <Spin spinning={loading}>

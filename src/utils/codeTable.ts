@@ -44,8 +44,10 @@ export async function loadCodeTables(): Promise<void> {
       .eq('status', 'active')
       .order('sort_order')
     
-    if (!typesError && types) {
-      codeTypesCache = types
+    if (typesError) {
+      console.error('加载码表类型失败:', typesError)
+    } else {
+      codeTypesCache = types || []
     }
 
     // 加载所有码值
@@ -55,9 +57,11 @@ export async function loadCodeTables(): Promise<void> {
       .eq('status', 'active')
       .order('sort_order')
     
-    if (!codesError && codes) {
+    if (codesError) {
+      console.error('加载码值失败:', codesError)
+    } else {
       codesCache.clear()
-      codes.forEach(code => {
+      codes?.forEach(code => {
         if (!codesCache.has(code.type_id)) {
           codesCache.set(code.type_id, [])
         }
@@ -173,8 +177,9 @@ export function getConsultationStatusName(code: string): string {
       'pending_supplement': '待补正',
       'material_rejected': '退回修改',
       'expert_invited': '专家邀请',
+      'expert_pending': '待专家确认',
       'expert_confirmed': '专家确认',
-      'scheduled': '已排期',
+      'scheduled': '已排期，待专家确认',
       'in_progress': '会诊中',
       'completed': '已完成',
       'archived': '已归档',
@@ -286,8 +291,8 @@ export function getAuditNodeName(code: string): string {
       'meeting_record': '会议记录',
       'report_submit': '报告提交',
       'revoke': '撤回',
-      '重新提交': '重新提交',
-      '申请提交': '申请提交',
+      'rescheduled': '重新排期',
+      'scheduled': '已排期，待专家确认',
     }
     return defaultNames[code] || code
   }
@@ -347,8 +352,8 @@ export function getAuditResultName(code: string): string {
     const defaultNames: Record<string, string> = {
       'approved': '通过',
       'rejected': '驳回',
-      'scheduled': '已排期',
-      'rescheduled': '已重排',
+      'scheduled': '已排期，待专家确认',
+      'rescheduled': '已重排，待专家确认',
       'confirmed': '已确认',
       'cancelled': '已取消',
     }

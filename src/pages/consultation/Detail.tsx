@@ -52,11 +52,14 @@ export default function ConsultationDetail() {
   const [directorRejectModalVisible, setDirectorRejectModalVisible] = useState(false)
   const [secretaryRejectModalVisible, setSecretaryRejectModalVisible] = useState(false)
   const [revokeModalVisible, setRevokeModalVisible] = useState(false)
+  const [expertAcceptModalVisible, setExpertAcceptModalVisible] = useState(false)
+  const [expertRejectModalVisible, setExpertRejectModalVisible] = useState(false)
   
   // 表单数据
   const [scheduleData, setScheduleData] = useState({ expect_time: '', meeting_room: '', notes: '' })
   const [directorOpinion, setDirectorOpinion] = useState('')
   const [secretaryRejectReason, setSecretaryRejectReason] = useState('')
+  const [expertOpinion, setExpertOpinion] = useState('')
   
   // 专家数据 用于排期 
   const [expertList, setExpertList] = useState<any[]>([])
@@ -128,7 +131,7 @@ export default function ConsultationDetail() {
       setAuditHistory(auditData || [])
       
       // 查询会诊专家 关联查询专家表 
-      const { data: expertData } = await supabase
+      const { data: expertData, error: expertError } = await supabase
         .from('consultation_experts')
         .select(`
           *,
@@ -141,6 +144,9 @@ export default function ConsultationDetail() {
         `)
         .eq('consultation_id', id)
       
+      console.log('会诊专家数据:', expertData)
+      console.log('会诊专家查询错误:', expertError)
+      
       // 转换数据格式并添加到会诊对象中
       const expertsWithInfo = (expertData || []).map(ce => ({
         ...ce,
@@ -149,8 +155,15 @@ export default function ConsultationDetail() {
         expert_title: ce.expert?.title || null,
       }))
       
-      // 将会诊专家数据（秘书安排的）添加到 consultation 对象中 - 只包含秘书邀请的专家
+      console.log('转换后的专家数据:', expertsWithInfo)
+      console.log('专家数据总数:', expertsWithInfo.length)
+      console.log('秘书邀请的专家数量:', expertsWithInfo.filter(ce => ce.invited_by === 'secretary').length)
+      console.log('医生邀请的专家数量:', expertsWithInfo.filter(ce => ce.invited_by === 'doctor').length)
+      
+      // 将会诊专家数据（秘书安排的）添加到 consultation 对象中
       const secretaryInvitedExperts = expertsWithInfo.filter(ce => ce.invited_by === 'secretary')
+      console.log('秘书邀请的专家:', secretaryInvitedExperts)
+      
       setConsultation((prev: any) => ({
         ...prev,
         consultation_experts: secretaryInvitedExperts
@@ -327,8 +340,8 @@ export default function ConsultationDetail() {
         notes: consultation.reject_reason || '' 
       })
       
-      // 加载已安排的会诊专家
-      const { data: expertData } = await supabase
+      // 加载秘书安排的会诊专家（只加载 invited_by: 'secretary' 的）
+      const { data: expertData, error: expertError } = await supabase
         .from('consultation_experts')
         .select(`
           *,
@@ -340,6 +353,10 @@ export default function ConsultationDetail() {
           )
         `)
         .eq('consultation_id', id)
+        .eq('invited_by', 'secretary')
+      
+      console.log('排期弹窗 - 原始专家数据:', expertData)
+      console.log('排期弹窗 - 专家查询错误:', expertError)
       
       const scheduledExperts = (expertData || []).map(ce => ({
         id: ce.expert?.id || ce.expert_id,
@@ -347,6 +364,9 @@ export default function ConsultationDetail() {
         department: ce.expert?.department || '未知科室',
         title: ce.expert?.title || '未知职称',
       }))
+      
+      console.log('排期弹窗 - 转换后的专家数据:', scheduledExperts)
+      console.log('排期弹窗 - 选中专家 ID:', scheduledExperts.map(e => e.id))
       
       setSecretaryExperts(scheduledExperts)
       setSelectedExperts(scheduledExperts.map(e => e.id))
@@ -393,7 +413,7 @@ export default function ConsultationDetail() {
       await supabase
         .from('consultations')
         .update({ 
-          status: 'scheduled',
+          status: 'expert_pending',
           meeting_time: scheduleData.expect_time,
           location: scheduleData.meeting_room,
         })
@@ -406,27 +426,96 @@ export default function ConsultationDetail() {
         operator_role: 'secretary',
         node: consultation?.status === 'scheduled' || consultation?.meeting_time ? 'rescheduled' : 'secretary_audit',
         operator_type: consultation?.status === 'scheduled' || consultation?.meeting_time ? 'rescheduled' : 'scheduled',
-        result: '已排期',
+        result: consultation?.status === 'scheduled' || consultation?.meeting_time ? 'rescheduled' : 'scheduled',
         opinion: scheduleData.notes,
         time: new Date().toISOString(),
-        next_node: 'expert_invitation'
+        next_node: 'expert_confirm'
       })
       
-      // 删除原有的秘书选择的专家记录，保留医生邀请的专家
-      await supabase
+      // 查询该会诊的所有专家记录
+      const { data: allExistingExperts } = await supabase
         .from('consultation_experts')
-        .delete()
+        .select('id, expert_id, invited_by, status')
         .eq('consultation_id', id)
-        .eq('invited_by', 'secretary')
       
-      // 保存秘书最终选择的专家 标记为秘书安排
-      const expertInserts = selectedExperts.map(expertId => ({
-        consultation_id: id,
-        expert_id: expertId,
-        status: 'pending_meeting',
-        invited_by: 'secretary',
-      }))
-      await supabase.from('consultation_experts').insert(expertInserts)
+      console.log('会诊所有现有专家:', allExistingExperts)
+      console.log('invited_by 的值:', allExistingExperts?.map(e => e.invited_by))
+      
+      // 删除秘书之前邀请的专家记录（只删除 invited_by: 'secretary' 的）
+      const toDelete = allExistingExperts?.filter(e => e.invited_by === 'secretary') || []
+      
+      console.log('要删除的秘书邀请专家记录:', toDelete)
+      
+      if (toDelete.length > 0) {
+        const idsToDelete = toDelete.map(r => r.id)
+        const deleteResult = await supabase
+          .from('consultation_experts')
+          .delete()
+          .in('id', idsToDelete)
+        
+        console.log('删除秘书邀请专家结果:', deleteResult)
+      }
+      
+      // 等待删除操作完成
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // 验证删除是否成功
+      const { data: afterDelete } = await supabase
+        .from('consultation_experts')
+        .select('id, expert_id, invited_by')
+        .eq('consultation_id', id)
+      
+      console.log('删除后该会诊所有专家:', afterDelete)
+      
+      // 等待删除操作完成
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // 保存秘书最终选择的专家
+      // 逻辑：
+      // 1. 删除所有秘书之前邀请的专家（invited_by: 'secretary'）
+      // 2. 插入秘书新选择的专家（invited_by: 'secretary'）
+      // 3. 如果插入失败（唯一约束冲突，说明医生邀请过该专家），跳过该专家
+      
+      const insertedExperts = []
+      const skippedExperts = []
+      
+      for (const expertId of selectedExperts) {
+        // 尝试插入新记录
+        const { error: insertError } = await supabase
+          .from('consultation_experts')
+          .insert({
+            consultation_id: id,
+            expert_id: expertId,
+            status: '待接受',
+            invited_by: 'secretary',
+            invite_time: new Date().toISOString(),
+          })
+        
+        if (insertError) {
+          // 如果是唯一约束冲突，说明医生邀请过该专家，跳过
+          if (insertError.code === '23505') {
+            console.log(`专家 ${expertId} 已被医生邀请，跳过插入`)
+            skippedExperts.push(expertId)
+          } else {
+            console.error('插入专家记录失败:', insertError)
+            message.error('保存专家记录失败：' + insertError.message)
+            return
+          }
+        } else {
+          insertedExperts.push(expertId)
+        }
+      }
+      
+      console.log('成功插入的专家:', insertedExperts)
+      console.log('因重复跳过的专家:', skippedExperts)
+      
+      // 验证插入是否成功
+      const { data: afterInsert } = await supabase
+        .from('consultation_experts')
+        .select('id, expert_id, invited_by')
+        .eq('consultation_id', id)
+      
+      console.log('插入后该会诊所有专家:', afterInsert)
       
       message.success('已安排')
       setScheduleModalVisible(false)
@@ -551,6 +640,257 @@ export default function ConsultationDetail() {
     }
   }
 
+  // 专家接受
+  const handleExpertAccept = () => {
+    setExpertAcceptModalVisible(true)
+  }
+
+  const submitExpertAccept = async () => {
+    if (!expertOpinion) {
+      message.error('请填写审批意见')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+
+      // 获取当前专家的 ID
+      const { data: expertData } = await supabase
+        .from('experts')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single()
+      
+      console.log('当前专家 ID:', expertData)
+
+      if (!expertData?.id) {
+        message.error('未找到专家信息')
+        return
+      }
+
+      // 更新专家确认状态
+      const { error: updateError } = await supabase
+        .from('consultation_experts')
+        .update({ 
+          status: '已接受',
+          response_time: new Date().toISOString(),
+          response_opinion: expertOpinion,
+        })
+        .eq('consultation_id', id)
+        .eq('expert_id', expertData.id)
+      
+      if (updateError) {
+        console.error('更新失败:', updateError)
+        message.error('更新失败：' + updateError.message)
+        return
+      }
+
+      console.log('专家状态更新成功')
+
+      // 检查是否所有秘书邀请的专家都已确认
+      const { data: allSecretaryExperts } = await supabase
+        .from('consultation_experts')
+        .select('status')
+        .eq('consultation_id', id)
+        .eq('invited_by', 'secretary')
+      
+      console.log('所有秘书邀请的专家:', allSecretaryExperts)
+      
+      // 判断是否所有专家都已确认（已接受或已拒绝）
+      const allConfirmed = allSecretaryExperts?.every(expert => 
+        expert.status === '已接受' || expert.status === '已拒绝'
+      )
+      
+      console.log('所有专家是否都已确认:', allConfirmed)
+
+      // 更新会诊状态为专家确认
+      if (allConfirmed) {
+        await supabase
+          .from('consultations')
+          .update({ status: 'expert_confirmed' })
+          .eq('id', id)
+        
+        console.log('所有专家已确认，会诊状态更新为 expert_confirmed')
+      } else {
+        console.log('仍有专家未确认，会诊状态保持不变')
+      }
+
+      // 插入审核历史
+      const auditInsert: any = {
+        consultation_id: id,
+        operator: user?.name,
+        operator_role: '会诊专家',
+        node: 'expert_confirm',
+        operator_type: 'confirmed',
+        result: '已接受',
+        opinion: expertOpinion,
+        time: new Date().toISOString(),
+        next_node: 'meeting_schedule',
+      }
+
+      if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+        auditInsert.operator_id = user.id
+      }
+
+      await supabase.from('audit_history').insert(auditInsert)
+
+      // 发送通知给秘书
+      const { data: secretaryData } = await supabase
+        .from('consultations')
+        .select('secretary_id')
+        .eq('id', id)
+        .single()
+      
+      if (secretaryData?.secretary_id) {
+        await sendSystemNotification(
+          secretaryData.secretary_id,
+          'info',
+          '会诊申请已确认',
+          `${user?.name || '专家'}已确认参加会诊 患者 ${consultation.patient_name}`,
+          {
+            label: '查看',
+            url: `/consultation/detail/${id}`,
+          }
+        )
+      }
+
+      message.success('已接受邀请')
+      setExpertAcceptModalVisible(false)
+      setExpertOpinion('')
+      loadConsultationDetail()
+    } catch (err) {
+      console.error('接受失败:', err)
+      message.error('操作失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // 专家拒绝
+  const handleExpertReject = () => {
+    setExpertRejectModalVisible(true)
+  }
+
+  const submitExpertReject = async () => {
+    if (!expertOpinion) {
+      message.error('请填写拒绝理由')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+
+      // 获取当前专家的 ID
+      const { data: expertData } = await supabase
+        .from('experts')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single()
+      
+      console.log('当前专家 ID:', expertData)
+
+      if (!expertData?.id) {
+        message.error('未找到专家信息')
+        return
+      }
+
+      // 更新专家拒绝状态
+      const { error: updateError } = await supabase
+        .from('consultation_experts')
+        .update({ 
+          status: '已拒绝',
+          response_time: new Date().toISOString(),
+          response_opinion: expertOpinion,
+        })
+        .eq('consultation_id', id)
+        .eq('expert_id', expertData.id)
+      
+      if (updateError) {
+        console.error('更新失败:', updateError)
+        message.error('更新失败：' + updateError.message)
+        return
+      }
+
+      console.log('专家状态更新成功')
+
+      // 检查是否所有秘书邀请的专家都已确认
+      const { data: allSecretaryExperts } = await supabase
+        .from('consultation_experts')
+        .select('status')
+        .eq('consultation_id', id)
+        .eq('invited_by', 'secretary')
+      
+      console.log('所有秘书邀请的专家:', allSecretaryExperts)
+      
+      // 判断是否所有专家都已确认（已接受或已拒绝）
+      const allConfirmed = allSecretaryExperts?.every(expert => 
+        expert.status === '已接受' || expert.status === '已拒绝'
+      )
+      
+      console.log('所有专家是否都已确认:', allConfirmed)
+
+      // 更新会诊状态为专家确认
+      if (allConfirmed) {
+        await supabase
+          .from('consultations')
+          .update({ status: 'expert_confirmed' })
+          .eq('id', id)
+        
+        console.log('所有专家已确认，会诊状态更新为 expert_confirmed')
+      } else {
+        console.log('仍有专家未确认，会诊状态保持不变')
+      }
+
+      // 插入审核历史
+      const auditInsert: any = {
+        consultation_id: id,
+        operator: user?.name,
+        operator_role: '会诊专家',
+        node: 'expert_confirm',
+        operator_type: 'cancelled',
+        result: '已拒绝',
+        opinion: expertOpinion,
+        time: new Date().toISOString(),
+      }
+
+      if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+        auditInsert.operator_id = user.id
+      }
+
+      await supabase.from('audit_history').insert(auditInsert)
+
+      // 发送通知给秘书
+      const { data: secretaryData } = await supabase
+        .from('consultations')
+        .select('secretary_id')
+        .eq('id', id)
+        .single()
+      
+      if (secretaryData?.secretary_id) {
+        await sendSystemNotification(
+          secretaryData.secretary_id,
+          'info',
+          '会诊申请已拒绝',
+          `${user?.name || '专家'}已拒绝参加会诊 患者 ${consultation.patient_name}`,
+          {
+            label: '查看',
+            url: `/consultation/detail/${id}`,
+          }
+        )
+      }
+
+      message.success('已拒绝邀请')
+      setExpertRejectModalVisible(false)
+      setExpertOpinion('')
+      loadConsultationDetail()
+    } catch (err) {
+      console.error('拒绝失败:', err)
+      message.error('操作失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   if (loading) {
     return (
       <Card>
@@ -595,7 +935,8 @@ export default function ConsultationDetail() {
   
   const canAccess = hasPermission('perm-consultation-detail') ||
     (user?.role === ROLE.DIRECTOR && ['doctor_submit', 'director_pending', 'director_rejected', 'secretary_pending', 'rejected', 'cancelled'].includes(consultation?.status)) ||
-    (user?.role === ROLE.SECRETARY && ['secretary_pending', 'scheduled', 'pending_meeting', 'expert_confirmed', 'rejected', 'cancelled'].includes(consultation?.status)) ||
+    (user?.role === ROLE.SECRETARY && ['secretary_pending', 'scheduled', 'expert_pending', 'pending_meeting', 'expert_confirmed', 'rejected', 'cancelled'].includes(consultation?.status)) ||
+    (user?.role === ROLE.EXPERT && ['expert_pending', 'expert_confirmed', 'expert_invited'].includes(consultation?.status)) ||
     (user?.id === consultation?.apply_doctor_id)
   
   if (!canAccess) {
@@ -640,10 +981,18 @@ export default function ConsultationDetail() {
             )}
             
             {/* 秘书角色 修改排期和驳回按钮 */}
-            {user?.role === ROLE.SECRETARY && ['scheduled', 'pending_meeting', 'expert_confirmed'].includes(consultation.status) && (
+            {user?.role === ROLE.SECRETARY && ['scheduled', 'expert_pending', 'pending_meeting', 'expert_confirmed'].includes(consultation.status) && (
               <>
                 <Button type="primary" onClick={handleSchedule}>修改排期</Button>
                 <Button danger onClick={handleSecretaryReject}>驳回</Button>
+              </>
+            )}
+            
+            {/* 专家角色 接受按钮 */}
+            {user?.role === ROLE.EXPERT && ['expert_invited', 'expert_pending'].includes(consultation.status) && (
+              <>
+                <Button type="primary" onClick={handleExpertAccept}>接受</Button>
+                <Button danger onClick={handleExpertReject}>拒绝</Button>
               </>
             )}
             
@@ -880,8 +1229,9 @@ export default function ConsultationDetail() {
                                   const status = ce.status || expert?.status || '待接受'
                                   const statusTextMap: Record<string, string> = {
                                     'pending_meeting': '待会议',
-                                    '已接受': '已接受',
                                     '待接受': '待接受',
+                                    '已接受': '已接受',
+                                    '已拒绝': '已拒绝',
                                     'confirmed': '已确认',
                                   }
                                   const displayStatus = statusTextMap[status] || status
@@ -895,7 +1245,7 @@ export default function ConsultationDetail() {
                                           <Space split={<Divider type="vertical" />}>
                                             <Text type="secondary">{expertDept}</Text>
                                             <Text type="secondary">{expertRole}</Text>
-                                            <Tag color={displayStatus === '已接受' || displayStatus === '已确认' ? 'green' : displayStatus === '待接受' || displayStatus === '待会议' ? 'orange' : 'gray'} style={{ fontSize: '12px', padding: '2px 8px' }}>
+                                            <Tag color={displayStatus === '已接受' || displayStatus === '已确认' ? 'green' : displayStatus === '待接受' || displayStatus === '待会议' ? 'orange' : displayStatus === '已拒绝' ? 'red' : 'gray'} style={{ fontSize: '12px', padding: '2px 8px' }}>
                                               {displayStatus}
                                             </Tag>
                                           </Space>
@@ -1298,6 +1648,62 @@ export default function ConsultationDetail() {
           <p><strong>患者：</strong>{consultation?.patient_name}</p>
           <p><strong>会诊 ID：</strong>{consultation?.consultation_code || consultation?.id}</p>
           <p className="mt-4 text-red-500">确认要撤回此会诊申请吗？撤回后将无法恢复！</p>
+        </div>
+      </Modal>
+
+      {/* 专家接受弹窗 */}
+      <Modal
+        title="接受会诊邀请"
+        open={expertAcceptModalVisible}
+        onOk={submitExpertAccept}
+        onCancel={() => {
+          setExpertAcceptModalVisible(false)
+          setExpertOpinion('')
+        }}
+        confirmLoading={submitting}
+      >
+        <div>
+          <p><strong>患者：</strong>{consultation?.patient_name}</p>
+          <p><strong>住院号：</strong>{consultation?.patient_inpatient_no}</p>
+          <p><strong>诊断：</strong>{consultation?.main_diagnosis}</p>
+          <p><strong>会诊时间：</strong>{consultation?.meeting_time ? dayjs(consultation.meeting_time).format('YYYY-MM-DD HH:mm') : '待安排'}</p>
+          <p><strong>会诊地点：</strong>{consultation?.location || '待安排'}</p>
+          <div className="mt-4">
+            <p className="font-medium mb-2">审批意见：</p>
+            <Input.TextArea
+              rows={4}
+              placeholder="请输入您的审批意见"
+              value={expertOpinion}
+              onChange={(e) => setExpertOpinion(e.target.value)}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* 专家拒绝弹窗 */}
+      <Modal
+        title="拒绝会诊邀请"
+        open={expertRejectModalVisible}
+        onOk={submitExpertReject}
+        onCancel={() => {
+          setExpertRejectModalVisible(false)
+          setExpertOpinion('')
+        }}
+        confirmLoading={submitting}
+      >
+        <div>
+          <p><strong>患者：</strong>{consultation?.patient_name}</p>
+          <p><strong>住院号：</strong>{consultation?.patient_inpatient_no}</p>
+          <p><strong>诊断：</strong>{consultation?.main_diagnosis}</p>
+          <div className="mt-4">
+            <p className="font-medium mb-2">拒绝理由：</p>
+            <Input.TextArea
+              rows={4}
+              placeholder="请输入拒绝理由"
+              value={expertOpinion}
+              onChange={(e) => setExpertOpinion(e.target.value)}
+            />
+          </div>
         </div>
       </Modal>
     </Spin>

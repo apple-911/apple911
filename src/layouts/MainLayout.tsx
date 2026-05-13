@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Avatar, Dropdown, Button, Tag, message } from 'antd'
 import {
@@ -25,7 +25,7 @@ import type { MenuProps } from 'antd'
 import { useAppStore, Role } from '../stores/appStore'
 import NotificationPanel from '../components/NotificationPanel'
 import { hasPermission } from '../utils/helpers'
-import { getRoleName } from '../utils/codeTable'
+import { getRoleName, loadCodeTables } from '../utils/codeTable'
 
 const { Header, Sider, Content } = Layout
 

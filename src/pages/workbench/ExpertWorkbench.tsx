@@ -41,21 +41,41 @@ export default function ExpertWorkbench() {
     try {
       setLoading(true)
       
-      // 查询专家被邀请的会诊
+      // 先查询当前用户对应的专家记录
+      const { data: expertRecord, error: expertRecordError } = await supabase
+        .from('experts')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single()
+      
+      if (expertRecordError || !expertRecord) {
+        console.warn('当前用户不是专家用户:', user?.id)
+        setInvitations([])
+        setStats({ pending: 0, accepted: 0, rejected: 0 })
+        setLoading(false)
+        return
+      }
+      
+      console.log('专家 ID:', expertRecord.id)
+      
+      // 查询专家被邀请的会诊（包括医生邀请和秘书邀请的）
       const { data: expertData, error: expertError } = await supabase
         .from('consultation_experts')
         .select('*')
-        .eq('expert_id', user?.id)
+        .eq('expert_id', expertRecord.id)
         .order('invite_time', { ascending: false })
       
       if (expertError) {
-        console.error('consultation_experts查询失败:', expertError)
+        console.error('consultation_experts 查询失败:', expertError)
         // 表可能不存在，设置为空
         setInvitations([])
         setStats({ pending: 0, accepted: 0, rejected: 0 })
         setLoading(false)
         return
       }
+      
+      console.log('专家邀请数据:', expertData)
+      console.log('invited_by 分布:', expertData?.map(e => e.invited_by))
       
       if (!expertData || expertData.length === 0) {
         setInvitations([])

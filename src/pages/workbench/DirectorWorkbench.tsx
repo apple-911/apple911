@@ -221,7 +221,7 @@ export default function DirectorWorkbench() {
   const columns: ColumnsType<PendingReview> = [
     { title: '会诊编号', dataIndex: 'consultationCode', width: 130 },
     { title: '患者姓名', dataIndex: 'patientName', width: 100 },
-    { title: '住院号', dataIndex: 'patientInpatientNo', width: 120 },
+    { title: '住院号', dataIndex: 'patientInpatientNo', width: 140 },
     { title: '科室', dataIndex: 'department', width: 100 },
     { title: '诊断', dataIndex: 'diagnosis', ellipsis: true },
     { 
@@ -278,38 +278,17 @@ export default function DirectorWorkbench() {
     {
       title: '操作',
       key: 'action',
-      width: 240,
+      width: 100,
       fixed: 'right',
       render: (_, record) => (
-        <div className="flex justify-end gap-2">
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/consultation/detail/${record.id}`)}
-          >
-            详情
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            icon={<CheckCircleOutlined />}
-            onClick={() => handleApprove(record)}
-          >
-            通过
-          </Button>
-          <Button
-            size="small"
-            danger
-            icon={<CloseCircleOutlined />}
-            onClick={() => {
-              setSelectedConsultation(record)
-              setAuditAction('拒绝')
-              setAuditModalVisible(true)
-            }}
-          >
-            拒绝
-          </Button>
-        </div>
+        <Button
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => navigate(`/consultation/detail/${record.id}`)}
+          block
+        >
+          详情
+        </Button>
       )
     },
   ]

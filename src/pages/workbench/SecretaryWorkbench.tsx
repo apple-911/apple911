@@ -168,7 +168,7 @@ export default function SecretaryWorkbench() {
 
   const columns: ColumnsType<PendingReview> = [
     { title: '患者姓名', dataIndex: 'patientName', width: 100 },
-    { title: '住院号', dataIndex: 'patientInpatientNo', width: 120 },
+    { title: '住院号', dataIndex: 'patientInpatientNo', width: 135 },
     { title: '科室', dataIndex: 'department', width: 100 },
     { title: '诊断', dataIndex: 'diagnosis', ellipsis: true },
     { 
@@ -191,7 +191,7 @@ export default function SecretaryWorkbench() {
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 100,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -201,14 +201,6 @@ export default function SecretaryWorkbench() {
             onClick={() => navigate(`/consultation/detail/${record.id}`)}
           >
             详情
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            icon={<CalendarOutlined />}
-            onClick={() => handleSchedule(record)}
-          >
-            安排会诊
           </Button>
         </Space>
       )

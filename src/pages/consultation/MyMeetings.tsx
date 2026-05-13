@@ -91,9 +91,9 @@ export default function MyMeetings() {
         type: (item.type as Consultation['type']) || '院内',
         urgency: (item.urgency as Consultation['urgency']) || '普通',
         meetingRoom: item.meeting_room || '',
-        experts: item.experts ? JSON.parse(item.experts) : [],
-        medicalRecords: item.medical_records ? JSON.parse(item.medical_records) : null,
-        uploadedFiles: item.uploaded_files ? JSON.parse(item.uploaded_files) : [],
+        experts: item.experts ? (typeof item.experts === 'string' ? JSON.parse(item.experts) : item.experts) : [],
+        medicalRecords: item.medical_records ? (typeof item.medical_records === 'string' ? JSON.parse(item.medical_records) : item.medical_records) : null,
+        uploadedFiles: item.uploaded_files ? (typeof item.uploaded_files === 'string' ? JSON.parse(item.uploaded_files) : item.uploaded_files) : [],
       }))
       
       setMeetings(formattedMeetings)

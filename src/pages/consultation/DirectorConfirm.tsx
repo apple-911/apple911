@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Tag, Button, Space, Modal, message, Typography, Descriptions, Input, Badge, Tabs, Statistic, Row, Col, Divider, List, Avatar, Timeline, Tabs as AntdTabs, Result } from 'antd'
-import { CheckOutlined, CloseOutlined, EyeOutlined, ClockCircleOutlined, UserOutlined, PhoneOutlined, MedicineBoxOutlined, FileTextOutlined, UploadOutlined, DatabaseOutlined, PictureOutlined, FilePdfOutlined, HeartOutlined, ExperimentOutlined, ToolOutlined, RiseOutlined, FileProtectOutlined } from '@ant-design/icons'
+import { Card, Table, Tag, Button, Space, Modal, message, Typography, Descriptions, Input, Badge, Statistic, Row, Col, Divider, List, Avatar, Timeline, Result, DatePicker, Select, Form } from 'antd'
+import { CheckOutlined, CloseOutlined, EyeOutlined, ClockCircleOutlined, AlertOutlined, UserOutlined, PhoneOutlined, MedicineBoxOutlined, FileTextOutlined, UploadOutlined, DatabaseOutlined, PictureOutlined, FilePdfOutlined, HeartOutlined, ExperimentOutlined, ToolOutlined, RiseOutlined, FileProtectOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { UploadedFile } from '../../stores/consultationStore'
 import PatientInfo from '../../components/PatientInfo'
@@ -10,7 +10,8 @@ import { useAppStore } from '../../stores/appStore'
 import { sendSystemNotification } from '../../stores/notificationStore'
 import { hasPermission } from '../../utils/helpers'
 import { CONSULTATION_STATUS, ROLE, POSITION } from '../../utils/statusMapping'
-import { getConsultationStatusName, getConsultationStatusColor } from '../../utils/codeTable'
+import { getConsultationStatusName, getConsultationStatusColor, getUrgencyName, getUrgencyColor } from '../../utils/codeTable'
+import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -31,6 +32,7 @@ interface ConsultationApplication {
   consultationPurpose: string
   urgency: '普通' | '紧急' | '特急'
   status: 'doctor_submit' | 'director_pending' | 'secretary_pending' | 'director_rejected'
+  auditTime?: string  // 审批时间
   experts: Array<{ id: string; name: string; department: string; title: string }>
   // 材料相关字段
   medicalRecords?: {
@@ -249,16 +251,9 @@ const mockPendingApplications: ConsultationApplication[] = [
   }
 ]
 
-const urgencyConfig = {
-  '普通': { color: 'default' },
-  '紧急': { color: 'orange' },
-  '特急': { color: 'red' },
-}
-
 export default function DirectorConfirm() {
   const { user } = useAppStore()
   const [pendingData, setPendingData] = useState<ConsultationApplication[]>([])
-  const [processedData, setProcessedData] = useState<ConsultationApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [detailVisible, setDetailVisible] = useState(false)
   const [rejectVisible, setRejectVisible] = useState(false)
@@ -266,10 +261,21 @@ export default function DirectorConfirm() {
   const [rejectReason, setRejectReason] = useState('')
   const [opinion, setOpinion] = useState('')
   const [opinionVisible, setOpinionVisible] = useState(false)
-  const [activeTab, setActiveTab] = useState('pending')
   const [submitting, setSubmitting] = useState(false)
   const [todayConfirmed, setTodayConfirmed] = useState(0)
   const [todayRejected, setTodayRejected] = useState(0)
+  
+  // 筛选条件
+  const [filters, setFilters] = useState({
+    applyDoctor: '',
+    status: '',
+    urgency: '',
+    applyDateStart: null as dayjs.Dayjs | null,
+    applyDateEnd: null as dayjs.Dayjs | null,
+    auditDateStart: null as dayjs.Dayjs | null,
+    auditDateEnd: null as dayjs.Dayjs | null,
+  })
+  
   const navigate = useNavigate()
 
   // 加载会诊申请数据和统计信息
@@ -312,29 +318,15 @@ export default function DirectorConfirm() {
       
       // 并行获取所有数据
       const [
-        { data: pendingConsultations, error: pendingError },
-        { data: processedConsultations, error: processedError },
+        { data: consultations, error: consultationsError },
         { data: allExperts, error: expertsError },
         { data: consultationExperts, error: ceError },
         { data: auditHistory, error: auditError }
       ] = await Promise.all([
-        // 待确认列表：查询医生提交的会诊（与主任工作台一致）
+        // 查询所有会诊数据
         supabase
           .from('consultations')
           .select('*')
-          .eq('status', CONSULTATION_STATUS.DOCTOR_SUBMIT)
-          .eq('department', directorDepartment)
-          .order('urgency', { ascending: false })
-          .order('apply_time', { ascending: false }),
-        // 已处理列表：查询主任已处理的会诊（主任驳回 + 主任通过后进入秘书审核 + 医生撤回）
-        supabase
-          .from('consultations')
-          .select('*')
-          .in('status', [
-            CONSULTATION_STATUS.DIRECTOR_REJECTED,
-            CONSULTATION_STATUS.SECRETARY_PENDING,
-            CONSULTATION_STATUS.CANCELLED
-          ])
           .eq('department', directorDepartment)
           .order('urgency', { ascending: false })
           .order('apply_time', { ascending: false }),
@@ -353,8 +345,7 @@ export default function DirectorConfirm() {
       ])
       
       // 错误处理
-      if (pendingError) throw pendingError
-      if (processedError) throw processedError
+      if (consultationsError) throw consultationsError
       if (expertsError) throw expertsError
       if (ceError) throw ceError
       if (auditError) throw auditError
@@ -377,21 +368,9 @@ export default function DirectorConfirm() {
       })
 
       // 在代码中过滤：只显示当前主任负责的会诊
-      let filteredPending = pendingConsultations || []
-      let filteredProcessed = processedConsultations || []
+      let filteredConsultations = consultations || []
       if (user?.org_id && user?.position?.includes('主任')) {
-        filteredPending = filteredPending.filter((c: any) => {
-          // 如果是主要责任人（director_id），显示
-          if (c.director_id === user.id) return true
-          
-          // 如果会诊的科室和主任的科室一致，也能看到和审批
-          const consultationOrgId = c.department ? `org-${c.department.toLowerCase()}` : null
-          if (consultationOrgId === user.org_id) return true
-          
-          return false
-        })
-        
-        filteredProcessed = filteredProcessed.filter((c: any) => {
+        filteredConsultations = filteredConsultations.filter((c: any) => {
           // 如果是主要责任人（director_id），显示
           if (c.director_id === user.id) return true
           
@@ -405,7 +384,7 @@ export default function DirectorConfirm() {
       
       // 使用过滤后的数据构建应用程序数据
       const buildApplication = (c: any) => {
-        // 从 consultation_experts 表获取专家ID列表
+        // 从 consultation_experts 表获取专家 ID 列表
         const expertIds = consultationExpertMap.get(c.id) || []
         const experts = expertIds.map((id: string) => {
           const expert = expertMap.get(id)
@@ -442,11 +421,8 @@ export default function DirectorConfirm() {
         }
       }
 
-      const pendingApplications: ConsultationApplication[] = filteredPending.map(buildApplication)
-      const processedApplications: ConsultationApplication[] = filteredProcessed.map(buildApplication)
-
-      setPendingData(pendingApplications)
-      setProcessedData(processedApplications)
+      const allApplications: ConsultationApplication[] = filteredConsultations.map(buildApplication)
+      setPendingData(allApplications)
     } catch (err) {
       console.error('加载会诊申请失败:', err)
       message.error('加载会诊申请失败')
@@ -468,6 +444,64 @@ export default function DirectorConfirm() {
     }
     
     return patient
+  }
+
+  // 筛选数据
+  const filterData = (data: ConsultationApplication[]) => {
+    return data.filter(item => {
+      // 如果没有选择状态筛选，默认只显示待审批的数据
+      if (!filters.status) {
+        if (item.status !== 'doctor_submit') {
+          return false
+        }
+      } else {
+        // 如果选择了状态筛选，按选择的状态过滤
+        if (item.status !== filters.status) {
+          return false
+        }
+      }
+      
+      // 申请医生筛选
+      if (filters.applyDoctor && !item.applyDoctor.includes(filters.applyDoctor)) {
+        return false
+      }
+      
+      // 紧急程度筛选
+      if (filters.urgency && item.urgency !== filters.urgency) {
+        return false
+      }
+      
+      // 申请日期筛选
+      if (filters.applyDateStart && dayjs(item.applyTime).isBefore(filters.applyDateStart.startOf('day'))) {
+        return false
+      }
+      if (filters.applyDateEnd && dayjs(item.applyTime).isAfter(filters.applyDateEnd.endOf('day'))) {
+        return false
+      }
+      
+      // 审批日期筛选（需要 audit_time 字段）
+      if (filters.auditDateStart && item.auditTime && dayjs(item.auditTime).isBefore(filters.auditDateStart.startOf('day'))) {
+        return false
+      }
+      if (filters.auditDateEnd && item.auditTime && dayjs(item.auditTime).isAfter(filters.auditDateEnd.endOf('day'))) {
+        return false
+      }
+      
+      return true
+    })
+  }
+
+  // 重置筛选
+  const resetFilters = () => {
+    setFilters({
+      applyDoctor: '',
+      status: '',
+      urgency: '',
+      applyDateStart: null,
+      applyDateEnd: null,
+      auditDateStart: null,
+      auditDateEnd: null,
+    })
   }
 
   const handleConfirm = (item: ConsultationApplication) => {
@@ -646,195 +680,76 @@ export default function DirectorConfirm() {
   }
 
   const columns: ColumnsType<ConsultationApplication> = [
-    {
-      title: '会诊 ID',
-      dataIndex: 'consultationCode',
-      width: 120,
-      render: (code: string, record: ConsultationApplication) => <Tag color="blue">{code || record.id}</Tag>
-    },
-    {
-      title: '患者信息',
-      key: 'patient',
-      width: 150,
-      render: (_, record) => (
-        <Space direction="vertical" size={0}>
-          <Space>
-            <UserOutlined />
-            <Text strong>{record.patientName}</Text>
-          </Space>
-          <Text type="secondary" className="text-xs">{record.patientInpatientNo}</Text>
-        </Space>
-      )
-    },
-    {
-      title: '性别/年龄',
-      key: 'demographics',
-      width: 100,
-      render: (_, record) => `${record.gender} / ${record.age}岁`
-    },
-    {
-      title: '申请科室',
-      dataIndex: 'department',
-      width: 120,
-    },
-    {
-      title: '申请医生',
-      dataIndex: 'applyDoctor',
-      width: 120,
-    },
-    {
-      title: '申请时间',
-      dataIndex: 'applyTime',
-      width: 150,
-    },
-    {
-      title: '主要诊断',
-      dataIndex: 'mainDiagnosis',
-      ellipsis: true,
-      width: 200,
-    },
+    { title: '会诊编号', dataIndex: 'consultationCode', width: 130 },
+    { title: '患者姓名', dataIndex: 'patientName', width: 100 },
+    { title: '住院号', dataIndex: 'patientInpatientNo', width: 140 },
+    { title: '科室', dataIndex: 'department', width: 100 },
+    { title: '诊断', dataIndex: 'mainDiagnosis', ellipsis: true },
     {
       title: '紧急程度',
       dataIndex: 'urgency',
       width: 100,
-      render: (urgency: string) => <Tag color={urgencyConfig[urgency as keyof typeof urgencyConfig]?.color}>{urgency}</Tag>
+      render: (urgency: string) => {
+        // 处理中文值映射为英文代码
+        let level = urgency
+        const chineseToEnglish: Record<string, string> = {
+          '普通': 'normal',
+          '紧急': 'urgent',
+          '危急': 'critical',
+        }
+        if (chineseToEnglish[urgency]) {
+          level = chineseToEnglish[urgency]
+        }
+        
+        const color = getUrgencyColor(level)
+        const name = getUrgencyName(level) || urgency
+        
+        if (level === 'critical') {
+          return (
+            <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px', fontWeight: 'bold', animation: 'pulse 1s infinite' }}>
+              <span className="flex items-center gap-1">
+                <AlertOutlined />
+                {name}
+              </span>
+            </Tag>
+          )
+        }
+        
+        if (level === 'urgent') {
+          return (
+            <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px', fontWeight: 'bold' }}>
+              <span className="flex items-center gap-1">
+                <ClockCircleOutlined />
+                {name}
+              </span>
+            </Tag>
+          )
+        }
+        
+        return <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px' }}>{name}</Tag>
+      }
     },
-    {
-      title: '拟邀专家',
-      dataIndex: 'experts',
-      width: 200,
-      render: (experts: Array<{ name: string; department: string }>) => (
-        <Space wrap>
-          {experts.slice(0, 2).map(e => (
-            <Tag key={e.name} color="cyan">{e.name}({e.department})</Tag>
-          ))}
-          {experts.length > 2 && <Tag>+{experts.length - 2}</Tag>}
-        </Space>
-      )
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 260,
-      fixed: 'right',
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-          >
-            详情
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            icon={<CheckOutlined />}
-            onClick={() => handleConfirm(record)}
-          >
-            确认
-          </Button>
-          <Button
-            size="small"
-            danger
-            icon={<CloseOutlined />}
-            onClick={() => handleReject(record)}
-          >
-            拒绝
-          </Button>
-        </Space>
-      )
-    }
-  ]
-
-  const processedColumns: ColumnsType<ConsultationApplication> = [
-    {
-      title: '会诊 ID',
-      dataIndex: 'consultationCode',
-      width: 120,
-      render: (code: string, record: ConsultationApplication) => <Tag color="blue">{code || record.id}</Tag>
-    },
-    {
-      title: '患者信息',
-      key: 'patient',
-      width: 150,
-      render: (_, record) => (
-        <Space direction="vertical" size={0}>
-          <Space>
-            <UserOutlined />
-            <Text strong>{record.patientName}</Text>
-          </Space>
-          <Text type="secondary" className="text-xs">{record.patientInpatientNo}</Text>
-        </Space>
-      )
-    },
-    {
-      title: '性别/年龄',
-      key: 'demographics',
-      width: 100,
-      render: (_, record) => `${record.gender} / ${record.age}岁`
-    },
-    {
-      title: '申请科室',
-      dataIndex: 'department',
-      width: 120,
-    },
-    {
-      title: '申请医生',
-      dataIndex: 'applyDoctor',
-      width: 120,
-    },
+    { title: '申请医生', dataIndex: 'applyDoctor', width: 100 },
     {
       title: '申请时间',
       dataIndex: 'applyTime',
-      width: 150,
-    },
-    {
-      title: '主要诊断',
-      dataIndex: 'mainDiagnosis',
-      ellipsis: true,
-      width: 200,
-    },
-    {
-      title: '紧急程度',
-      dataIndex: 'urgency',
-      width: 100,
-      render: (urgency: string) => <Tag color={urgencyConfig[urgency as keyof typeof urgencyConfig]?.color}>{urgency}</Tag>
-    },
-    {
-      title: '审核状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (status: string) => <Tag color={getConsultationStatusColor(status)}>{getConsultationStatusName(status)}</Tag>
-    },
-    {
-      title: '拟邀专家',
-      dataIndex: 'experts',
-      width: 200,
-      render: (experts: Array<{ name: string; department: string }>) => (
-        <Space wrap>
-          {experts.slice(0, 2).map(e => (
-            <Tag key={e.name} color="cyan">{e.name}({e.department})</Tag>
-          ))}
-          {experts.length > 2 && <Tag>+{experts.length - 2}</Tag>}
-        </Space>
-      )
+      width: 160,
+      render: (t: string) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
     },
     {
       title: '操作',
       key: 'action',
-      width: 120,
+      width: 100,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="small">
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-          >
-            详情
-          </Button>
-        </Space>
+        <Button
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => handleViewDetail(record)}
+          block
+        >
+          详情
+        </Button>
       )
     }
   ]
@@ -859,8 +774,8 @@ export default function DirectorConfirm() {
         <Col span={6}>
           <Card>
             <Statistic
-              title="待确认"
-              value={pendingData.length}
+              title="待审批"
+              value={pendingData.filter(item => item.status === 'doctor_submit').length}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -896,40 +811,84 @@ export default function DirectorConfirm() {
         </Col>
       </Row>
 
+      {/* 筛选条件 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Form layout="inline">
+          <Form.Item label="申请医生">
+            <Input
+              placeholder="请输入申请医生"
+              value={filters.applyDoctor}
+              onChange={(e) => setFilters({ ...filters, applyDoctor: e.target.value })}
+              allowClear
+              style={{ width: 150 }}
+            />
+          </Form.Item>
+          <Form.Item label="紧急程度">
+            <Select
+              placeholder="请选择紧急程度"
+              value={filters.urgency}
+              onChange={(value) => setFilters({ ...filters, urgency: value })}
+              allowClear
+              style={{ width: 120 }}
+            >
+              <Select.Option value="normal">普通</Select.Option>
+              <Select.Option value="urgent">紧急</Select.Option>
+              <Select.Option value="critical">特急</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item label="审批状态">
+            <Select
+              placeholder="请选择状态"
+              value={filters.status}
+              onChange={(value) => setFilters({ ...filters, status: value })}
+              allowClear
+              style={{ width: 150 }}
+            >
+              <Select.Option value="doctor_submit">待审批</Select.Option>
+              <Select.Option value="secretary_pending">已通过</Select.Option>
+              <Select.Option value="director_rejected">已驳回</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item label="申请日期">
+            <DatePicker.RangePicker
+              value={[filters.applyDateStart, filters.applyDateEnd]}
+              onChange={(dates) => {
+                setFilters({
+                  ...filters,
+                  applyDateStart: dates?.[0] || null,
+                  applyDateEnd: dates?.[1] || null,
+                })
+              }}
+            />
+          </Form.Item>
+          <Form.Item label="审批日期">
+            <DatePicker.RangePicker
+              value={[filters.auditDateStart, filters.auditDateEnd]}
+              onChange={(dates) => {
+                setFilters({
+                  ...filters,
+                  auditDateStart: dates?.[0] || null,
+                  auditDateEnd: dates?.[1] || null,
+                })
+              }}
+            />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button onClick={resetFilters}>重置</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Card>
+
       <Card>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'pending',
-              label: <span><Badge count={pendingData.length} offset={[5, 0]} /> 待确认</span>,
-              children: (
-                <Table
-                  columns={columns}
-                  dataSource={pendingData}
-                  rowKey="id"
-                  scroll={{ x: 1400 }}
-                  pagination={{ pageSize: 10 }}
-                  loading={loading}
-                />
-              )
-            },
-            {
-              key: 'processed',
-              label: '已处理',
-              children: (
-                <Table
-                  columns={processedColumns}
-                  dataSource={processedData}
-                  rowKey="id"
-                  scroll={{ x: 1500 }}
-                  pagination={{ pageSize: 10 }}
-                  loading={loading}
-                />
-              )
-            }
-          ]}
+        <Table
+          columns={columns}
+          dataSource={filterData(pendingData)}
+          rowKey="id"
+          scroll={{ x: 1400 }}
+          pagination={{ pageSize: 10 }}
+          loading={loading}
         />
       </Card>
 
@@ -980,7 +939,17 @@ export default function DirectorConfirm() {
                 <Descriptions bordered column={3} size="small">
                   <Descriptions.Item label="会诊 ID">{selectedItem.id}</Descriptions.Item>
                   <Descriptions.Item label="紧急程度">
-                    <Tag color={urgencyConfig[selectedItem.urgency]?.color}>{selectedItem.urgency}</Tag>
+                    {(() => {
+                      const chineseToEnglish: Record<string, string> = {
+                        '普通': 'normal',
+                        '紧急': 'urgent',
+                        '危急': 'critical',
+                      }
+                      const level = chineseToEnglish[selectedItem.urgency] || 'normal'
+                      const color = getUrgencyColor(level)
+                      const name = getUrgencyName(level) || selectedItem.urgency
+                      return <Tag color={color}>{name}</Tag>
+                    })()}
                   </Descriptions.Item>
                   <Descriptions.Item label="申请医生">{selectedItem.applyDoctor}</Descriptions.Item>
                   <Descriptions.Item label="申请时间">{selectedItem.applyTime}</Descriptions.Item>
@@ -1003,173 +972,130 @@ export default function DirectorConfirm() {
                 </Descriptions>
               </Card>
 
-              {/* 病历资料 + 附件 */}
-              <AntdTabs
-                size="small"
-                type="card"
-                items={[
-                  {
-                    key: 'records',
-                    label: (
-                      <Space>
-                        <FileTextOutlined />
-                        <span>病历资料</span>
-                      </Space>
-                    ),
-                    children: (
-                      <Card 
-                        size="small" 
-                        title={
-                          <Space>
-                            <FileTextOutlined />
-                            <span>结构化病历</span>
-                            {selectedItem.hisDataSynced && (
-                              <Tag color="green" icon={<DatabaseOutlined />}>
-                                HIS 已同步 {selectedItem.hisSyncTime}
-                              </Tag>
-                            )}
-                          </Space>
-                        }
-                        className="bg-green-50 border-green-200"
-                      >
-                        <Descriptions column={2} size="small">
-                          <Descriptions.Item label="主诉" span={2}>
-                            <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.chiefComplaint || '-'}</div>
-                          </Descriptions.Item>
-                          <Descriptions.Item label="现病史" span={2}>
-                            <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.presentIllness || '-'}</div>
-                          </Descriptions.Item>
-                          <Descriptions.Item label="既往史" span={2}>
-                            <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.pastHistory || '-'}</div>
-                          </Descriptions.Item>
-                          <Descriptions.Item label="体格检查" span={2}>
-                            <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.physicalExamination || '-'}</div>
-                          </Descriptions.Item>
-                          <Descriptions.Item label="辅助检查" span={2}>
-                            <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.auxiliaryExamination || '-'}</div>
-                          </Descriptions.Item>
-                          <Descriptions.Item label="初步诊断" span={2}>
-                            <div className="whitespace-pre-wrap font-medium text-blue-600">{selectedItem.medicalRecords?.initialDiagnosis || '-'}</div>
-                          </Descriptions.Item>
-                          <Descriptions.Item label="治疗方案" span={2}>
-                            <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.treatmentPlan || '-'}</div>
-                          </Descriptions.Item>
-                        </Descriptions>
-                      </Card>
-                    )
-                  },
-                  {
-                    key: 'attachments',
-                    label: (
-                      <Space>
-                        <UploadOutlined />
-                        <span>附件材料</span>
-                        {selectedItem.uploadedFiles && (
-                          <Badge count={selectedItem.uploadedFiles.length} size="small" />
-                        )}
-                      </Space>
-                    ),
-                    children: (
-                      <Card size="small" title={<Space><UploadOutlined />上传的附件（共 {selectedItem.uploadedFiles?.length || 0} 份）</Space>}>
-                        {selectedItem.uploadedFiles && selectedItem.uploadedFiles.length > 0 ? (
-                          <Tabs
-                            size="small"
-                            type="card"
-                            items={(() => {
-                              const filesByType = selectedItem.uploadedFiles?.reduce((acc, file) => {
-                                if (!acc[file.fileType]) {
-                                  acc[file.fileType] = []
-                                }
-                                acc[file.fileType].push(file)
-                                return acc
-                              }, {} as Record<string, typeof selectedItem.uploadedFiles>) || {}
+              {/* 病历资料 */}
+              <Card 
+                size="small" 
+                className="mb-4"
+                title={
+                  <Space>
+                    <FileTextOutlined />
+                    <span>结构化病历</span>
+                    {selectedItem.hisDataSynced && (
+                      <Tag color="green" icon={<DatabaseOutlined />}>
+                        HIS 已同步 {selectedItem.hisSyncTime}
+                      </Tag>
+                    )}
+                  </Space>
+                }
+              >
+                <Descriptions column={2} size="small">
+                  <Descriptions.Item label="主诉" span={2}>
+                    <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.chiefComplaint || '-'}</div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="现病史" span={2}>
+                    <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.presentIllness || '-'}</div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="既往史" span={2}>
+                    <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.pastHistory || '-'}</div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="体格检查" span={2}>
+                    <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.physicalExamination || '-'}</div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="辅助检查" span={2}>
+                    <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.auxiliaryExamination || '-'}</div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="初步诊断" span={2}>
+                    <div className="whitespace-pre-wrap font-medium text-blue-600">{selectedItem.medicalRecords?.initialDiagnosis || '-'}</div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="治疗方案" span={2}>
+                    <div className="whitespace-pre-wrap">{selectedItem.medicalRecords?.treatmentPlan || '-'}</div>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
 
-                              return Object.keys(filesByType).map(type => ({
-                                key: type,
-                                label: (
-                                  <Space>
-                                    <span>{type}</span>
-                                    <Badge count={filesByType[type].length} size="small" />
-                                  </Space>
-                                ),
-                                children: (
-                                  <List
-                                    dataSource={filesByType[type]}
-                                    renderItem={(file) => (
-                                      <List.Item
-                                        actions={[
-                                          <Space key="actions">
-                                            <Button 
-                                              type="link" 
-                                              size="small" 
-                                              icon={<EyeOutlined />}
-                                              onClick={() => window.open(file.uploadUrl, '_blank')}
-                                            >
-                                              查看
-                                            </Button>
-                                            <Button 
-                                              type="link" 
-                                              size="small" 
-                                              icon={<UploadOutlined />}
-                                              onClick={() => {
-                                                const link = document.createElement('a')
-                                                link.href = file.uploadUrl
-                                                link.download = file.fileName
-                                                link.click()
-                                              }}
-                                            >
-                                              下载
-                                            </Button>
-                                          </Space>
-                                        ]}
-                                      >
-                                        <List.Item.Meta
-                                          avatar={
-                                            <Avatar 
-                                              icon={
-                                                file.fileType.includes('影像') || file.fileType.includes('图片') ? 
-                                                  <PictureOutlined /> : 
-                                                  file.fileType.includes('病理') || file.fileName.endsWith('.pdf') ? 
-                                                    <FilePdfOutlined /> : 
-                                                    <FileTextOutlined />
-                                              }
-                                              size={40}
-                                              style={{ backgroundColor: file.fromHIS ? '#52c41a' : '#1890ff' }}
-                                            />
-                                          }
-                                          title={
-                                            <Space>
-                                              <Text strong>{file.fileName}</Text>
-                                              {file.fromHIS && (
-                                                <Tag color="green" icon={<DatabaseOutlined />}>HIS</Tag>
-                                              )}
-                                              <Tag color="default">{(file.fileSize / 1024).toFixed(1)} KB</Tag>
-                                            </Space>
-                                          }
-                                          description={
-                                            <div className="text-xs text-gray-500">
-                                              上传时间：{new Date(file.uploadTime).toLocaleString()}
-                                            </div>
-                                          }
-                                        />
-                                      </List.Item>
-                                    )}
-                                  />
-                                )
-                              }))
-                            })()}
-                          />
-                        ) : (
-                          <div className="text-center py-8 text-gray-400">
-                            <UploadOutlined className="text-4xl mb-2" />
-                            <div>暂无附件材料</div>
-                          </div>
-                        )}
-                      </Card>
-                    )
-                  }
-                ]}
-              />
+              {/* 附件材料 */}
+              <Card 
+                size="small" 
+                title={
+                  <Space>
+                    <UploadOutlined />
+                    <span>上传的附件</span>
+                    {selectedItem.uploadedFiles && (
+                      <Badge count={selectedItem.uploadedFiles.length} size="small" />
+                    )}
+                  </Space>
+                }
+              >
+                {selectedItem.uploadedFiles && selectedItem.uploadedFiles.length > 0 ? (
+                  <List
+                    dataSource={selectedItem.uploadedFiles}
+                    renderItem={(file) => (
+                      <List.Item
+                        actions={[
+                          <Space key="actions">
+                            <Button 
+                              type="link" 
+                              size="small" 
+                              icon={<EyeOutlined />}
+                              onClick={() => window.open(file.uploadUrl, '_blank')}
+                            >
+                              查看
+                            </Button>
+                            <Button 
+                              type="link" 
+                              size="small" 
+                              icon={<UploadOutlined />}
+                              onClick={() => {
+                                const link = document.createElement('a')
+                                link.href = file.uploadUrl
+                                link.download = file.fileName
+                                link.click()
+                              }}
+                            >
+                              下载
+                            </Button>
+                          </Space>
+                        ]}
+                      >
+                        <List.Item.Meta
+                          avatar={
+                            <Avatar 
+                              icon={
+                                file.fileType.includes('影像') || file.fileType.includes('图片') ? 
+                                  <PictureOutlined /> : 
+                                  file.fileType.includes('病理') || file.fileName.endsWith('.pdf') ? 
+                                    <FilePdfOutlined /> : 
+                                    <FileTextOutlined />
+                              }
+                              size={40}
+                              style={{ backgroundColor: file.fromHIS ? '#52c41a' : '#1890ff' }}
+                            />
+                          }
+                          title={
+                            <Space>
+                              <Text strong>{file.fileName}</Text>
+                              {file.fromHIS && (
+                                <Tag color="green" icon={<DatabaseOutlined />}>HIS</Tag>
+                              )}
+                              <Tag color="default">{(file.fileSize / 1024).toFixed(1)} KB</Tag>
+                            </Space>
+                          }
+                          description={
+                            <div className="text-xs text-gray-500">
+                              上传时间：{new Date(file.uploadTime).toLocaleString()}
+                            </div>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <UploadOutlined className="text-4xl mb-2" />
+                    <div>暂无附件材料</div>
+                  </div>
+                )}
+              </Card>
             </div>
           )
         }
