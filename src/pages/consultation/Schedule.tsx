@@ -67,7 +67,7 @@ export default function Schedule() {
     patientName: '',
     applyDoctor: '',
     urgency: '',
-    status: '',
+    status: 'secretary_pending', // 默认筛选待秘书审核
     department: '',
     applyDateStart: null,
     applyDateEnd: null,
@@ -109,11 +109,15 @@ export default function Schedule() {
         consultationExpertMap.get(ce.consultation_id)!.push(ce.expert_id)
       })
 
-      // 获取所有会诊（包括待排期、已排期和已完成的）
-      const { data: allConsultations, error: consultationsError } = await supabase
-        .from('consultations')
-        .select('*')
-        .order('apply_time', { ascending: false })
+      // 获取会诊数据（默认只加载待秘书审核的，如果筛选了其他状态则加载所有）
+      let query = supabase.from('consultations').select('*')
+      
+      // 如果筛选状态为空或为"待秘书审核"，则只加载待秘书审核的
+      if (!filters.status || filters.status === '待秘书审核') {
+        query = query.eq('status', 'secretary_pending')
+      }
+      
+      const { data: allConsultations, error: consultationsError } = await query.order('apply_time', { ascending: false })
 
       if (consultationsError) throw consultationsError
 
@@ -181,17 +185,8 @@ export default function Schedule() {
       
       // 审批状态筛选
       if (filters.status) {
-        // 将中文状态映射回英文状态码进行比较
-        const statusMap: Record<string, string> = {
-          '待秘书审核': 'secretary_pending',
-          '待专家确认': '待专家确认',
-          '专家邀请': '专家邀请',
-          '专家确认': '专家确认',
-          '待会诊': '待会诊',
-          '会诊中': '会诊中',
-        }
-        const expectedStatus = statusMap[filters.status] || filters.status
-        if (item.status !== expectedStatus) {
+        // filters.status 是英文状态码，直接比较
+        if (item.status !== filters.status) {
           return false
         }
       }

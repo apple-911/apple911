@@ -72,6 +72,12 @@ export default function ConsultationDetail() {
   const [expertSelectorVisible, setExpertSelectorVisible] = useState(false)
   const [secretaryExperts, setSecretaryExperts] = useState<any[]>([])
   
+  // 判断是否是秘书提交的会诊
+  const isSecretarySubmit = auditHistory.some(record => 
+    record.node === '秘书提交' || 
+    (record.operator_role === ROLE.SECRETARY && record.node === '申请提交')
+  )
+  
   // 提交状态
   const [submitting, setSubmitting] = useState(false)
 
@@ -221,13 +227,13 @@ export default function ConsultationDetail() {
         consultation_id: id,
         operator_id: user?.id?.toString() || '',
         operator: user?.name || '',
-        operator_role: 'director',
-        node: 'department_audit',
+        operator_role: ROLE.DIRECTOR,
+        node: '主任审批',
         operator_type: 'approved',
-        result: 'approved',
+        result: '通过',
         opinion: directorOpinion,
         time: new Date().toISOString(),
-        next_node: 'secretary_audit'
+        next_node: '秘书审核'
       }
       
       console.log('审核历史插入数据:', auditInsert)
@@ -292,13 +298,13 @@ export default function ConsultationDetail() {
         consultation_id: id,
         operator_id: user?.id,
         operator: user?.name || '',
-        operator_role: 'director',
-        node: 'department_audit',
+        operator_role: ROLE.DIRECTOR,
+        node: '主任审批',
         operator_type: 'rejected',
         result: '拒绝',
         opinion: directorOpinion,
         time: new Date().toISOString(),
-        next_node: 'archive'
+        next_node: '申请修改'
       })
       
       // 发送通知给申请医生
@@ -1504,12 +1510,15 @@ export default function ConsultationDetail() {
             <p><strong>申请时间：</strong>{consultation?.apply_time ? dayjs(consultation.apply_time).format('YYYY-MM-DD HH:mm') : '-'}</p>
           </div>
           
-          <div>
-            <strong>医生拟会诊时间：</strong>
-            <div className="mt-2 p-2 bg-gray-50 border rounded">
-              {consultation?.expect_time ? dayjs(consultation.expect_time).format('YYYY-MM-DD HH:mm') : '未填写'}
+          {/* 如果不是秘书提交的，显示医生拟会诊时间 */}
+          {!isSecretarySubmit && (
+            <div>
+              <strong>医生拟会诊时间：</strong>
+              <div className="mt-2 p-2 bg-gray-50 border rounded">
+                {consultation?.expect_time ? dayjs(consultation.expect_time).format('YYYY-MM-DD HH:mm') : '未填写'}
+              </div>
             </div>
-          </div>
+          )}
           
           <div>
             <strong>秘书安排会诊时间：</strong>
@@ -1543,22 +1552,25 @@ export default function ConsultationDetail() {
             </Select>
           </div>
           
-          <div>
-            <strong>医生拟邀请专家 </strong>
-            <div className="mt-2 p-2 bg-gray-50 border rounded">
-              {experts && experts.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {experts.map(expert => (
-                    <Tag key={expert.id || expert.expert_id} color="blue">
-                      {expert.expert_name || expert.name} - {expert.expert_department || expert.department}
-                    </Tag>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-gray-400">未邀请专家</span>
-              )}
+          {/* 如果不是秘书提交的，显示医生拟邀请专家 */}
+          {!isSecretarySubmit && (
+            <div>
+              <strong>医生拟邀请专家 </strong>
+              <div className="mt-2 p-2 bg-gray-50 border rounded">
+                {experts && experts.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {experts.map(expert => (
+                      <Tag key={expert.id || expert.expert_id} color="blue">
+                        {expert.expert_name || expert.name} - {expert.expert_department || expert.department}
+                      </Tag>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-400">未邀请专家</span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
           
           <div>
             <strong>秘书安排会诊专家：</strong>

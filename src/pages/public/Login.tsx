@@ -17,6 +17,13 @@ interface LoginForm {
   username: string
   password: string
   role: Role
+  userId?: string  // 新增：用户 ID
+}
+
+interface UserOption {
+  value: string
+  label: string
+  username: string
 }
 
 const roleOptions: { value: Role; label: string }[] = [
@@ -34,6 +41,8 @@ export default function Login() {
   const [form] = Form.useForm()
   const navigate = useNavigate()
   const { setUser, setRole } = useAppStore()
+  const [userOptions, setUserOptions] = useState<UserOption[]>([])
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null)
 
   // 检查是否已登录（从 localStorage 恢复）
   useEffect(() => {
@@ -71,20 +80,131 @@ export default function Login() {
     'super_admin': { username: 'superadmin', password: '123456' },
   }
 
+  // 根据角色加载用户列表
+  const loadUsersByRole = async (role: Role) => {
+    try {
+      console.log('=== 开始加载角色用户 ===')
+      console.log('选择的角色:', role)
+      
+      // 1. 先查询角色 ID (数据库中的 code 是大写，需要转换)
+      const { data: roleData, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('code', role.toUpperCase())
+        .single()
+      
+      if (roleError || !roleData) {
+        console.error('角色不存在:', role, '错误:', roleError)
+        setUserOptions([])
+        return
+      }
+
+      console.log('角色 ID:', roleData.id)
+
+      // 2. 查询该角色下的所有用户 ID
+      const { data: userRoles, error: userRolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role_id', roleData.id)
+
+      if (userRolesError || !userRoles || userRoles.length === 0) {
+        console.log('该角色下没有用户', '错误:', userRolesError)
+        setUserOptions([])
+        return
+      }
+
+      console.log('角色下的用户 ID 列表:', userRoles)
+      const userIds = userRoles.map(ur => ur.user_id)
+      console.log('用户 ID 数组:', userIds)
+
+      // 3. 查询用户详细信息
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, username, name, org_id, status')
+        .filter('id', 'in', `(${userIds.join(',')})`)
+
+      console.log('查询结果:', { users, usersError })
+
+      if (usersError || !users || users.length === 0) {
+        console.log('没有查询到用户', '错误:', usersError)
+        setUserOptions([])
+        return
+      }
+
+      console.log('查询到的用户:', users)
+
+      // 4. 构建选项列表
+      const options = users.map(user => ({
+        value: user.id,
+        label: `${user.name} (${user.username})`,
+        username: user.username,
+      }))
+
+      setUserOptions(options)
+      console.log('用户选项列表:', options)
+
+      // 如果只有一个用户，自动选中
+      if (options.length === 1) {
+        form.setFieldsValue({
+          userId: options[0].value,
+          username: options[0].username,
+          password: '123456',
+        })
+      } else if (options.length > 1) {
+        // 清空用户名和密码，等待用户选择
+        form.setFieldsValue({
+          userId: undefined,
+          username: '',
+          password: '',
+        })
+      }
+    } catch (err) {
+      console.error('加载用户列表失败:', err)
+      setUserOptions([])
+    }
+  }
+
+  // 页面加载时自动加载默认角色的用户列表
+  useEffect(() => {
+    const defaultRole: Role = 'apply_doctor'
+    setSelectedRole(defaultRole)
+    loadUsersByRole(defaultRole)
+  }, [])
+
   const handleSubmit = async (values: LoginForm) => {
     setLoading(true)
     
     try {
-      // 1. 先从 users 表查询用户基本信息
+      let userId = values.userId
+      
+      // 如果没有 userId，尝试通过用户名密码查询
+      if (!userId) {
+        // 1. 先从 users 表查询用户基本信息
+        const { data: user, error: userError } = await supabase
+          .from('users')
+          .select('id, username, name, org_id, position, avatar, status')
+          .eq('username', values.username)
+          .eq('password', values.password)
+          .single()
+        
+        if (userError || !user) {
+          message.error('用户名或密码错误')
+          setLoading(false)
+          return
+        }
+        
+        userId = user.id
+      }
+
+      // 使用 userId 查询用户信息
       const { data: user, error: userError } = await supabase
         .from('users')
         .select('id, username, name, org_id, position, avatar, status')
-        .eq('username', values.username)
-        .eq('password', values.password)
+        .eq('id', userId)
         .single()
       
       if (userError || !user) {
-        message.error('用户名或密码错误')
+        message.error('用户不存在')
         setLoading(false)
         return
       }
@@ -145,7 +265,7 @@ export default function Login() {
       console.log('用户选择的角色:', values.role)
       console.log('转换为大写:', selectedRoleCode)
       console.log('用户拥有的角色:', roles.map(r => ({ id: r.id, name: r.name, code: r.code })))
-      console.log('角色代码列表(大写):', roleCodes)
+      console.log('角色代码列表 (大写):', roleCodes)
       
       // 尝试找到匹配的角色（同时匹配 code 和 name）
       const matchedRole = roles.find(r => 
@@ -312,9 +432,7 @@ export default function Login() {
                 layout="horizontal"
                 onFinish={handleSubmit}
                 initialValues={{ 
-                  role: '申请医生',
-                  username: 'doctor',
-                  password: '123456',
+                  role: 'apply_doctor',
                 }}
                 size="large"
               >
@@ -324,19 +442,38 @@ export default function Login() {
                     size="large"
                     className="rounded-lg"
                     onChange={(value: Role) => {
-                      const account = testAccounts[value]
-                      if (account) {
+                      setSelectedRole(value)
+                      loadUsersByRole(value)
+                    }}
+                  />
+                </Form.Item>
+
+                <Form.Item name="userId" label={<span className="font-medium text-gray-700 text-sm whitespace-nowrap">选择用户</span>} className="mb-3">
+                  <Select 
+                    options={userOptions}
+                    size="large"
+                    className="rounded-lg"
+                    placeholder="请选择用户"
+                    showSearch
+                    optionFilterProp="children"
+                    filterOption={(input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    onChange={(value: string, option: any) => {
+                      console.log('选择用户:', { value, option })
+                      if (option) {
                         form.setFieldsValue({
-                          username: account.username,
-                          password: account.password,
+                          username: option.username,
+                          password: '123456',
                         })
+                        console.log('填充用户名密码:', option.username)
                       }
                     }}
                   />
                 </Form.Item>
 
-                <Form.Item
-                  name="username"
+                <Form.Item 
+                  name="username" 
                   label={<span className="font-medium text-gray-700 text-sm whitespace-nowrap">用户名</span>}
                   rules={[{ required: true, message: '请输入用户名' }]}
                   className="mb-3"
@@ -347,6 +484,7 @@ export default function Login() {
                     size="large"
                     className="rounded-lg"
                     style={{ borderRadius: '8px' }}
+                    readOnly={userOptions.length > 0}  // 有用户列表时只读
                   />
                 </Form.Item>
 
@@ -363,6 +501,11 @@ export default function Login() {
                     className="rounded-lg"
                     style={{ borderRadius: '8px' }}
                   />
+                </Form.Item>
+
+                {/* 隐藏的 userId 字段 */}
+                <Form.Item name="userId" hidden={true}>
+                  <input type="hidden" />
                 </Form.Item>
 
                 <Form.Item className="mb-4">

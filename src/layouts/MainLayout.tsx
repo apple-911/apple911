@@ -242,7 +242,12 @@ export default function MainLayout() {
           />
           <div className="flex items-center gap-4">
             <NotificationPanel />
-            <Tag color="green" style={{ background: 'var(--xiehe-green-bg)', color: 'var(--xiehe-green)' }}>{user?.name || '用户'}</Tag>
+            <div className="flex flex-col items-center">
+              <Tag color="green" style={{ background: 'var(--xiehe-green-bg)', color: 'var(--xiehe-green)', marginBottom: '2px' }}>{user?.name || '用户'}</Tag>
+              {user?.department && (
+                <span className="text-xs text-gray-500">{user.department}</span>
+              )}
+            </div>
             <Dropdown 
               menu={{ items: userMenuItems }} 
               placement="bottomRight" 

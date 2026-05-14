@@ -21,6 +21,7 @@ interface PendingReview {
   urgency: '普通' | '紧急' | '危急'
   applicant: string
   applyTime: string
+  urgencyCode?: string // 添加紧急程度编码用于排序
 }
 
 export default function SecretaryWorkbench() {
@@ -59,7 +60,6 @@ export default function SecretaryWorkbench() {
         .from('consultations')
         .select('*')
         .eq('status', 'secretary_pending')
-        .order('urgency', { ascending: false })
         .order('apply_time', { ascending: false })
       
       if (error) throw error
@@ -73,9 +73,29 @@ export default function SecretaryWorkbench() {
         urgency: getUrgencyName(item.urgency) as '普通' | '紧急' | '危急',
         applicant: item.apply_doctor,
         applyTime: item.apply_time,
+        urgencyCode: item.urgency, // 保留原始紧急程度编码用于排序
       }))
       
-      setPendingList(pendingReviews)
+      // 前端排序：先按紧急程度（危急 > 紧急 > 普通），再按申请时间（新的在前）
+      const urgencyPriority: Record<string, number> = {
+        'critical': 3,  // 危急
+        'urgent': 2,    // 紧急
+        'normal': 1,    // 普通
+      }
+      
+      pendingReviews.sort((a, b) => {
+        // 先按紧急程度排序
+        const urgencyDiff = (urgencyPriority[b.urgencyCode || 'normal'] || 1) - (urgencyPriority[a.urgencyCode || 'normal'] || 1)
+        if (urgencyDiff !== 0) return urgencyDiff
+        
+        // 紧急程度相同，按申请时间排序（新的在前）
+        return new Date(b.applyTime).getTime() - new Date(a.applyTime).getTime()
+      })
+      
+      // 移除排序用的 urgencyCode 字段
+      const sortedReviews = pendingReviews.map(({ urgencyCode, ...rest }) => rest)
+      
+      setPendingList(sortedReviews)
       setStats({
         pending: consultations?.length || 0,
         scheduled: 0,

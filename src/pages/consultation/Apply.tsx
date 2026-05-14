@@ -38,10 +38,14 @@ export default function Apply() {
   const [form] = Form.useForm()
   const navigate = useNavigate()
   
+  // 判断用户角色
+  const isSecretary = user?.position === POSITION.MDT_SECRETARY || user?.role === ROLE.SECRETARY
+  
   // 搜索和筛选状态
   const [searchText, setSearchText] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [aiFilter, setAiFilter] = useState('') // AI 预判筛选
+  const [allDepartments, setAllDepartments] = useState<string[]>([]) // 所有科室列表
   
   // AI 辅助相关状态
   const [aiLoading, setAiLoading] = useState(false)
@@ -64,14 +68,19 @@ export default function Apply() {
   
   // 患者数据（带 AI 评估）
   const [patientsWithAI, setPatientsWithAI] = useState<PatientWithAI[]>([])
+  const [patientsLoading, setPatientsLoading] = useState(false)
   
   // 专家数据（从数据库加载）
   const [expertsData, setExpertsData] = useState<Expert[]>([])
   const [submitting, setSubmitting] = useState(false)
 
+  // 会议室数据（从数据库加载）
+  const [meetingRooms, setMeetingRooms] = useState<any[]>([])
+
   // 从数据库加载患者数据
   useEffect(() => {
     const loadPatients = async () => {
+      setPatientsLoading(true)
       try {
         // 1. 先加载所有患者
         const { data: patientsData, error: patientsError } = await supabase
@@ -123,13 +132,25 @@ export default function Apply() {
         }))
         
         setPatientsWithAI(patientsDataWithAI)
+        
+        // 5. 提取所有科室列表
+        const departments = Array.from(new Set(availablePatients.map(p => p.department).filter(Boolean)))
+        setAllDepartments(departments)
+        
+        // 6. 默认筛选当前医生的科室（秘书角色除外）
+        if (user?.department && departments.length > 0 && !isSecretary) {
+          // 如果医生有科室信息且不是秘书，默认筛选该科室
+          setDepartmentFilter(user.department)
+        }
       } catch (err) {
         console.error('加载患者数据失败:', err)
+      } finally {
+        setPatientsLoading(false)
       }
     }
     
     loadPatients()
-  }, [])
+  }, [user?.department])
 
   // 从数据库加载专家数据
   useEffect(() => {
@@ -159,6 +180,27 @@ export default function Apply() {
     }
     
     loadExperts()
+  }, [])
+
+  // 从数据库加载会议室数据
+  useEffect(() => {
+    const loadMeetingRooms = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sys_codes')
+          .select('*')
+          .eq('type_id', 'meeting_room')
+          .eq('status', 'active')
+          .order('sort_order')
+        
+        if (error) throw error
+        setMeetingRooms(data || [])
+      } catch (err) {
+        console.error('加载会议室数据失败:', err)
+      }
+    }
+    
+    loadMeetingRooms()
   }, [])
 
   // 从 URL 参数中获取患者 ID 或随访信息并自动选择患者
@@ -253,7 +295,8 @@ export default function Apply() {
           summary: `患者${patient.name}，${patient.gender}，${patient.age}岁。主要诊断：${patient.mainDiagnosis}。`,
           type: consultation.type,
           urgency: consultation.urgency,
-          expectTime: consultation.expect_time ? dayjs(consultation.expect_time) : null,  // 字段名改为 expectTime
+          expectTime: consultation.meeting_time ? dayjs(consultation.meeting_time) : (consultation.expect_time ? dayjs(consultation.expect_time) : null),  // 优先加载 meeting_time（秘书提交的），没有则加载 expect_time
+          location: consultation.location || null,  // 加载会诊地点
         })
         
         // 自动同步 HIS 数据
@@ -303,7 +346,8 @@ export default function Apply() {
             summary: `患者${patient.name}，${patient.gender}，${patient.age}岁。主要诊断：${patient.mainDiagnosis}。`,
             type: consultation.type,
             urgency: consultation.urgency,
-            expectTime: consultation.expect_time ? dayjs(consultation.expect_time) : null,  // 字段名改为 expectTime
+            expectTime: consultation.meeting_time ? dayjs(consultation.meeting_time) : (consultation.expect_time ? dayjs(consultation.expect_time) : null),  // 优先加载 meeting_time（秘书提交的），没有则加载 expect_time
+            location: consultation.location || null,  // 加载会诊地点
           })
           
           setTimeout(() => {
@@ -329,7 +373,10 @@ export default function Apply() {
       dataIndex: 'name', 
       render: (t, record) => (
         <Space>
-          <a onClick={() => handlePatientSelect(record)}>{t}</a>
+          <a onClick={(e) => {
+            e.stopPropagation()
+            handlePatientSelect(record)
+          }}>{t}</a>
           <Tooltip title="查看患者 360 视图">
             <Button 
               type="link" 
@@ -521,6 +568,11 @@ export default function Apply() {
   })
 
   const handlePatientSelect = (patient: Patient) => {
+    // 防止重复点击
+    if (selectedPatient?.id === patient.id) {
+      return
+    }
+    
     setSelectedPatient(patient)
     setCurrentStep(1)
     
@@ -671,6 +723,11 @@ export default function Apply() {
 
   // HIS 数据同步
   const handleHISDataSync = async (patient?: Patient) => {
+    // 如果已经在同步中，直接返回，防止重复调用
+    if (hisSyncLoading) {
+      return
+    }
+    
     const targetPatient = patient || selectedPatient
     if (!targetPatient) {
       message.warning('请先选择患者')
@@ -768,15 +825,41 @@ export default function Apply() {
       const expectTime = form.getFieldValue('expectTime')
       console.log('直接获取 - urgency:', urgency, 'type:', type)
       
+      // 根据用户职位确定初始状态和审核流程
+      const isDirector = user?.position?.includes('主任') || user?.role === ROLE.DIRECTOR
+      // isSecretary 已在组件顶层定义
+      
+      // 主任提交：状态直接设为待秘书审核，自动完成主任审批留痕
+      // 秘书提交：状态设为待专家确认，选的专家就是拟选专家
+      // 普通医生提交：状态设为待主任审核，需要主任审批流程
+      let initialStatus: string = CONSULTATION_STATUS.DIRECTOR_PENDING
+      let submitNodeName = '申请提交'
+      let autoDirectorApprove = false // 是否自动完成主任审批留痕
+      
+      if (isDirector) {
+        initialStatus = CONSULTATION_STATUS.SECRETARY_PENDING // 主任提交直接到秘书审核
+        submitNodeName = '主任提交'
+        autoDirectorApprove = true // 主任提交时自动留痕主任审批记录
+      } else if (isSecretary) {
+        initialStatus = CONSULTATION_STATUS.EXPERT_PENDING // 秘书提交直接到待专家确认
+        submitNodeName = '秘书提交'
+      } else {
+        initialStatus = CONSULTATION_STATUS.DIRECTOR_PENDING
+        submitNodeName = '申请提交'
+      }
+      
       const consultationId = searchParams.get('id') // 检查是否是编辑驳回的申请
+      const location = form.getFieldValue('location')
       
       if (consultationId) {
         // 更新驳回的申请
         const updateData = {
-          status: CONSULTATION_STATUS.DOCTOR_SUBMIT,
+          status: initialStatus,
           urgency: urgency,
           type: type,
-          expect_time: expectTime ? expectTime.toISOString() : null,
+          expect_time: expectTime ? expectTime.toISOString() : null, // 期望时间（秘书提交时也填写）
+          meeting_time: isSecretary ? (expectTime ? expectTime.toISOString() : null) : null, // 秘书提交时填写会诊时间
+          location: location || null,
           reject_reason: null,
           updated_at: new Date().toISOString(),
         }
@@ -843,20 +926,25 @@ export default function Apply() {
           }
         }
         
+        // 获取会诊地点
+        const location = form.getFieldValue('location')
+        
         const insertData = {
           patient_id: selectedPatient?.id,
           patient_name: selectedPatient?.name,
           patient_inpatient_no: selectedPatient?.inpatientNo,
           type: type, // 使用直接从 form 获取的值
-          status: CONSULTATION_STATUS.DOCTOR_SUBMIT,
+          status: initialStatus, // 使用根据角色计算的初始状态
           urgency: urgency, // 使用直接从 form 获取的值
           department: doctorDepartment, // 使用申请医生的科室
           apply_doctor: user?.name,
           apply_doctor_id: user?.id,  // 添加申请医生 ID
           main_diagnosis: selectedPatient?.mainDiagnosis,
           apply_time: new Date().toISOString(),
-          expect_time: expectTime ? expectTime.toISOString() : null, // 使用直接从 form 获取的值
-          source: 'doctor',
+          expect_time: isSecretary ? null : (expectTime ? expectTime.toISOString() : null), // 期望时间（仅医生/主任提交时填写）
+          meeting_time: isSecretary ? (expectTime ? expectTime.toISOString() : null) : null, // 会诊时间（仅秘书提交时填写）
+          location: location || null, // 会诊地点（仅秘书提交时填写）
+          source: isSecretary ? 'secretary' : 'doctor', // 秘书提交时设置 source 为 secretary
           consultation_code: consultationCode,
           summary: summary, // 病情摘要
           medical_records: medicalRecords, // 病历资料
@@ -959,40 +1047,80 @@ export default function Apply() {
         
         const consultationId = data[0].id
         
-        // 插入第一条审核历史记录（申请医生提交）
-        const auditInsert: {
-          consultation_id: string
-          operator?: string
-          operator_id?: string
-          operator_role: string
-          node: string
-          result: string
-          time: string
-        } = {
+        // 构建审核历史记录数组
+        const auditInserts: any[] = []
+        
+        // 第一条：提交记录
+        const submitAudit: any = {
           consultation_id: consultationId,
           operator: user?.name,
-          operator_role: user?.role || '申请医生',
-          node: '申请提交',
+          operator_role: isDirector ? ROLE.DIRECTOR : (isSecretary ? ROLE.SECRETARY : (user?.role || '申请医生')),
+          node: submitNodeName,
           result: '已提交',
           time: new Date().toISOString(),
         }
         
         // 如果用户有 ID 且是 UUID 格式，才添加 operator_id
         if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
-          auditInsert.operator_id = user.id
+          submitAudit.operator_id = user.id
         }
         
+        auditInserts.push(submitAudit)
+        
+        // 如果是主任提交，自动添加主任审批记录（留痕）
+        if (autoDirectorApprove) {
+          const directorApproveAudit: any = {
+            consultation_id: consultationId,
+            operator: user?.name,
+            operator_role: ROLE.DIRECTOR,
+            node: '主任审批',
+            operator_type: 'approved',
+            result: '通过',
+            opinion: '同意',
+            time: new Date().toISOString(),
+            next_node: '秘书审核'
+          }
+          
+          if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+            directorApproveAudit.operator_id = user.id
+          }
+          
+          auditInserts.push(directorApproveAudit)
+        }
+        
+        // 如果是秘书提交，添加秘书审核记录（直接通过并指派专家）
+        if (isSecretary) {
+          const secretaryAudit: any = {
+            consultation_id: consultationId,
+            operator: user?.name,
+            operator_role: ROLE.SECRETARY,
+            node: '秘书审核',
+            operator_type: '通过',
+            result: '通过',
+            opinion: '已指派专家，待专家确认',
+            time: new Date().toISOString(),
+            next_node: '待专家确认'
+          }
+          
+          if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+            secretaryAudit.operator_id = user.id
+          }
+          
+          auditInserts.push(secretaryAudit)
+        }
+        
+        // 批量插入审核历史记录
         await supabase
           .from('audit_history')
-          .insert(auditInsert)
+          .insert(auditInserts)
         
-        // 如果有选择专家，尝试插入会诊专家记录
+        // 如果有选择专家，插入会诊专家记录
         if (selectedExperts && selectedExperts.length > 0) {
           const expertInserts = selectedExperts.map(expert => ({
             consultation_id: consultationId,
             expert_id: expert.id,
-            status: 'pending',
-            invited_by: 'doctor',
+            status: 'pending_meeting', // 待专家确认
+            invited_by: isSecretary ? 'secretary' : 'doctor', // 秘书指派或医生邀请
           }))
           
           const { error: expertError } = await supabase
@@ -1052,25 +1180,32 @@ export default function Apply() {
             }
           }
 
-          // 查询主任医生角色的用户
-          const { data: directors } = await supabase
-            .from('users')
-            .select('id')
-            .eq('role', ROLE.DIRECTOR)
-            .limit(1)
-            .returns<{ id: string }[]>()
+          // 3. 查询所有主任医生角色的用户（通过 user_roles 表关联）
+          const { data: roleData } = await supabase.from('roles').select('id').eq('code', 'DIRECTOR').single()
+          console.log('主任角色 ID:', roleData)
+          
+          const { data: directorUsers, error: directorUsersError } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role_id', roleData?.id)
 
-          if (directors && directors.length > 0) {
-            await sendSystemNotification(
-              directors[0].id,
-              'info',
-              '新会诊申请',
-              `${user?.name || '医生'}提交了新的会诊申请，患者：${selectedPatient?.name}`,
-              {
-                label: '确认',
-                url: `/consultation/director-confirm`,
-              }
-            )
+          console.log('主任用户列表:', { directorUsers, error: directorUsersError })
+
+          if (directorUsers && directorUsers.length > 0) {
+            // 给每个主任发送通知
+            for (const directorUser of directorUsers) {
+              console.log('发送通知给主任:', directorUser.user_id)
+              await sendSystemNotification(
+                directorUser.user_id,
+                'info',
+                '新会诊申请',
+                `${user?.name || '医生'}提交了新的会诊申请，患者：${selectedPatient?.name}`,
+                {
+                  label: '确认',
+                  url: `/consultation/director-confirm`,
+                }
+              )
+            }
           }
         } catch (notificationError) {
           console.error('发送通知失败:', notificationError)
@@ -1192,16 +1327,30 @@ export default function Apply() {
 
       <div className="mb-4">
         <Card className="mb-2" bodyStyle={{ padding: '12px 24px' }}>
-          <Steps
-            current={currentStep}
-            size="small"
-            items={[
-              { title: '选择患者', icon: <UserOutlined /> },
-              { title: '填写信息', icon: <FileProtectOutlined /> },
-              { title: '选择专家', icon: <TeamOutlined /> },
-              { title: '确认提交', icon: <CheckCircleOutlined /> },
-            ]}
-          />
+          {isSecretary ? (
+            // 秘书快速申请模式
+            <Steps
+              current={currentStep}
+              size="small"
+              items={[
+                { title: '选择患者', icon: <UserOutlined /> },
+                { title: '填写信息', icon: <FileProtectOutlined /> },
+                { title: '确认提交', icon: <CheckCircleOutlined /> },
+              ]}
+            />
+          ) : (
+            // 医生/主任标准申请模式
+            <Steps
+              current={currentStep}
+              size="small"
+              items={[
+                { title: '选择患者', icon: <UserOutlined /> },
+                { title: '填写信息', icon: <FileProtectOutlined /> },
+                { title: '选择专家', icon: <TeamOutlined /> },
+                { title: '确认提交', icon: <CheckCircleOutlined /> },
+              ]}
+            />
+          )}
         </Card>
         {currentStep === 0 && (
           <Alert
@@ -1226,12 +1375,12 @@ export default function Apply() {
                   onChange={(e) => setSearchText(e.target.value)}
                 />
                 <Select
-                  placeholder="筛选科室"
+                  placeholder={user?.department ? `默认：${user.department}` : '筛选科室'}
                   allowClear
-                  style={{ width: 150 }}
+                  style={{ width: 180 }}
                   value={departmentFilter || undefined}
                   onChange={(v) => setDepartmentFilter(v || '')}
-                  options={Array.from(new Set(mockPatients.map(p => p.department))).map(d => ({ value: d, label: d }))}
+                  options={allDepartments.map(d => ({ value: d, label: d }))}
                 />
                 <Select
                   placeholder="AI 预判"
@@ -1262,8 +1411,12 @@ export default function Apply() {
             rowKey="id"
             columns={patientColumns}
             dataSource={filteredPatients}
+            loading={patientsLoading}
             onRow={(record) => ({
-              onClick: () => handlePatientSelect(record)
+              onClick: (e) => {
+                e.stopPropagation()
+                handlePatientSelect(record)
+              }
             })}
             pagination={{ pageSize: 10, showSizeChanger: true }}
           />
@@ -1302,8 +1455,40 @@ export default function Apply() {
                       ]} />
                     </Form.Item>
                   </Col>
-                  <Col span={8}>
-                    <Form.Item label="期望会诊时间" name="expectTime">
+                  {isSecretary && (
+                    <Col span={8}>
+                      <Form.Item label="会诊地点" name="location">
+                        <Select 
+                          placeholder="请选择会诊地点"
+                          allowClear
+                          showSearch
+                          options={meetingRooms.map(room => ({
+                            value: room.name,
+                            label: room.name,
+                          }))}
+                          filterOption={(input, option) =>
+                            (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                          }
+                        />
+                      </Form.Item>
+                    </Col>
+                  )}
+                  <Col span={24}>
+                    <Form.Item 
+                      label={isSecretary ? "会诊时间" : "期望会诊时间"} 
+                      name="expectTime"
+                      rules={[
+                        { 
+                          required: isSecretary, 
+                          message: isSecretary ? '请选择会诊时间' : '请选择期望会诊时间',
+                          type: 'object',
+                          transform: (value) => {
+                            if (!value) return value;
+                            return dayjs.isDayjs(value) ? value : dayjs(value);
+                          }
+                        }
+                      ]}
+                    >
                       <DatePicker showTime className="!w-full" />
                     </Form.Item>
                   </Col>
@@ -1360,15 +1545,268 @@ export default function Apply() {
               />
             </Card>
 
+            {/* 秘书快速申请模式：在步骤 1 就选择专家 */}
+            {isSecretary && (
+              <Card title="邀请会诊专家（快速申请）">
+                <Alert
+                  type="info"
+                  message="秘书快速申请"
+                  description="请选择拟邀请的专家，提交后专家将直接进入待确认状态。"
+                  showIcon
+                  className="mb-4"
+                />
+                
+                <div className="mb-4 flex justify-between items-center">
+                  <div className="flex gap-4">
+                    <Input.Search placeholder="按科室/职称筛选专家" allowClear style={{ width: 250 }} />
+                    <Select placeholder="按科室" allowClear style={{ width: 150 }}>
+                      {Array.from(new Set(expertsData.map(e => e.department))).map(d => (
+                        <Select.Option key={d} value={d}>{d}</Select.Option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+                
+                <Table
+                  rowKey="id"
+                  dataSource={expertsData}
+                  pagination={{
+                    pageSize: 5,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 位专家`,
+                  }}
+                  scroll={{ y: 400 }}
+                  columns={[
+                    {
+                      title: '专家',
+                      key: 'expert',
+                      width: 300,
+                      render: (_, expert) => (
+                        <Space>
+                          <Avatar className="!bg-medical-blue" size={48}>{expert.name[0]}</Avatar>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Text strong className="text-base">{expert.name}</Text>
+                              {expert.rating && expert.rating >= 4.8 && (
+                                <StarFilled className="text-yellow-400 text-sm" />
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {expert.department} · {expert.title}
+                            </div>
+                          </div>
+                        </Space>
+                      ),
+                    },
+                    {
+                      title: '专长',
+                      dataIndex: 'specialty',
+                      key: 'specialty',
+                      ellipsis: true,
+                      width: 250,
+                    },
+                    {
+                      title: '操作',
+                      key: 'action',
+                      width: 100,
+                      render: (_, expert) => (
+                        <Button
+                          type={selectedExperts.find(e => e.id === expert.id) ? 'primary' : 'default'}
+                          size="small"
+                          onClick={() => {
+                            if (selectedExperts.find(e => e.id === expert.id)) {
+                              setSelectedExperts(selectedExperts.filter(e => e.id !== expert.id))
+                            } else {
+                              setSelectedExperts([...selectedExperts, expert])
+                            }
+                          }}
+                        >
+                          {selectedExperts.find(e => e.id === expert.id) ? '已选' : '选择'}
+                        </Button>
+                      ),
+                    },
+                  ]}
+                />
+                
+                {selectedExperts.length > 0 && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+                    <Text strong>已选专家 ({selectedExperts.length}位)：</Text>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedExperts.map(expert => (
+                        <Tag key={expert.id} color="blue" closable onClose={() => {
+                          setSelectedExperts(selectedExperts.filter(e => e.id !== expert.id))
+                        }}>
+                          {expert.name} - {expert.department}
+                        </Tag>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
+
             <div className="flex justify-between">
               <Button onClick={() => setCurrentStep(0)}>上一步</Button>
-              <Button type="primary" onClick={() => setCurrentStep(2)}>下一步</Button>
+              {isSecretary ? (
+                <Button type="primary" onClick={() => setCurrentStep(2)}>下一步：确认提交</Button>
+              ) : (
+                <Button type="primary" onClick={() => setCurrentStep(2)}>下一步：选择专家</Button>
+              )}
             </div>
           </div>
         )}
 
+      {/* 步骤 2：秘书模式显示确认提交，医生/主任模式显示选择专家 */}
       {currentStep === 2 && selectedPatient && (
-        <Card title="邀请会诊专家">
+        <>
+          {isSecretary ? (
+            // 秘书快速申请：步骤 2 直接确认提交
+            <Card 
+              title={
+                <Space>
+                  <CheckCircleOutlined className="text-green-500" />
+                  <span>确认提交</span>
+                </Space>
+              }
+            >
+              <div className="space-y-4">
+                {/* 患者信息 */}
+                <Card 
+                  type="inner" 
+                  title={
+                    <Space>
+                      <UserOutlined />
+                      <span>患者信息</span>
+                    </Space>
+                  }
+                  size="small"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Text type="secondary" className="text-xs">姓名：</Text>
+                      <Text strong>{selectedPatient?.name}</Text>
+                    </div>
+                    <div>
+                      <Text type="secondary" className="text-xs">住院号：</Text>
+                      <Text strong>{selectedPatient?.inpatientNo}</Text>
+                    </div>
+                    <div>
+                      <Text type="secondary" className="text-xs">科室：</Text>
+                      <Text>{selectedPatient?.department}</Text>
+                    </div>
+                    <div>
+                      <Text type="secondary" className="text-xs">诊断：</Text>
+                      <Text ellipsis>{selectedPatient?.mainDiagnosis}</Text>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* 会诊信息 */}
+                <Card 
+                  type="inner" 
+                  title={
+                    <Space>
+                      <FileTextOutlined />
+                      <span>会诊信息</span>
+                    </Space>
+                  }
+                  size="small"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Text type="secondary" className="text-xs">会诊类型：</Text>
+                      <Tag>{getConsultationTypeName(form.getFieldValue('type') || 'inhospital')}</Tag>
+                    </div>
+                    <div>
+                      <Text type="secondary" className="text-xs">紧急程度：</Text>
+                      <Tag color={getUrgencyColor(form.getFieldValue('urgency') || 'normal')}>
+                        {getUrgencyName(form.getFieldValue('urgency') || 'normal')}
+                      </Tag>
+                    </div>
+                    <div className="col-span-2">
+                      <Text type="secondary" className="text-xs">期望会诊时间：</Text>
+                      <Text strong>
+                        {form.getFieldValue('expectTime') ? 
+                          form.getFieldValue('expectTime').format('YYYY-MM-DD HH:mm') : 
+                          <Text type="warning">未设置</Text>
+                        }
+                      </Text>
+                    </div>
+                    <div className="col-span-2">
+                      <Text type="secondary" className="text-xs">病情摘要：</Text>
+                      <div className="mt-1 p-3 bg-gray-50 rounded border border-gray-200">
+                        <Text className="text-sm">{form.getFieldValue('summary') || '无'}</Text>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* 已选专家 */}
+                {selectedExperts.length > 0 && (
+                  <Card 
+                    type="inner" 
+                    title={
+                      <Space>
+                        <TeamOutlined />
+                        <span>拟邀专家（{selectedExperts.length}位）</span>
+                      </Space>
+                    }
+                    size="small"
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      {selectedExperts.map(expert => (
+                        <Tag key={expert.id} color="blue" className="text-sm">
+                          {expert.name} - {expert.department} - {expert.title}
+                        </Tag>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+
+                {/* 病历资料 */}
+                <Card 
+                  type="inner" 
+                  title={
+                    <Space>
+                      <FileProtectOutlined />
+                      <span>病历资料</span>
+                    </Space>
+                  }
+                  size="small"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Text type="secondary" className="text-xs">上传文件：</Text>
+                      <Text>{uploadedFiles.length} 个</Text>
+                    </div>
+                    <div>
+                      <Text type="secondary" className="text-xs">HIS 同步：</Text>
+                      {hisDataSynced ? (
+                        <Tag color="green">已同步</Tag>
+                      ) : (
+                        <Tag>未同步</Tag>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+
+                <div className="flex justify-between mt-4">
+                  <Button onClick={() => setCurrentStep(1)}>上一步</Button>
+                  <Button 
+                    type="primary" 
+                    onClick={handleSubmit}
+                    loading={submitting}
+                    disabled={selectedExperts.length === 0}
+                  >
+                    确认提交
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            // 医生/主任标准申请：步骤 2 选择专家
+            <Card title="邀请会诊专家">
           <div className="mb-4 flex justify-between items-center">
             <div className="flex gap-4">
               <Input.Search placeholder="按科室/职称筛选专家" allowClear style={{ width: 250 }} />
@@ -1621,6 +2059,8 @@ export default function Apply() {
             </Button>
           </div>
         </Card>
+        )}
+        </>
       )}
 
       {currentStep === 3 && selectedPatient && (
@@ -1692,8 +2132,16 @@ export default function Apply() {
                     {getUrgencyName(form.getFieldValue('urgency'))}
                   </Tag>
                 </div>
+                {isSecretary && (
+                  <div className="col-span-2">
+                    <Text type="secondary" className="text-xs">会诊地点：</Text>
+                    <Text strong className="text-base">
+                      {form.getFieldValue('location') || <Text type="warning">未设置</Text>}
+                    </Text>
+                  </div>
+                )}
                 <div className="col-span-2">
-                  <Text type="secondary" className="text-xs">期望会诊时间：</Text>
+                  <Text type="secondary" className="text-xs">{isSecretary ? "会诊时间：" : "期望会诊时间："}</Text>
                   <Text strong className="text-base">
                     {form.getFieldValue('expectTime') ? 
                       form.getFieldValue('expectTime').format('YYYY-MM-DD HH:mm') : 
