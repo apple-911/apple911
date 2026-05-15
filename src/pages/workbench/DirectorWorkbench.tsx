@@ -36,7 +36,6 @@ interface MyApplication {
   expectTime: string
   diagnosis: string
   expertCount: number
-  status: string
   directorAuditStatus?: string // 主任审批状态
 }
 
@@ -176,7 +175,6 @@ export default function DirectorWorkbench() {
           expectTime: item.expect_time ? dayjs(item.expect_time).format('YYYY-MM-DD HH:mm') : '-',
           diagnosis: item.main_diagnosis,
           expertCount: item.experts ? JSON.parse(item.experts).length : 0,
-          status: getConsultationStatusName(item.status) || item.status,
           directorAuditStatus,
         }
       })
@@ -386,45 +384,6 @@ export default function DirectorWorkbench() {
           '待审核': 'orange',
           '已通过': 'green',
           '已驳回': 'red',
-        }
-        return <Tag color={colors[status] || 'default'}>{status}</Tag>
-      },
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status) => {
-        const colors: Record<string, string> = {
-          'doctor_submit': 'blue',
-          'director_pending': 'orange',
-          'director_rejected': 'red',
-          'secretary_pending': 'purple',
-          'pending_supplement': 'orange',
-          'material_rejected': 'orange',
-          'scheduled': 'blue',
-          'expert_confirmed': 'cyan',
-          'pending_meeting': 'blue',
-          'in_progress': 'processing',
-          'completed': 'green',
-          'archived': 'green',
-          'rejected': 'red',
-          'cancelled': 'default',
-          '医生提交': 'blue',
-          '待主任审核': 'orange',
-          '主任驳回': 'red',
-          '秘书审核': 'purple',
-          '待补正': 'orange',
-          '退回修改': 'orange',
-          '已排期': 'blue',
-          '专家确认': 'cyan',
-          '待会诊': 'blue',
-          '会诊中': 'processing',
-          '已完成': 'green',
-          '已归档': 'green',
-          '秘书驳回': 'red',
-          '已取消': 'default',
         }
         return <Tag color={colors[status] || 'default'}>{status}</Tag>
       },
