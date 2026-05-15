@@ -22,6 +22,8 @@ interface PendingReview {
   urgency: string
   applicant: string
   applyTime: string
+  status: string
+  directorAuditStatus?: string // 主任审批状态
 }
 
 interface MyApplication {
@@ -35,13 +37,14 @@ interface MyApplication {
   diagnosis: string
   expertCount: number
   status: string
+  directorAuditStatus?: string // 主任审批状态
 }
 
 export default function DirectorWorkbench() {
   const navigate = useNavigate()
   const { user } = useAppStore()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ pending: 0, urgent: 0, approved: 0 })
+  const [stats, setStats] = useState({ pending: 0, urgent: 0, approved: 0, myApplications: 0 })
   const [pendingList, setPendingList] = useState<PendingReview[]>([])
   const [applications, setApplications] = useState<MyApplication[]>([])
   const [auditModalVisible, setAuditModalVisible] = useState(false)
@@ -141,28 +144,42 @@ export default function DirectorWorkbench() {
         urgency: item.urgency || item.urgency_level || 'normal',
         applicant: item.apply_doctor,
         applyTime: item.apply_time,
+        status: item.status,
+        directorAuditStatus: '待审核', // 待审核列表中的都是待审核状态
       }))
       setPendingList(pendingReviews)
       setStats({
         pending: filteredConsultations.length || 0,
         urgent: filteredConsultations.filter((c: any) => c.urgency === 'urgent' || c.urgency === 'critical').length || 0,
         approved: 0,
+        myApplications: applicationResult.data?.length || 0,
       })
 
       // 处理我的申请列表
       if (applicationResult.error) throw applicationResult.error
-      const myApplications: MyApplication[] = (applicationResult.data || []).map((item: any) => ({
-        id: item.id,
-        consultationCode: item.consultation_code || item.id,
-        patientName: item.patient_name,
-        type: item.type === 'internal' ? '院内' : '院外',
-        urgency: getUrgencyName(item.urgency || item.urgency_level || 'normal'),
-        createTime: item.apply_time,
-        expectTime: item.expect_time ? dayjs(item.expect_time).format('YYYY-MM-DD HH:mm') : '-',
-        diagnosis: item.main_diagnosis,
-        expertCount: item.experts ? JSON.parse(item.experts).length : 0,
-        status: getConsultationStatusName(item.status) || item.status,
-      }))
+      const myApplications: MyApplication[] = (applicationResult.data || []).map((item: any) => {
+        // 判断主任审批状态
+        let directorAuditStatus = '待审核'
+        if (item.status === 'director_rejected') {
+          directorAuditStatus = '已驳回'
+        } else if (item.status === 'secretary_pending' || item.status === 'expert_pending' || item.status === 'scheduled') {
+          directorAuditStatus = '已通过'
+        }
+        
+        return {
+          id: item.id,
+          consultationCode: item.consultation_code || item.id,
+          patientName: item.patient_name,
+          type: item.type === 'internal' ? '院内' : '院外',
+          urgency: getUrgencyName(item.urgency || item.urgency_level || 'normal'),
+          createTime: item.apply_time,
+          expectTime: item.expect_time ? dayjs(item.expect_time).format('YYYY-MM-DD HH:mm') : '-',
+          diagnosis: item.main_diagnosis,
+          expertCount: item.experts ? JSON.parse(item.experts).length : 0,
+          status: getConsultationStatusName(item.status) || item.status,
+          directorAuditStatus,
+        }
+      })
       setApplications(myApplications)
 
     } catch (err) {
@@ -268,6 +285,16 @@ export default function DirectorWorkbench() {
         return <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px' }}>{name}</Tag>
       }
     },
+    {
+      title: '审批状态',
+      dataIndex: 'directorAuditStatus',
+      width: 100,
+      render: (status) => (
+        <Tag color="orange">
+          {status}
+        </Tag>
+      ),
+    },
     { title: '申请医生', dataIndex: 'applicant', width: 100 },
     { 
       title: '申请时间', 
@@ -350,6 +377,20 @@ export default function DirectorWorkbench() {
       ),
     },
     {
+      title: '审批状态',
+      dataIndex: 'directorAuditStatus',
+      key: 'directorAuditStatus',
+      width: 100,
+      render: (status) => {
+        const colors: Record<string, string> = {
+          '待审核': 'orange',
+          '已通过': 'green',
+          '已驳回': 'red',
+        }
+        return <Tag color={colors[status] || 'default'}>{status}</Tag>
+      },
+    },
+    {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
@@ -414,7 +455,7 @@ export default function DirectorWorkbench() {
 
         {/* 统计卡片 */}
         <Row gutter={16}>
-          <Col span={8}>
+          <Col span={6}>
             <Card>
               <Statistic 
                 title="待审核会诊" 
@@ -424,7 +465,7 @@ export default function DirectorWorkbench() {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Card>
               <Statistic 
                 title="紧急会诊" 
@@ -434,13 +475,23 @@ export default function DirectorWorkbench() {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Card>
               <Statistic 
                 title="已通过" 
                 value={stats.approved} 
                 prefix={<CheckCircleOutlined />}
                 valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic 
+                title="我的申请" 
+                value={stats.myApplications} 
+                prefix={<FileTextOutlined />}
+                valueStyle={{ color: '#722ed1' }}
               />
             </Card>
           </Col>
