@@ -279,28 +279,6 @@ export default function DirectorWorkbench() {
         const color = getUrgencyColor(level)
         const name = getUrgencyName(level) || urgency
         
-        if (level === 'critical') {
-          return (
-            <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px', fontWeight: 'bold', animation: 'pulse 1s infinite' }}>
-              <span className="flex items-center gap-1">
-                <AlertOutlined />
-                {name}
-              </span>
-            </Tag>
-          )
-        }
-        
-        if (level === 'urgent') {
-          return (
-            <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px', fontWeight: 'bold' }}>
-              <span className="flex items-center gap-1">
-                <ClockCircleOutlined />
-                {name}
-              </span>
-            </Tag>
-          )
-        }
-        
         return <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px' }}>{name}</Tag>
       }
     },
