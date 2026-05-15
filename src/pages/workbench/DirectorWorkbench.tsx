@@ -16,12 +16,15 @@ interface PendingReview {
   id: string
   consultationCode: string
   patientName: string
-  patientInpatientNo: string
-  department: string
+  patientInpatientNo?: string
+  department?: string
   diagnosis: string
+  type?: string
   urgency: string
   applicant: string
   applyTime: string
+  expectTime?: string
+  expertCount?: number
   status: string
   directorAuditStatus?: string // 主任审批状态
 }
@@ -140,9 +143,12 @@ export default function DirectorWorkbench() {
         patientInpatientNo: item.patient_inpatient_no,
         department: item.department,
         diagnosis: item.main_diagnosis,
+        type: item.type === 'internal' ? '院内' : '院外',
         urgency: item.urgency || item.urgency_level || 'normal',
         applicant: item.apply_doctor,
         applyTime: item.apply_time,
+        expectTime: item.expect_time ? dayjs(item.expect_time).format('YYYY-MM-DD HH:mm') : '-',
+        expertCount: item.experts ? JSON.parse(item.experts).length : 0,
         status: item.status,
         directorAuditStatus: '待审核', // 待审核列表中的都是待审核状态
       }))
@@ -234,14 +240,29 @@ export default function DirectorWorkbench() {
   }
 
   const columns: ColumnsType<PendingReview> = [
-    { title: '会诊编号', dataIndex: 'consultationCode', width: 130 },
-    { title: '患者姓名', dataIndex: 'patientName', width: 100 },
-    { title: '住院号', dataIndex: 'patientInpatientNo', width: 140 },
-    { title: '科室', dataIndex: 'department', width: 100 },
-    { title: '诊断', dataIndex: 'diagnosis', ellipsis: true },
+    {
+      title: '会诊 ID',
+      dataIndex: 'consultationCode',
+      key: 'consultationCode',
+      width: 120,
+      render: (code) => <Tag color="blue">{code || '-'}</Tag>,
+    },
+    { title: '患者姓名', dataIndex: 'patientName', key: 'patientName', width: 100 },
     { 
-      title: '紧急程度', 
+      title: '会诊类型', 
+      dataIndex: 'type', 
+      key: 'type', 
+      width: 100,
+      render: (t) => {
+        const type = t || '院内'
+        const color = type === '院内' || type === '院内会诊' ? 'blue' : 'green'
+        return <Tag color={color}>{type}</Tag> 
+      }
+    },
+    {
+      title: '紧急程度',
       dataIndex: 'urgency',
+      key: 'urgency',
       width: 100,
       render: (urgency) => {
         // 处理中文值映射为英文代码
@@ -283,9 +304,37 @@ export default function DirectorWorkbench() {
         return <Tag color={color} style={{ fontSize: '12px', padding: '2px 8px' }}>{name}</Tag>
       }
     },
+    { 
+      title: '申请时间', 
+      dataIndex: 'applyTime',
+      key: 'applyTime',
+      width: 150,
+      render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-',
+    },
+    { 
+      title: '期望时间', 
+      dataIndex: 'expectTime', 
+      key: 'expectTime', 
+      width: 150,
+      render: (t) => t && t !== '-' ? t : '-',
+    },
+    { title: '主要诊断', dataIndex: 'diagnosis', key: 'diagnosis', ellipsis: true, width: 200 },
+    {
+      title: '邀请专家',
+      dataIndex: 'expertCount',
+      key: 'expertCount',
+      width: 100,
+      render: (count) => (
+        <Space>
+          <TeamOutlined />
+          <span>{count || 0}位</span>
+        </Space>
+      ),
+    },
     {
       title: '审批状态',
       dataIndex: 'directorAuditStatus',
+      key: 'directorAuditStatus',
       width: 100,
       render: (status) => (
         <Tag color="orange">
@@ -293,13 +342,7 @@ export default function DirectorWorkbench() {
         </Tag>
       ),
     },
-    { title: '申请医生', dataIndex: 'applicant', width: 100 },
-    { 
-      title: '申请时间', 
-      dataIndex: 'applyTime',
-      width: 160,
-      render: (t) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
-    },
+    { title: '申请医生', dataIndex: 'applicant', key: 'applicant', width: 100 },
     {
       title: '操作',
       key: 'action',
