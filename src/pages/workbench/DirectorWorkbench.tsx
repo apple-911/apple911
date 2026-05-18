@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Table, Tag, Space, Typography, Button, message, Modal, Input, Spin, Statistic } from 'antd'
-import { AlertOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, EyeOutlined, FileTextOutlined, FireOutlined, TeamOutlined } from '@ant-design/icons'
+import { Card, Row, Col, Table, Tag, Space, Typography, Button, message, Modal, Input, Spin, Statistic, Select, DatePicker } from 'antd'
+import { AlertOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, EyeOutlined, FileTextOutlined, FireOutlined, TeamOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useAppStore } from '../../stores/appStore'
 import { supabase } from '../../lib/supabase'
 import type { ColumnsType } from 'antd/es/table'
@@ -11,6 +11,17 @@ import { CONSULTATION_STATUS, ROLE } from '../../utils/statusMapping'
 
 const { Title } = Typography
 const { TextArea } = Input
+const { Option } = Select
+
+interface Filters {
+  patientName: string
+  applicant: string
+  urgency: string
+  applyDateStart: dayjs.Dayjs | null
+  applyDateEnd: dayjs.Dayjs | null
+  status: string
+  type: string
+}
 
 interface PendingReview {
   id: string
@@ -56,6 +67,30 @@ export default function DirectorWorkbench() {
   const [auditLoading, setAuditLoading] = useState(false)
   const [auditAction, setAuditAction] = useState<'通过' | '拒绝'>('通过')
 
+  // 待审核筛选
+  const [pendingFilters, setPendingFilters] = useState<Filters>({
+    patientName: '',
+    applicant: '',
+    urgency: '',
+    applyDateStart: null,
+    applyDateEnd: null,
+    status: '',
+    type: '',
+  })
+  const [pendingFilterLoading, setPendingFilterLoading] = useState(false)
+
+  // 我的申请筛选
+  const [applicationFilters, setApplicationFilters] = useState<Filters>({
+    patientName: '',
+    applicant: '',
+    urgency: '',
+    applyDateStart: null,
+    applyDateEnd: null,
+    status: '',
+    type: '',
+  })
+  const [applicationFilterLoading, setApplicationFilterLoading] = useState(false)
+
   useEffect(() => {
     loadData()
   }, [])
@@ -64,31 +99,22 @@ export default function DirectorWorkbench() {
     try {
       setLoading(true)
       
-      // 获取当前主任所在的科室（通过 org_id 关联 organizations 表）
-      let directorDepartment = ''
-      if (user?.org_id) {
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .select('name')
-          .eq('id', user.org_id)
-          .maybeSingle()
-        
-        if (orgError) {
-          console.error('查询科室失败:', orgError)
-        } else if (orgData) {
-          directorDepartment = orgData.name || ''
-          console.log('查询到科室:', directorDepartment)
-        } else {
-          console.warn('未找到科室，org_id:', user.org_id)
-        }
-      } else {
-        console.warn('用户没有 org_id')
-      }
+      console.log('当前登录用户:', {
+        id: user?.id,
+        name: user?.name,
+        org_id: user?.org_id,
+        department: user?.department,
+        role: user?.role,
+        position: user?.position
+      })
       
-      console.log('主任所在科室:', directorDepartment)
+      // 获取当前主任所在的科室 org_id
+      let directorOrgId = user?.org_id || ''
+      
+      console.log('主任所在科室 org_id:', directorOrgId)
       console.log('查询条件:', { 
         status: CONSULTATION_STATUS.DOCTOR_SUBMIT,
-        department: directorDepartment,
+        department: directorOrgId,
         userRole: user?.role,
         userName: user?.name
       })
@@ -98,8 +124,8 @@ export default function DirectorWorkbench() {
         supabase
           .from('consultations')
           .select('*')
-          .eq('status', CONSULTATION_STATUS.DOCTOR_SUBMIT)
-          .eq('department', directorDepartment)
+          .eq('status', CONSULTATION_STATUS.DIRECTOR_PENDING)  // 查询待主任审核的会诊
+          .eq('department', directorOrgId)
           .order('urgency', { ascending: false })
           .order('apply_time', { ascending: false }),
         supabase
@@ -112,10 +138,17 @@ export default function DirectorWorkbench() {
       console.log('查询结果:', { 
         pendingCount: pendingResult.data?.length, 
         myCount: applicationResult.data?.length,
+        directorOrgId,
         pendingData: pendingResult.data?.map(c => ({ 
           patient: c.patient_name, 
           department: c.department, 
           status: c.status 
+        })),
+        allConsultations: pendingResult.data?.map(c => ({
+          patient: c.patient_name,
+          applyDoctor: c.apply_doctor,
+          department: c.department,
+          status: c.status
         }))
       })
 
@@ -130,11 +163,30 @@ export default function DirectorWorkbench() {
           if (c.director_id === user.id) return true
           
           // 2. 如果是同科室的主任，也能看到和审批
-          const consultationOrgId = c.department ? `org-${c.department.toLowerCase()}` : null
-          if (consultationOrgId === user.org_id) return true
+          if (c.department === user.org_id) return true
           
           return false
         })
+      }
+      
+      // 批量查询科室名称
+      const orgIds = new Set<string>()
+      filteredConsultations.forEach((c: any) => {
+        if (c.department) orgIds.add(c.department)
+      })
+      
+      const orgNameMap: Record<string, string> = {}
+      if (orgIds.size > 0) {
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('id, name')
+          .in('id', Array.from(orgIds))
+        
+        if (orgData) {
+          orgData.forEach(org => {
+            orgNameMap[org.id] = org.name
+          })
+        }
       }
       
       const pendingReviews: PendingReview[] = filteredConsultations.map((item: any) => ({
@@ -142,7 +194,7 @@ export default function DirectorWorkbench() {
         consultationCode: item.consultation_code || item.id,
         patientName: item.patient_name,
         patientInpatientNo: item.patient_inpatient_no,
-        department: item.department,
+        department: orgNameMap[item.department] || item.department, // 使用科室名称显示
         diagnosis: item.main_diagnosis,
         type: item.type === 'internal' ? '院内' : '院外',
         urgency: item.urgency || item.urgency_level || 'normal',
@@ -150,7 +202,7 @@ export default function DirectorWorkbench() {
         applyTime: item.apply_time,
         expectTime: item.expect_time ? dayjs(item.expect_time).format('YYYY-MM-DD HH:mm') : '-',
         expertCount: item.experts ? JSON.parse(item.experts).length : 0,
-        status: item.status,
+        status: getConsultationStatusName(item.status) || item.status, // 转换为中文
         directorAuditStatus: '待审核', // 待审核列表中的都是待审核状态
       }))
       setPendingList(pendingReviews)
@@ -182,7 +234,7 @@ export default function DirectorWorkbench() {
           expectTime: item.expect_time ? dayjs(item.expect_time).format('YYYY-MM-DD HH:mm') : '-',
           diagnosis: item.main_diagnosis,
           expertCount: item.experts ? JSON.parse(item.experts).length : 0,
-          status: item.status,
+          status: getConsultationStatusName(item.status) || item.status, // 转换为中文
           directorAuditStatus,
         }
       })
@@ -194,6 +246,118 @@ export default function DirectorWorkbench() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // 筛选待审核会诊
+  const filterPendingReviews = () => {
+    let filtered = [...pendingList]
+    
+    // 患者名称筛选
+    if (pendingFilters.patientName) {
+      filtered = filtered.filter(app => 
+        app.patientName.toLowerCase().includes(pendingFilters.patientName.toLowerCase())
+      )
+    }
+    
+    // 申请医生筛选
+    if (pendingFilters.applicant) {
+      filtered = filtered.filter(app => 
+        app.applicant.toLowerCase().includes(pendingFilters.applicant.toLowerCase())
+      )
+    }
+    
+    // 紧急程度筛选
+    if (pendingFilters.urgency) {
+      filtered = filtered.filter(app => app.urgency === pendingFilters.urgency)
+    }
+    
+    // 申请日期筛选
+    if (pendingFilters.applyDateStart) {
+      const startDate = pendingFilters.applyDateStart.startOf('day')
+      filtered = filtered.filter(app => 
+        dayjs(app.applyTime).isAfter(startDate) || dayjs(app.applyTime).isSame(startDate)
+      )
+    }
+    if (pendingFilters.applyDateEnd) {
+      const endDate = pendingFilters.applyDateEnd.endOf('day')
+      filtered = filtered.filter(app => 
+        dayjs(app.applyTime).isBefore(endDate) || dayjs(app.applyTime).isSame(endDate)
+      )
+    }
+    
+    // 审批状态筛选
+    if (pendingFilters.status) {
+      filtered = filtered.filter(app => app.status === pendingFilters.status)
+    }
+    
+    // 会诊类型筛选
+    if (pendingFilters.type) {
+      filtered = filtered.filter(app => app.type === pendingFilters.type)
+    }
+    
+    return filtered
+  }
+
+  const resetPendingFilters = () => {
+    setPendingFilters({
+      patientName: '',
+      applicant: '',
+      urgency: '',
+      applyDateStart: null,
+      applyDateEnd: null,
+      status: '',
+      type: '',
+    })
+  }
+
+  // 筛选我的申请
+  const filterApplications = () => {
+    let filtered = [...applications]
+    
+    // 患者名称筛选
+    if (applicationFilters.patientName) {
+      filtered = filtered.filter(app => 
+        app.patientName.toLowerCase().includes(applicationFilters.patientName.toLowerCase())
+      )
+    }
+    
+    // 紧急程度筛选
+    if (applicationFilters.urgency) {
+      filtered = filtered.filter(app => app.urgency === applicationFilters.urgency)
+    }
+    
+    // 申请日期筛选
+    if (applicationFilters.applyDateStart) {
+      const startDate = applicationFilters.applyDateStart.startOf('day')
+      filtered = filtered.filter(app => 
+        dayjs(app.createTime).isAfter(startDate) || dayjs(app.createTime).isSame(startDate)
+      )
+    }
+    if (applicationFilters.applyDateEnd) {
+      const endDate = applicationFilters.applyDateEnd.endOf('day')
+      filtered = filtered.filter(app => 
+        dayjs(app.createTime).isBefore(endDate) || dayjs(app.createTime).isSame(endDate)
+      )
+    }
+    
+    // 会诊类型筛选
+    if (applicationFilters.type) {
+      filtered = filtered.filter(app => app.type === applicationFilters.type)
+    }
+    
+    return filtered
+  }
+
+  const resetApplicationFilters = () => {
+    setApplicationFilters({
+      patientName: '',
+      applicant: '',
+      urgency: '',
+      applyDateStart: null,
+      applyDateEnd: null,
+      status: '',
+      type: '',
+    })
   }
 
   const handleApprove = (consultation: any) => {
@@ -313,14 +477,28 @@ export default function DirectorWorkbench() {
     },
     {
       title: '审批状态',
-      dataIndex: 'directorAuditStatus',
-      key: 'directorAuditStatus',
+      dataIndex: 'status',
+      key: 'status',
       width: 100,
-      render: (status) => (
-        <Tag color="orange">
-          {status}
-        </Tag>
-      ),
+      render: (status) => {
+        const colors: Record<string, string> = {
+          '医生提交': 'blue',
+          '待主任审核': 'orange',
+          '主任驳回': 'red',
+          '秘书审核': 'purple',
+          '待补正': 'orange',
+          '退回修改': 'orange',
+          '已排期': 'blue',
+          '专家确认': 'cyan',
+          '待会诊': 'blue',
+          '会诊中': 'processing',
+          '已完成': 'green',
+          '已归档': 'green',
+          '秘书驳回': 'red',
+          '已取消': 'default',
+        }
+        return <Tag color={colors[status] || 'default'}>{status}</Tag>
+      },
     },
     { title: '申请医生', dataIndex: 'applicant', key: 'applicant', width: 100 },
     {
@@ -404,20 +582,6 @@ export default function DirectorWorkbench() {
       width: 100,
       render: (status) => {
         const colors: Record<string, string> = {
-          'doctor_submit': 'blue',
-          'director_pending': 'orange',
-          'director_rejected': 'red',
-          'secretary_pending': 'purple',
-          'pending_supplement': 'orange',
-          'material_rejected': 'orange',
-          'scheduled': 'blue',
-          'expert_confirmed': 'cyan',
-          'pending_meeting': 'blue',
-          'in_progress': 'processing',
-          'completed': 'green',
-          'archived': 'green',
-          'rejected': 'red',
-          'cancelled': 'default',
           '医生提交': 'blue',
           '待主任审核': 'orange',
           '主任驳回': 'red',
@@ -506,12 +670,118 @@ export default function DirectorWorkbench() {
 
         {/* 待审核列表 */}
         <Card title="待科室审核会诊">
+          {/* 筛选器 */}
+          <div className="mb-4 p-4 bg-gray-50 rounded">
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Row gutter={[16, 16]}>
+                <Col span={4}>
+                  <Input
+                    placeholder="患者名称"
+                    value={pendingFilters.patientName}
+                    onChange={(e) => setPendingFilters({ ...pendingFilters, patientName: e.target.value })}
+                    prefix={<SearchOutlined />}
+                    allowClear
+                  />
+                </Col>
+                <Col span={3}>
+                  <Input
+                    placeholder="申请医生"
+                    value={pendingFilters.applicant}
+                    onChange={(e) => setPendingFilters({ ...pendingFilters, applicant: e.target.value })}
+                    prefix={<SearchOutlined />}
+                    allowClear
+                  />
+                </Col>
+                <Col span={3}>
+                  <Select
+                    placeholder="紧急程度"
+                    value={pendingFilters.urgency || undefined}
+                    onChange={(value) => setPendingFilters({ ...pendingFilters, urgency: value })}
+                    allowClear
+                    style={{ width: '100%' }}
+                  >
+                    <Option value="危急">危急</Option>
+                    <Option value="紧急">紧急</Option>
+                    <Option value="普通">普通</Option>
+                  </Select>
+                </Col>
+                <Col span={6}>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <DatePicker
+                      value={pendingFilters.applyDateStart}
+                      onChange={(date) => setPendingFilters({ ...pendingFilters, applyDateStart: date })}
+                      placeholder="开始日期"
+                      style={{ width: '50%' }}
+                    />
+                    <span className="px-2 text-gray-400">-</span>
+                    <DatePicker
+                      value={pendingFilters.applyDateEnd}
+                      onChange={(date) => setPendingFilters({ ...pendingFilters, applyDateEnd: date })}
+                      placeholder="结束日期"
+                      style={{ width: '50%' }}
+                    />
+                  </Space.Compact>
+                </Col>
+                <Col span={3}>
+                  <Select
+                    placeholder="审批状态"
+                    value={pendingFilters.status || undefined}
+                    onChange={(value) => setPendingFilters({ ...pendingFilters, status: value })}
+                    allowClear
+                    style={{ width: '100%' }}
+                  >
+                    <Option value="医生提交">医生提交</Option>
+                    <Option value="待主任审核">待主任审核</Option>
+                    <Option value="主任通过">主任通过</Option>
+                    <Option value="主任驳回">主任驳回</Option>
+                    <Option value="秘书审核">秘书审核</Option>
+                    <Option value="待补正">待补正</Option>
+                    <Option value="已排期">已排期</Option>
+                    <Option value="会诊中">会诊中</Option>
+                    <Option value="已完成">已完成</Option>
+                  </Select>
+                </Col>
+                <Col span={3}>
+                  <Select
+                    placeholder="会诊类型"
+                    value={pendingFilters.type || undefined}
+                    onChange={(value) => setPendingFilters({ ...pendingFilters, type: value })}
+                    allowClear
+                    style={{ width: '100%' }}
+                  >
+                    <Option value="院内">院内</Option>
+                    <Option value="院外">院外</Option>
+                  </Select>
+                </Col>
+                <Col span={2}>
+                  <Space>
+                    <Button 
+                      type="primary" 
+                      icon={<SearchOutlined />}
+                      onClick={() => loadData()}
+                    >
+                      查询
+                    </Button>
+                    <Button 
+                      icon={<ReloadOutlined />}
+                      onClick={resetPendingFilters}
+                    >
+                      重置
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+            </Space>
+          </div>
+
+          {/* 待审核列表表格 */}
           <Table
             columns={columns}
-            dataSource={pendingList}
+            dataSource={filterPendingReviews()}
             rowKey="id"
             pagination={false}
-            scroll={{ x: 1000 }}
+            scroll={{ x: 1400 }}
+            loading={pendingFilterLoading}
           />
         </Card>
 
@@ -529,12 +799,90 @@ export default function DirectorWorkbench() {
             </Button>
           }
         >
+          {/* 筛选器 */}
+          <div className="mb-4 p-4 bg-gray-50 rounded">
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Row gutter={[16, 16]}>
+                <Col span={4}>
+                  <Input
+                    placeholder="患者名称"
+                    value={applicationFilters.patientName}
+                    onChange={(e) => setApplicationFilters({ ...applicationFilters, patientName: e.target.value })}
+                    prefix={<SearchOutlined />}
+                    allowClear
+                  />
+                </Col>
+                <Col span={3}>
+                  <Select
+                    placeholder="紧急程度"
+                    value={applicationFilters.urgency || undefined}
+                    onChange={(value) => setApplicationFilters({ ...applicationFilters, urgency: value })}
+                    allowClear
+                    style={{ width: '100%' }}
+                  >
+                    <Option value="危急">危急</Option>
+                    <Option value="紧急">紧急</Option>
+                    <Option value="普通">普通</Option>
+                  </Select>
+                </Col>
+                <Col span={6}>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <DatePicker
+                      value={applicationFilters.applyDateStart}
+                      onChange={(date) => setApplicationFilters({ ...applicationFilters, applyDateStart: date })}
+                      placeholder="申请日期"
+                      style={{ width: '50%' }}
+                    />
+                    <span className="px-2 text-gray-400">-</span>
+                    <DatePicker
+                      value={applicationFilters.applyDateEnd}
+                      onChange={(date) => setApplicationFilters({ ...applicationFilters, applyDateEnd: date })}
+                      placeholder="申请日期"
+                      style={{ width: '50%' }}
+                    />
+                  </Space.Compact>
+                </Col>
+                <Col span={3}>
+                  <Select
+                    placeholder="会诊类型"
+                    value={applicationFilters.type || undefined}
+                    onChange={(value) => setApplicationFilters({ ...applicationFilters, type: value })}
+                    allowClear
+                    style={{ width: '100%' }}
+                  >
+                    <Option value="院内">院内</Option>
+                    <Option value="院外">院外</Option>
+                  </Select>
+                </Col>
+                <Col span={8}>
+                  <Space>
+                    <Button 
+                      type="primary" 
+                      icon={<SearchOutlined />}
+                      onClick={() => loadData()}
+                    >
+                      查询
+                    </Button>
+                    <Button 
+                      icon={<ReloadOutlined />}
+                      onClick={resetApplicationFilters}
+                    >
+                      重置
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+            </Space>
+          </div>
+
+          {/* 我的申请列表表格 */}
           <Table
             columns={applicationColumns}
-            dataSource={applications}
+            dataSource={filterApplications()}
             rowKey="id"
             pagination={false}
             scroll={{ x: 1200 }}
+            loading={applicationFilterLoading}
           />
         </Card>
 
